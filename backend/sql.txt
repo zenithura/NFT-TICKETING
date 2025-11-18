@@ -1,0 +1,187 @@
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.allowlist (
+  allowlist_id integer NOT NULL DEFAULT nextval('allowlist_allowlist_id_seq'::regclass),
+  wallet_id integer NOT NULL,
+  event_id integer NOT NULL,
+  verification_method character varying CHECK (verification_method::text = ANY (ARRAY['KYC'::character varying, 'WHITELIST'::character varying, 'PRESALE'::character varying, 'INVITATION'::character varying]::text[])),
+  verification_data jsonb,
+  approved_by character varying,
+  approved_at timestamp without time zone,
+  expires_at timestamp without time zone,
+  created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT allowlist_pkey PRIMARY KEY (allowlist_id),
+  CONSTRAINT fk_allowlist_wallet FOREIGN KEY (wallet_id) REFERENCES public.wallets(wallet_id),
+  CONSTRAINT fk_allowlist_event FOREIGN KEY (event_id) REFERENCES public.events(event_id)
+);
+CREATE TABLE public.bot_detection (
+  detection_id bigint NOT NULL DEFAULT nextval('bot_detection_detection_id_seq'::regclass),
+  wallet_id bigint NOT NULL,
+  activity_type USER-DEFINED NOT NULL,
+  risk_score numeric CHECK (risk_score >= 0::numeric AND risk_score <= 100::numeric),
+  pattern_matched character varying,
+  action_taken USER-DEFINED NOT NULL DEFAULT 'ALLOWED'::action_taken,
+  details json,
+  detected_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT bot_detection_pkey PRIMARY KEY (detection_id),
+  CONSTRAINT bot_detection_wallet_id_fkey FOREIGN KEY (wallet_id) REFERENCES public.wallets(wallet_id)
+);
+CREATE TABLE public.events (
+  event_id bigint NOT NULL DEFAULT nextval('events_event_id_seq'::regclass),
+  venue_id bigint NOT NULL,
+  name character varying NOT NULL,
+  description text,
+  event_date timestamp with time zone NOT NULL,
+  start_time time without time zone NOT NULL,
+  end_time time without time zone NOT NULL,
+  total_supply integer CHECK (total_supply >= 0),
+  available_tickets integer CHECK (available_tickets >= 0),
+  base_price numeric CHECK (base_price >= 0::numeric),
+  max_resale_percentage numeric DEFAULT 150.00 CHECK (max_resale_percentage >= 0::numeric),
+  status USER-DEFINED NOT NULL DEFAULT 'UPCOMING'::event_status,
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT events_pkey PRIMARY KEY (event_id),
+  CONSTRAINT events_venue_id_fkey FOREIGN KEY (venue_id) REFERENCES public.venues(venue_id)
+);
+CREATE TABLE public.metrics (
+  metric_id bigint NOT NULL DEFAULT nextval('metrics_metric_id_seq'::regclass),
+  event_id bigint NOT NULL,
+  metric_date date NOT NULL,
+  total_sales integer DEFAULT 0 CHECK (total_sales >= 0),
+  total_revenue numeric DEFAULT 0 CHECK (total_revenue >= 0::numeric),
+  resale_count integer DEFAULT 0 CHECK (resale_count >= 0),
+  resale_revenue numeric DEFAULT 0 CHECK (resale_revenue >= 0::numeric),
+  average_resale_markup numeric DEFAULT 0 CHECK (average_resale_markup >= 0::numeric),
+  bot_attempts integer DEFAULT 0 CHECK (bot_attempts >= 0),
+  successful_scans integer DEFAULT 0 CHECK (successful_scans >= 0),
+  failed_scans integer DEFAULT 0 CHECK (failed_scans >= 0),
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT metrics_pkey PRIMARY KEY (metric_id),
+  CONSTRAINT metrics_event_id_fkey FOREIGN KEY (event_id) REFERENCES public.events(event_id)
+);
+CREATE TABLE public.orders (
+  order_id integer NOT NULL DEFAULT nextval('orders_order_id_seq'::regclass),
+  buyer_wallet_id integer NOT NULL,
+  ticket_id integer NOT NULL,
+  event_id integer NOT NULL,
+  order_type character varying CHECK (order_type::text = ANY (ARRAY['PRIMARY'::character varying, 'RESALE'::character varying]::text[])),
+  price numeric NOT NULL,
+  platform_fee numeric DEFAULT 0.00,
+  total_amount numeric DEFAULT (price + platform_fee),
+  transaction_hash character varying,
+  status character varying CHECK (status::text = ANY (ARRAY['PENDING'::character varying, 'COMPLETED'::character varying, 'FAILED'::character varying, 'REFUNDED'::character varying]::text[])),
+  created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  completed_at timestamp without time zone,
+  CONSTRAINT orders_pkey PRIMARY KEY (order_id),
+  CONSTRAINT fk_orders_event FOREIGN KEY (event_id) REFERENCES public.events(event_id),
+  CONSTRAINT fk_orders_wallet FOREIGN KEY (buyer_wallet_id) REFERENCES public.wallets(wallet_id),
+  CONSTRAINT fk_orders_ticket FOREIGN KEY (ticket_id) REFERENCES public.tickets(ticket_id)
+);
+CREATE TABLE public.payouts (
+  payout_id integer NOT NULL DEFAULT nextval('payouts_payout_id_seq'::regclass),
+  order_id integer NOT NULL,
+  recipient_wallet_id integer NOT NULL,
+  recipient_type character varying CHECK (recipient_type::text = ANY (ARRAY['ORGANIZER'::character varying, 'PLATFORM'::character varying, 'VENUE'::character varying, 'SELLER'::character varying]::text[])),
+  amount numeric NOT NULL CHECK (amount >= 0::numeric),
+  currency character varying DEFAULT 'USD'::character varying,
+  status character varying CHECK (status::text = ANY (ARRAY['PENDING'::character varying, 'PROCESSED'::character varying, 'FAILED'::character varying]::text[])),
+  transaction_hash character varying,
+  processed_at timestamp without time zone,
+  created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT payouts_pkey PRIMARY KEY (payout_id),
+  CONSTRAINT fk_payouts_order FOREIGN KEY (order_id) REFERENCES public.orders(order_id),
+  CONSTRAINT fk_payouts_wallet FOREIGN KEY (recipient_wallet_id) REFERENCES public.wallets(wallet_id)
+);
+CREATE TABLE public.resales (
+  resale_id integer NOT NULL DEFAULT nextval('resales_resale_id_seq'::regclass),
+  ticket_id integer NOT NULL,
+  seller_wallet_id integer NOT NULL,
+  buyer_wallet_id integer,
+  original_order_id integer NOT NULL,
+  listing_price numeric NOT NULL,
+  original_price numeric NOT NULL,
+  markup_percentage numeric DEFAULT (((listing_price - original_price) / original_price) * (100)::numeric),
+  status character varying CHECK (status::text = ANY (ARRAY['LISTED'::character varying, 'SOLD'::character varying, 'CANCELLED'::character varying, 'EXPIRED'::character varying]::text[])),
+  listed_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  sold_at timestamp without time zone,
+  cancelled_at timestamp without time zone,
+  CONSTRAINT resales_pkey PRIMARY KEY (resale_id),
+  CONSTRAINT fk_resales_ticket FOREIGN KEY (ticket_id) REFERENCES public.tickets(ticket_id),
+  CONSTRAINT fk_resales_seller FOREIGN KEY (seller_wallet_id) REFERENCES public.wallets(wallet_id),
+  CONSTRAINT fk_resales_buyer FOREIGN KEY (buyer_wallet_id) REFERENCES public.wallets(wallet_id),
+  CONSTRAINT fk_resales_order FOREIGN KEY (original_order_id) REFERENCES public.orders(order_id)
+);
+CREATE TABLE public.scanners (
+  scanner_id bigint NOT NULL DEFAULT nextval('scanners_scanner_id_seq'::regclass),
+  venue_id bigint NOT NULL,
+  operator_name character varying NOT NULL,
+  operator_wallet character varying,
+  device_id character varying NOT NULL UNIQUE,
+  active boolean NOT NULL DEFAULT true,
+  authorized_events json,
+  registered_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  last_scan_at timestamp with time zone,
+  CONSTRAINT scanners_pkey PRIMARY KEY (scanner_id),
+  CONSTRAINT scanners_venue_id_fkey FOREIGN KEY (venue_id) REFERENCES public.venues(venue_id)
+);
+CREATE TABLE public.scans (
+  scan_id bigint NOT NULL DEFAULT nextval('scans_scan_id_seq'::regclass),
+  ticket_id bigint NOT NULL,
+  scanner_id bigint NOT NULL,
+  venue_id bigint NOT NULL,
+  event_id bigint NOT NULL,
+  scan_type USER-DEFINED NOT NULL,
+  valid boolean NOT NULL DEFAULT true,
+  error_message character varying,
+  latitude numeric,
+  longitude numeric,
+  scanned_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT scans_pkey PRIMARY KEY (scan_id),
+  CONSTRAINT scans_ticket_id_fkey FOREIGN KEY (ticket_id) REFERENCES public.tickets(ticket_id),
+  CONSTRAINT scans_scanner_id_fkey FOREIGN KEY (scanner_id) REFERENCES public.scanners(scanner_id),
+  CONSTRAINT scans_venue_id_fkey FOREIGN KEY (venue_id) REFERENCES public.venues(venue_id),
+  CONSTRAINT scans_event_id_fkey FOREIGN KEY (event_id) REFERENCES public.events(event_id)
+);
+CREATE TABLE public.tickets (
+  ticket_id bigint NOT NULL DEFAULT nextval('tickets_ticket_id_seq'::regclass),
+  event_id bigint NOT NULL,
+  owner_wallet_id bigint NOT NULL,
+  token_id character varying NOT NULL UNIQUE,
+  nft_metadata_uri character varying,
+  seat_number character varying,
+  tier USER-DEFINED NOT NULL DEFAULT 'GENERAL'::ticket_tier,
+  purchase_price numeric CHECK (purchase_price >= 0::numeric),
+  status USER-DEFINED NOT NULL DEFAULT 'ACTIVE'::ticket_status,
+  minted_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  last_transfer_at timestamp with time zone,
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT tickets_pkey PRIMARY KEY (ticket_id),
+  CONSTRAINT tickets_event_id_fkey FOREIGN KEY (event_id) REFERENCES public.events(event_id),
+  CONSTRAINT tickets_owner_wallet_id_fkey FOREIGN KEY (owner_wallet_id) REFERENCES public.wallets(wallet_id)
+);
+CREATE TABLE public.venues (
+  venue_id bigint NOT NULL DEFAULT nextval('venues_venue_id_seq'::regclass),
+  name character varying NOT NULL,
+  location character varying,
+  city character varying,
+  country character varying,
+  capacity integer CHECK (capacity >= 0),
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  updated_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT venues_pkey PRIMARY KEY (venue_id)
+);
+CREATE TABLE public.wallets (
+  wallet_id bigint NOT NULL DEFAULT nextval('wallets_wallet_id_seq'::regclass),
+  address character varying NOT NULL UNIQUE,
+  balance numeric DEFAULT 0 CHECK (balance >= 0::numeric),
+  allowlist_status boolean NOT NULL DEFAULT false,
+  verification_level integer DEFAULT 0 CHECK (verification_level >= 0),
+  verification_date timestamp with time zone,
+  blacklisted boolean NOT NULL DEFAULT false,
+  created_at timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  last_activity timestamp with time zone NOT NULL DEFAULT timezone('utc'::text, now()),
+  CONSTRAINT wallets_pkey PRIMARY KEY (wallet_id)
+);
