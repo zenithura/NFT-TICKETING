@@ -1,0 +1,7 @@
+{
+  "name": "NFTix - Web3 Ticketing",
+  "description": "A decentralized NFT event ticketing platform for organizers, buyers, and resellers.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

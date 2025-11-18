@@ -1,0 +1,169 @@
+import React from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { Wallet, Menu, X, ChevronDown, Shield, Users, Ticket, ScanLine, Zap } from 'lucide-react';
+import { useWeb3 } from '../../services/web3Context';
+import { UserRole } from '../../types';
+import { cn, formatAddress } from '../../lib/utils';
+
+export const Navbar: React.FC = () => {
+  const { isConnected, address, connect, disconnect, balance, userRole, setUserRole } = useWeb3();
+  const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+  const location = useLocation();
+
+  const isActive = (path: string) => location.pathname === path;
+
+  const getLinks = () => {
+    const common = [{ path: '/', label: 'Marketplace' }];
+    switch (userRole) {
+      case UserRole.ORGANIZER:
+        return [...common, { path: '/dashboard', label: 'Dashboard' }, { path: '/create-event', label: 'Create Event' }];
+      case UserRole.RESELLER:
+        return [...common, { path: '/dashboard', label: 'Resale Portal' }];
+      case UserRole.SCANNER:
+        return [{ path: '/scanner', label: 'Launch Scanner' }];
+      case UserRole.ADMIN:
+        return [...common, { path: '/admin', label: 'Admin Panel' }];
+      case UserRole.BUYER:
+      default:
+        return [...common, { path: '/dashboard', label: 'My Tickets' }];
+    }
+  };
+
+  const links = getLinks();
+
+  return (
+    <nav className="glass sticky top-0 z-50 border-b border-border">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-16">
+          
+          {/* Logo */}
+          <div className="flex items-center gap-8">
+            <Link to="/" className="flex items-center gap-2 group">
+              <div className="w-8 h-8 bg-primary/10 rounded flex items-center justify-center border border-primary/20 group-hover:border-primary/50 transition-colors">
+                <Zap size={16} className="text-primary" />
+              </div>
+              <span className="font-semibold text-lg text-foreground tracking-tight">NFTix</span>
+            </Link>
+            
+            {/* Desktop Links */}
+            <div className="hidden md:flex items-center gap-1">
+              {links.map((link) => (
+                <Link 
+                  key={link.path}
+                  to={link.path} 
+                  className={cn(
+                    "px-3 py-1.5 rounded text-sm font-medium transition-all",
+                    isActive(link.path) 
+                      ? "bg-background-active text-foreground" 
+                      : "text-foreground-secondary hover:text-foreground hover:bg-background-hover"
+                  )}
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {/* Right Side */}
+          <div className="hidden md:flex items-center gap-4">
+            {isConnected ? (
+              <>
+                {/* Role Switcher (Demo) */}
+                <div className="relative group">
+                  <button className="flex items-center gap-2 px-3 py-1.5 rounded bg-background-elevated border border-border text-xs font-medium text-foreground-secondary hover:border-border-hover hover:text-foreground transition-colors">
+                    {userRole === UserRole.ADMIN && <Shield size={12} className="text-error" />}
+                    {userRole === UserRole.ORGANIZER && <Users size={12} className="text-primary" />}
+                    {userRole === UserRole.BUYER && <Ticket size={12} className="text-success" />}
+                    {userRole}
+                    <ChevronDown size={12} />
+                  </button>
+                  <div className="absolute right-0 top-full mt-2 w-48 bg-background-elevated border border-border rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                    <div className="p-1">
+                      <div className="px-3 py-2 text-[10px] uppercase font-bold text-foreground-tertiary tracking-wider">Switch View</div>
+                      {Object.values(UserRole).map((role) => (
+                        <button
+                          key={role}
+                          onClick={() => setUserRole(role)}
+                          className={cn(
+                            "w-full text-left px-3 py-2 text-sm rounded hover:bg-background-hover flex items-center gap-2",
+                            userRole === role ? "text-primary bg-primary/10" : "text-foreground-secondary"
+                          )}
+                        >
+                          {role}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Wallet Badge */}
+                <div className="flex items-center gap-3 pl-4 border-l border-border">
+                  <div className="text-sm font-mono text-foreground-secondary">
+                    {balance} <span className="text-foreground-tertiary">ETH</span>
+                  </div>
+                  <div className="relative group/wallet">
+                    <button className="flex items-center gap-2 bg-background-hover border border-border px-3 py-1.5 rounded text-sm font-mono text-foreground hover:border-border-hover transition-colors">
+                      <div className="w-2 h-2 rounded-full bg-success animate-pulse-slow" />
+                      {formatAddress(address || '')}
+                    </button>
+                    <div className="absolute right-0 top-full mt-2 w-40 bg-background-elevated border border-border rounded-lg shadow-xl opacity-0 invisible group-hover/wallet:opacity-100 group-hover/wallet:visible transition-all z-50 p-1">
+                       <button onClick={disconnect} className="w-full text-left px-3 py-2 text-sm text-error hover:bg-error/10 rounded transition-colors">
+                         Disconnect
+                       </button>
+                    </div>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <button
+                onClick={connect}
+                className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded font-medium text-sm transition-all hover:-translate-y-0.5 shadow-lg shadow-primary/20"
+              >
+                <Wallet size={16} />
+                Connect Wallet
+              </button>
+            )}
+          </div>
+
+          {/* Mobile Toggle */}
+          <div className="md:hidden flex items-center">
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="p-2 rounded text-foreground-secondary hover:bg-background-hover hover:text-foreground"
+            >
+              {isMenuOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Menu */}
+      {isMenuOpen && (
+        <div className="md:hidden bg-background-elevated border-b border-border animate-fade-in">
+          <div className="px-4 pt-2 pb-4 space-y-1">
+            {links.map((link) => (
+              <Link 
+                key={link.path}
+                to={link.path} 
+                onClick={() => setIsMenuOpen(false)} 
+                className={cn(
+                  "block px-3 py-3 rounded-lg text-base font-medium",
+                  isActive(link.path) ? "bg-background-active text-foreground" : "text-foreground-secondary"
+                )}
+              >
+                {link.label}
+              </Link>
+            ))}
+            <div className="pt-4 border-t border-border mt-4">
+              {isConnected ? (
+                 <button onClick={disconnect} className="w-full text-left text-error px-3 py-3 font-medium">Disconnect</button>
+              ) : (
+                 <button onClick={connect} className="w-full text-left text-primary px-3 py-3 font-medium">Connect Wallet</button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </nav>
+  );
+};
