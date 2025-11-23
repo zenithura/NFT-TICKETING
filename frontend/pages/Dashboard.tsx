@@ -4,10 +4,15 @@ import { useWeb3 } from '../services/web3Context';
 import { UserRole } from '../types';
 import { Ticket, Plus, TrendingUp, Shield, DollarSign, Calendar, ArrowRight } from 'lucide-react';
 import { MOCK_MY_TICKETS, MOCK_EVENTS } from '../services/mockData';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { Skeleton } from '../components/ui/skeleton';
-import { NFTCoinAnimation } from '../components/3d/NFTCoinAnimation';
 import { cn, formatCurrency } from '../lib/utils';
+
+// Lazy load heavy components
+const LazyChart = React.lazy(() => import('../components/LazyChart'));
+// Handle named export for NFTCoinAnimation
+const NFTCoinAnimation = React.lazy(() =>
+  import('../components/3d/NFTCoinAnimation').then(module => ({ default: module.NFTCoinAnimation }))
+);
 
 // --- Skeleton Components ---
 
@@ -16,7 +21,9 @@ const TicketSkeleton = () => (
     <div className="h-40 relative overflow-hidden bg-background-hover flex items-center justify-center">
       <div className="absolute inset-0 bg-gradient-to-t from-background-elevated to-transparent opacity-30" />
       <div className="scale-75">
-        <NFTCoinAnimation />
+        <React.Suspense fallback={<div className="w-[300px] h-[300px]" />}>
+          <NFTCoinAnimation />
+        </React.Suspense>
       </div>
       <div className="absolute top-3 right-3 z-10">
         <Skeleton className="h-6 w-16 rounded" />
@@ -85,7 +92,7 @@ const BuyerDashboard = () => {
           </div>
           <Skeleton className="h-9 w-32 rounded" />
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {[...Array(3)].map((_, i) => (
             <TicketSkeleton key={i} />
@@ -106,7 +113,7 @@ const BuyerDashboard = () => {
           Browse Events <ArrowRight size={14} />
         </Link>
       </div>
-      
+
       {MOCK_MY_TICKETS.length === 0 ? (
         <div className="py-20 text-center border border-dashed border-border rounded-xl bg-background-elevated/50">
           <Ticket className="mx-auto h-12 w-12 text-foreground-tertiary mb-4" />
@@ -123,20 +130,20 @@ const BuyerDashboard = () => {
             return (
               <div key={ticket.id} className="group bg-background-elevated border border-border rounded-xl overflow-hidden card-hover">
                 <div className="h-40 relative overflow-hidden bg-background-hover">
-                   {event && <img src={event.imageUrl} className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-700" />}
-                   <div className="absolute top-3 right-3">
-                      <span className={cn(
-                        "px-2 py-1 rounded text-xs font-bold border backdrop-blur-sm",
-                        ticket.status === 'VALID' ? "bg-success/20 border-success/30 text-success" : "bg-warning/20 border-warning/30 text-warning"
-                      )}>
-                        {ticket.status}
-                      </span>
-                   </div>
+                  {event && <img src={event.imageUrl} className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-700" />}
+                  <div className="absolute top-3 right-3">
+                    <span className={cn(
+                      "px-2 py-1 rounded text-xs font-bold border backdrop-blur-sm",
+                      ticket.status === 'VALID' ? "bg-success/20 border-success/30 text-success" : "bg-warning/20 border-warning/30 text-warning"
+                    )}>
+                      {ticket.status}
+                    </span>
+                  </div>
                 </div>
                 <div className="p-5">
                   <h3 className="font-bold text-lg text-foreground mb-1">{event?.title}</h3>
                   <p className="text-xs font-mono text-primary mb-4">#{ticket.tokenId}</p>
-                  
+
                   <div className="flex gap-3">
                     <button className="flex-1 bg-foreground text-background py-2 rounded text-sm font-medium hover:opacity-90 transition-opacity">
                       View QR
@@ -193,7 +200,9 @@ const OrganizerDashboard = () => {
           <div className="lg:col-span-2 bg-background-elevated p-6 rounded-xl border border-border">
             <Skeleton className="h-6 w-32 mb-6" />
             <div className="h-64 flex items-center justify-center">
-              <NFTCoinAnimation />
+              <React.Suspense fallback={<Skeleton className="w-[300px] h-[300px] rounded-full" />}>
+                <NFTCoinAnimation />
+              </React.Suspense>
             </div>
           </div>
 
@@ -235,42 +244,34 @@ const OrganizerDashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-         {/* Chart */}
-         <div className="lg:col-span-2 bg-background-elevated p-6 rounded-xl border border-border">
-           <h3 className="text-lg font-bold mb-6 text-foreground">Sales Volume</h3>
-           <div className="h-64">
-             <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={salesData}>
-                  <XAxis dataKey="name" stroke="#5A5A5A" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis stroke="#5A5A5A" fontSize={12} tickLine={false} axisLine={false} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: '#202020', border: '1px solid #2F2F2F', borderRadius: '8px', color: '#EFEFEF' }}
-                    cursor={{fill: '#252525'}}
-                  />
-                  <Bar dataKey="sales" fill="#F7931A" radius={[4, 4, 0, 0]} />
-                </BarChart>
-             </ResponsiveContainer>
-           </div>
-         </div>
+        {/* Chart */}
+        <div className="lg:col-span-2 bg-background-elevated p-6 rounded-xl border border-border">
+          <h3 className="text-lg font-bold mb-6 text-foreground">Sales Volume</h3>
+          <div className="h-64">
+            <React.Suspense fallback={<Skeleton className="w-full h-full" />}>
+              <LazyChart data={salesData} />
+            </React.Suspense>
+          </div>
+        </div>
 
-         {/* Recent List */}
-         <div className="bg-background-elevated p-6 rounded-xl border border-border">
-           <h3 className="text-lg font-bold mb-6 text-foreground">Active Events</h3>
-           <div className="space-y-4">
-             {MOCK_EVENTS.slice(0, 3).map(evt => (
-               <div key={evt.id} className="flex items-center gap-3 p-3 rounded-lg hover:bg-background-hover transition-colors cursor-pointer group">
-                 <div className="w-10 h-10 rounded bg-background-hover overflow-hidden">
-                   <img src={evt.imageUrl} className="w-full h-full object-cover" />
-                 </div>
-                 <div className="flex-1 min-w-0">
-                   <p className="text-sm font-medium text-foreground truncate">{evt.title}</p>
-                   <p className="text-xs text-foreground-tertiary">{evt.soldTickets}/{evt.totalTickets} sold</p>
-                 </div>
-                 <ArrowRight size={14} className="text-foreground-tertiary group-hover:text-primary" />
-               </div>
-             ))}
-           </div>
-         </div>
+        {/* Recent List */}
+        <div className="bg-background-elevated p-6 rounded-xl border border-border">
+          <h3 className="text-lg font-bold mb-6 text-foreground">Active Events</h3>
+          <div className="space-y-4">
+            {MOCK_EVENTS.slice(0, 3).map(evt => (
+              <div key={evt.id} className="flex items-center gap-3 p-3 rounded-lg hover:bg-background-hover transition-colors cursor-pointer group">
+                <div className="w-10 h-10 rounded bg-background-hover overflow-hidden">
+                  <img src={evt.imageUrl} className="w-full h-full object-cover" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground truncate">{evt.title}</p>
+                  <p className="text-xs text-foreground-tertiary">{evt.soldTickets}/{evt.totalTickets} sold</p>
+                </div>
+                <ArrowRight size={14} className="text-foreground-tertiary group-hover:text-primary" />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -291,7 +292,7 @@ export const Dashboard: React.FC = () => {
   if (!isConnected) {
     return (
       <div className="min-h-[60vh] flex flex-col items-center justify-center text-center p-4">
-        <div className="bg-background-elevated p-8 rounded-2xl border border-border max-w-md w-full shadow-2xl">
+        <div className="bg-background-elevated p-8 rounded-2xl border border-border max-w-md w-full shadow-2xl min-h-[300px] flex flex-col justify-center">
           <Shield className="w-12 h-12 text-foreground-tertiary mx-auto mb-4" />
           <h2 className="text-xl font-bold text-foreground mb-2">Wallet Connection Required</h2>
           <p className="text-foreground-secondary mb-6">Please connect your wallet to access the dashboard.</p>

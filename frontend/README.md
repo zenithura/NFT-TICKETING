@@ -1,12 +1,40 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# NFT-TICKETING
 
-# Run and deploy your AI Studio app
+## 🎟️ Web3 Ticketing Platform
 
-This contains everything you need to run your app locally.
+A decentralized application (dApp) for buying, selling, and managing event tickets as NFTs. This platform leverages blockchain technology to ensure transparency, security, and true ownership of tickets.
 
-View your app in AI Studio: https://ai.studio/apps/drive/1B8KpKPwDSrYU_ldj_ksR03p4UNQdBMr_
+## 🌟 Features
+
+- **Decentralized Ticketing**: Tickets are minted as NFTs.
+- **User Dashboard**: Manage your tickets and events.
+- **Admin Panel**: Comprehensive controls for platform administrators.
+- **High Performance**: Optimized for speed and user experience.
+
+## 📸 Screenshots
+
+## 🚀 Performance
+
+We prioritize performance and accessibility.
+
+![Lighthouse Report](screenshots/ligthouse_report.png)
+
+### Home Page
+The landing page of the application, showcasing featured events and easy navigation.
+![Home Page](screenshots/home_page.png)
+
+### Dashboard
+User dashboard for managing purchased tickets and viewing account details.
+![Dashboard](screenshots/dashboard_page.png)
+
+### Ticket Sale Page
+Interface for users to purchase tickets for specific events.
+![Sale Page](screenshots/sale_page.png)
+
+### Admin Panel
+Administrative interface for managing events and platform settings.
+![Admin Page](screenshots/admin_page.png)
+
 
 ## Run Locally
 
@@ -15,6 +43,5 @@ View your app in AI Studio: https://ai.studio/apps/drive/1B8KpKPwDSrYU_ldj_ksR03
 
 1. Install dependencies:
    `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
+2. Run the app:
    `npm run dev`
