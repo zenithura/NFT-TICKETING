@@ -32,7 +32,7 @@ export const HeroBackground: React.FC = () => {
     const particleCount = 150;
     const posArray = new Float32Array(particleCount * 3);
 
-    for(let i = 0; i < particleCount * 3; i++) {
+    for (let i = 0; i < particleCount * 3; i++) {
       posArray[i] = (Math.random() - 0.5) * 60;
     }
 
@@ -80,10 +80,10 @@ export const HeroBackground: React.FC = () => {
       if (animationIdRef.current) {
         cancelAnimationFrame(animationIdRef.current);
       }
-      
+
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('mousemove', handleMouseMove);
-      
+
       // Cleanup renderer
       if (rendererRef.current) {
         if (containerRef.current && containerRef.current.contains(rendererRef.current.domElement)) {
@@ -92,7 +92,7 @@ export const HeroBackground: React.FC = () => {
         rendererRef.current.dispose();
         rendererRef.current = null;
       }
-      
+
       // Cleanup geometry and material
       particlesGeometry.dispose();
       material.dispose();
@@ -100,9 +100,11 @@ export const HeroBackground: React.FC = () => {
   }, []);
 
   return (
-    <div 
-      ref={containerRef} 
+    <div
+      ref={containerRef}
       className="fixed inset-0 -z-10 pointer-events-none bg-background"
+      style={{ minHeight: '100vh' }}
     />
   );
+
 };

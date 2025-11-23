@@ -13,7 +13,7 @@ export const EventDetails: React.FC = () => {
   const { isConnected, connect, balance } = useWeb3();
   const [event, setEvent] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
-  
+
   const [isBuying, setIsBuying] = useState(false);
   const [ticketCount, setTicketCount] = useState(1);
 
@@ -54,8 +54,8 @@ export const EventDetails: React.FC = () => {
     return (
       <div className="text-center py-20">
         <p className="text-foreground-secondary">Event not found</p>
-        <button 
-          onClick={() => navigate('/marketplace')} 
+        <button
+          onClick={() => navigate('/marketplace')}
           className="mt-4 text-primary hover:underline"
         >
           Back to Marketplace
@@ -68,8 +68,8 @@ export const EventDetails: React.FC = () => {
     <div className="max-w-6xl mx-auto animate-fade-in">
       <Toaster position="bottom-right" toastOptions={{
         style: { background: '#202020', color: '#EFEFEF', border: '1px solid #2F2F2F' }
-      }}/>
-      
+      }} />
+
       <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-foreground-secondary hover:text-foreground mb-6 transition-colors">
         <ArrowLeft size={16} /> Back
       </button>
@@ -89,7 +89,7 @@ export const EventDetails: React.FC = () => {
 
           <div className="space-y-6">
             <h1 className="text-4xl font-bold text-foreground tracking-tight">{event.title}</h1>
-            
+
             <div className="flex flex-wrap gap-6 text-foreground-secondary pb-6 border-b border-border">
               <div className="flex items-center gap-2">
                 <Calendar size={18} />
@@ -106,7 +106,7 @@ export const EventDetails: React.FC = () => {
             </div>
 
             <div className="prose prose-invert max-w-none">
-              <h3 className="text-xl font-bold mb-4">About</h3>
+              <h2 className="text-xl font-bold mb-4">About</h2>
               <p className="text-foreground-secondary leading-relaxed text-lg">{event.description}</p>
             </div>
           </div>
@@ -124,25 +124,25 @@ export const EventDetails: React.FC = () => {
             </div>
 
             <div className="p-4 bg-background-hover rounded-lg border border-border">
-               <div className="flex justify-between text-sm mb-2">
-                 <span className="text-foreground-secondary">Availability</span>
-                 <span className="text-foreground">{event.totalTickets - event.soldTickets} left</span>
-               </div>
-               <div className="h-2 bg-background rounded-full overflow-hidden">
-                 <div className="h-full bg-primary" style={{ width: `${(event.soldTickets / event.totalTickets) * 100}%` }}></div>
-               </div>
+              <div className="flex justify-between text-sm mb-2">
+                <span className="text-foreground-secondary">Availability</span>
+                <span className="text-foreground">{event.totalTickets - event.soldTickets} left</span>
+              </div>
+              <div className="h-2 bg-background rounded-full overflow-hidden">
+                <div className="h-full bg-primary" style={{ width: `${(event.soldTickets / event.totalTickets) * 100}%` }}></div>
+              </div>
             </div>
 
             <div className="space-y-4">
               <div className="flex items-center justify-between bg-background rounded-lg p-1 border border-border">
-                <button 
+                <button
                   onClick={() => setTicketCount(Math.max(1, ticketCount - 1))}
                   className="w-10 h-10 flex items-center justify-center text-foreground-secondary hover:text-foreground hover:bg-background-hover rounded"
                 >
                   -
                 </button>
                 <span className="font-bold">{ticketCount}</span>
-                <button 
+                <button
                   onClick={() => setTicketCount(Math.min(10, ticketCount + 1))}
                   className="w-10 h-10 flex items-center justify-center text-foreground-secondary hover:text-foreground hover:bg-background-hover rounded"
                 >
@@ -172,7 +172,7 @@ export const EventDetails: React.FC = () => {
               >
                 {isBuying ? <Loader2 className="animate-spin" /> : 'Mint Tickets'}
               </button>
-              
+
               <p className="text-xs text-center text-foreground-tertiary">
                 Powered by Polygon Network. Non-refundable.
               </p>

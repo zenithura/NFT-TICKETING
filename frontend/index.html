@@ -1,83 +1,63 @@
 <!DOCTYPE html>
 <html lang="en" class="bg-background">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>NFTix - Web3 Ticketing Platform</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      tailwind.config = {
-        darkMode: 'class',
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ['Inter', 'sans-serif'],
-              mono: ['JetBrains Mono', 'monospace'],
-            },
-            colors: {
-              background: {
-                DEFAULT: '#191919',
-                elevated: '#202020',
-                hover: '#252525',
-                active: '#2A2A2A',
-              },
-              foreground: {
-                DEFAULT: '#EFEFEF',
-                secondary: '#878787',
-                tertiary: '#5A5A5A',
-              },
-              border: {
-                DEFAULT: '#2F2F2F',
-                hover: '#3A3A3A',
-                strong: '#404040',
-              },
-              primary: {
-                DEFAULT: '#F7931A', // Bitcoin Orange
-                hover: '#D97706',   // Darker Orange/Amber-600
-                light: '#FDBA74',   // Orange-300
-              },
-              success: {
-                DEFAULT: '#10B981',
-                light: '#6EE7B7',
-              },
-              warning: {
-                DEFAULT: '#F59E0B',
-                light: '#FCD34D',
-              },
-              error: {
-                DEFAULT: '#EF4444',
-                light: '#FCA5A5',
-              },
-              accent: {
-                DEFAULT: '#F59E0B', // Gold
-              }
-            },
-            animation: {
-              'fade-in': 'fadeIn 0.5s ease-out',
-              'slide-up': 'slideUp 0.5s ease-out',
-              'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-              'float': 'float 6s ease-in-out infinite',
-            },
-            keyframes: {
-              fadeIn: {
-                '0%': { opacity: '0' },
-                '100%': { opacity: '1' },
-              },
-              slideUp: {
-                '0%': { transform: 'translateY(20px)', opacity: '0' },
-                '100%': { transform: 'translateY(0)', opacity: '1' },
-              },
-              float: {
-                '0%, 100%': { transform: 'translateY(0)' },
-                '50%': { transform: 'translateY(-20px)' },
-              }
-            }
-          }
-        }
-      }
-    </script>
-    <link rel="stylesheet" href="/index.css">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="NFTix - The decentralized marketplace for verifying, trading, and collecting event access as NFTs. Secure Web3 ticketing platform." />
+  <meta name="theme-color" content="#191919" />
+  <title>NFTix - Web3 Ticketing Platform</title>
+
+  <!-- DNS prefetch and preconnect for faster resource loading -->
+  <link rel="dns-prefetch" href="https://fonts.googleapis.com">
+  <link rel="dns-prefetch" href="https://fonts.gstatic.com">
+  <link rel="dns-prefetch" href="https://esm.sh">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+  <!-- Optimized font loading with display=swap to prevent FOIT -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet"
+    media="print"
+    onload="this.media='all'">
+  <noscript>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet">
+  </noscript>
+
+  <!-- Preload critical CSS -->
+  <link rel="preload" href="/index.css" as="style">
+  <link rel="stylesheet" href="/index.css">
+
+  <!-- Inline critical CSS for above-the-fold content -->
+  <style>
+    /* Prevent CLS with immediate styles */
+    html, body {
+      margin: 0;
+      padding: 0;
+      background-color: #191919;
+      color: #EFEFEF;
+    }
+    
+    #root {
+      min-height: 100vh;
+      background-color: #191919;
+    }
+
+    /* Loading state styles */
+    .initial-loader {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #191919;
+      z-index: 9999;
+    }
+  </style>
+
   <script type="importmap">
 {
   "imports": {
@@ -97,8 +77,10 @@
 }
 </script>
 </head>
-  <body class="bg-background">
-    <div id="root" class="bg-background"></div>
+
+<body class="bg-background">
+  <div id="root" class="bg-background"></div>
   <script type="module" src="/index.tsx"></script>
 </body>
+
 </html>

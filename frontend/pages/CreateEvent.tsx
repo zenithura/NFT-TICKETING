@@ -10,7 +10,7 @@ export const CreateEvent: React.FC = () => {
   const navigate = useNavigate();
   const { userRole, isConnected } = useWeb3();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
+
   useEffect(() => {
     if (isConnected && userRole !== UserRole.ORGANIZER && userRole !== UserRole.ADMIN) {
       navigate('/dashboard');
@@ -30,7 +30,7 @@ export const CreateEvent: React.FC = () => {
   return (
     <div className="max-w-2xl mx-auto animate-slide-up">
       <Toaster position="bottom-right" />
-      
+
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-foreground mb-2">Create Event</h1>
         <p className="text-foreground-secondary">Deploy a new NFT ticket collection to the blockchain.</p>
@@ -39,14 +39,14 @@ export const CreateEvent: React.FC = () => {
       <form onSubmit={handleSubmit} className="space-y-8">
         {/* Section 1 */}
         <div className="bg-background-elevated p-6 rounded-xl border border-border space-y-6">
-          <h3 className="text-lg font-semibold text-foreground border-b border-border pb-2">Basic Details</h3>
-          
+          <h2 className="text-lg font-semibold text-foreground border-b border-border pb-2">Basic Details</h2>
+
           <div className="space-y-4">
             <div>
               <label className="block text-sm text-foreground-secondary mb-1.5">Event Name</label>
               <input required type="text" className="w-full bg-background border border-border rounded-lg px-3 py-2 text-foreground focus:border-primary focus:ring-0 transition-colors" placeholder="e.g. Crypto Summit 2024" />
             </div>
-            
+
             <div>
               <label className="block text-sm text-foreground-secondary mb-1.5">Description</label>
               <textarea required rows={3} className="w-full bg-background border border-border rounded-lg px-3 py-2 text-foreground focus:border-primary focus:ring-0 transition-colors" placeholder="Event details..." />
@@ -62,10 +62,10 @@ export const CreateEvent: React.FC = () => {
                 </select>
               </div>
               <div>
-                 <label className="block text-sm text-foreground-secondary mb-1.5">Cover Image</label>
-                 <div className="border border-dashed border-border rounded-lg px-3 py-2 text-center hover:bg-background-hover cursor-pointer transition-colors">
-                   <span className="text-xs text-foreground-secondary flex items-center justify-center gap-2"><Upload size={12} /> Upload</span>
-                 </div>
+                <label className="block text-sm text-foreground-secondary mb-1.5">Cover Image</label>
+                <div className="border border-dashed border-border rounded-lg px-3 py-2 text-center hover:bg-background-hover cursor-pointer transition-colors">
+                  <span className="text-xs text-foreground-secondary flex items-center justify-center gap-2"><Upload size={12} /> Upload</span>
+                </div>
               </div>
             </div>
           </div>
@@ -73,8 +73,8 @@ export const CreateEvent: React.FC = () => {
 
         {/* Section 2 */}
         <div className="bg-background-elevated p-6 rounded-xl border border-border space-y-6">
-          <h3 className="text-lg font-semibold text-foreground border-b border-border pb-2">Ticket Configuration</h3>
-          
+          <h2 className="text-lg font-semibold text-foreground border-b border-border pb-2">Ticket Configuration</h2>
+
           <div className="grid grid-cols-3 gap-4">
             <div>
               <label className="block text-sm text-foreground-secondary mb-1.5">Total Supply</label>
@@ -97,8 +97,8 @@ export const CreateEvent: React.FC = () => {
         </div>
 
         <div className="flex justify-end">
-          <button 
-            type="submit" 
+          <button
+            type="submit"
             disabled={isSubmitting}
             className="bg-primary hover:bg-primary-hover text-white px-8 py-3 rounded-lg font-bold transition-all disabled:opacity-50 flex items-center gap-2"
           >

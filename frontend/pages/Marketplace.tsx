@@ -21,7 +21,7 @@ export const Marketplace: React.FC = () => {
     return () => clearTimeout(timer);
   }, []); // Empty dependency array - only runs once
 
-  const filteredEvents = MOCK_EVENTS.filter(e => 
+  const filteredEvents = MOCK_EVENTS.filter(e =>
     (e.title.toLowerCase().includes(filter.toLowerCase()) || e.category.toLowerCase().includes(filter.toLowerCase())) &&
     (category === 'All' || e.category === category)
   );
@@ -41,10 +41,10 @@ export const Marketplace: React.FC = () => {
           <p className="text-xl text-foreground-secondary leading-relaxed max-w-lg">
             The decentralized marketplace for verifying, trading, and collecting event access as NFTs.
           </p>
-          
+
           <div className="relative max-w-md">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground-tertiary" size={18} />
-            <input 
+            <input
               type="text"
               placeholder="Search events..."
               value={filter}
@@ -53,29 +53,32 @@ export const Marketplace: React.FC = () => {
             />
           </div>
         </div>
-        
+
         <div className="hidden md:flex items-center justify-center relative">
-           <div className="absolute inset-0 bg-primary/20 blur-[100px] rounded-full pointer-events-none" />
-           <NFTCoinAnimation />
+          <div className="absolute inset-0 bg-primary/20 blur-[100px] rounded-full pointer-events-none" />
+          <NFTCoinAnimation />
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
-        {['All', 'Music', 'Art', 'Technology', 'Sports'].map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setCategory(cat)}
-            className={cn(
-              "px-4 py-1.5 rounded-full text-sm font-medium border transition-all whitespace-nowrap",
-              category === cat 
-                ? "bg-foreground text-background border-foreground" 
-                : "bg-transparent text-foreground-secondary border-border hover:border-foreground-secondary"
-            )}
-          >
-            {cat}
-          </button>
-        ))}
+      {/* Filters Section */}
+      <div>
+        <h2 className="text-2xl font-bold text-foreground mb-4">Browse Events</h2>
+        <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
+          {['All', 'Music', 'Art', 'Technology', 'Sports'].map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setCategory(cat)}
+              className={cn(
+                "px-4 py-1.5 rounded-full text-sm font-medium border transition-all whitespace-nowrap",
+                category === cat
+                  ? "bg-foreground text-background border-foreground"
+                  : "bg-transparent text-foreground-secondary border-border hover:border-foreground-secondary"
+              )}
+            >
+              {cat}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Grid with Loading State */}
@@ -90,15 +93,19 @@ export const Marketplace: React.FC = () => {
         ) : (
           // Show actual events after loading
           filteredEvents.map((event) => (
-            <Link 
-              to={`/event/${event.id}`} 
+            <Link
+              to={`/event/${event.id}`}
               key={event.id}
               className="group bg-background-elevated rounded-xl border border-border overflow-hidden card-hover"
             >
-              <div className="relative aspect-video overflow-hidden">
-                <img 
-                  src={event.imageUrl} 
-                  alt={event.title} 
+              <div className="event-image-container">
+                <img
+                  src={event.imageUrl}
+                  alt={event.title}
+                  width="640"
+                  height="360"
+                  loading="lazy"
+                  decoding="async"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-background-elevated to-transparent opacity-60" />
@@ -106,7 +113,7 @@ export const Marketplace: React.FC = () => {
                   {event.price} ETH
                 </div>
               </div>
-              
+
               <div className="p-5 space-y-4">
                 <div>
                   <div className="flex items-center justify-between mb-1">
@@ -129,8 +136,8 @@ export const Marketplace: React.FC = () => {
 
                 <div className="pt-4 border-t border-border flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                     <div className="w-5 h-5 rounded-full bg-gradient-to-br from-orange-500 to-yellow-500" />
-                     <span className="text-xs text-foreground-secondary">By {event.organizer.slice(0, 6)}...</span>
+                    <div className="w-5 h-5 rounded-full bg-gradient-to-br from-orange-500 to-yellow-500" />
+                    <span className="text-xs text-foreground-secondary">By {event.organizer.slice(0, 6)}...</span>
                   </div>
                 </div>
               </div>
