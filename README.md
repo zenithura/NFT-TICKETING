@@ -1,117 +1,144 @@
+
 # NFT-TICKETING
 
-> A demonstration NFT-based ticketing dApp combining a React frontend, an optional Python backend, and Ethereum smart contracts. This repository contains the frontend app, backend integration examples, smart contract sources and deployment/test scripts used for demos and integration testing.
+A focused, demonstration NFT ticketing application combining a React frontend, an example Python backend, and Ethereum smart contracts. The project contains smart contract sources, a Vite React frontend, an optional backend for demo integrations, and a sprint3 data/security stack with deployment artifacts.
 
-## Key Features
+**Goals**
 
-- NFT-based tickets managed by a smart contract (`TicketManager.sol`).
-- Frontend UI built with React + TypeScript (Vite).
-- Example Python backend for integration and demos (Supabase migration scripts included).
-- Hardhat-based smart contract development, tests and deployment scripts.
-- Demo scripts and example integrations for local testing.
+- Demonstrate NFT-based ticket minting, resale and scanning flows.
+- Provide a developer-friendly local environment for testing smart contracts and the UI.
+- Offer integration examples (Python backend, Supabase migration scripts) for extending into production.
 
-## Repository Structure
+**Quick links**
 
-- `frontend/` — Primary React + TypeScript frontend (Vite). See `frontend/package.json`.
-- `frontend_with_backend/` — Alternate frontend + Python backend example and legacy frontend.
-  - `frontend_with_backend/backend/` — Python backend, DB migrations and helper scripts.
-- `smart-contracts/` — Solidity contracts, Hardhat config, artifacts, deploy and tests.
-- `demo.sh`, `blockchain_demo.py` — Demo scripts used to exercise parts of the system.
-- `diagrams/` — Architecture and sequence diagrams.
+- Smart contracts: `smart-contracts/`
+- Frontend (Vite + React): `frontend/`
+- Backend (example): `frontend_with_backend/backend/`
+- Sprint 3 data/security stack: `sprint3/`
 
-Notable files:
+## Table of Contents
 
-- `smart-contracts/contracts/TicketManager.sol` — Ticket management contract.
-- `frontend/src` and `frontend/components` — UI and React components.
-- `frontend_with_backend/backend/README_SETUP.md` — Backend setup instructions.
+- [NFT-TICKETING](#nft-ticketing)
+  - [Table of Contents](#table-of-contents)
+  - [High-level structure](#high-level-structure)
+  - [Prerequisites](#prerequisites)
+  - [Quickstart — Local developer flow](#quickstart--local-developer-flow)
+  - [Demo scripts](#demo-scripts)
+  - [Running tests](#running-tests)
+  - [Notes and troubleshooting](#notes-and-troubleshooting)
+  - [Contributing](#contributing)
+  - [License](#license)
+  - [Contact](#contact)
+
+## High-level structure
+
+- `smart-contracts/` — Solidity source (`contracts/`), tests, Hardhat config, deployment scripts.
+- `frontend/` — Vite + React + TypeScript app and components.
+- `frontend_with_backend/` — Older/alternate frontend and a Python backend example with Supabase wiring.
+- `sprint3/` — Data science & security layer (Docker Compose, ML pipeline, fraud API, monitoring).
+- `demo.sh`, `blockchain_demo.py` — End-to-end demo scripts for local testing.
 
 ## Prerequisites
 
-- Node.js (recommended v16+)
-- npm or yarn
-- Python 3.8+ (for the Python backend and demo scripts)
-- Docker (optional, only if you prefer containerized DB or Supabase emulator)
+- Node.js (recommended v16+ or v18+ for some dev tooling)
+- npm (or yarn)
+- Python 3.8+ (3.11+ recommended for sprint3)
+- Docker (for `sprint3` or running Postgres/Redis locally)
 
-For smart contract work:
+Optional developer tools
 
-- Hardhat (installed via `npm install` in `smart-contracts/`)
+- `jq` (for demo scripts output), `curl`.
 
-## Quickstart (local development)
+## Quickstart — Local developer flow
 
-1) Smart contracts (compile & test)
+1) Smart contracts — compile, test and run a local node
 
-```
+```bash
 cd smart-contracts
 npm install
 npx hardhat compile
 npx hardhat test
-```
 
-To run a local Hardhat node and deploy locally:
-
-```
+# Start a local JSON-RPC node in a dedicated terminal
 npx hardhat node
-# in another terminal
-node scripts/deploy.js
+
+# In a new terminal (after the node is running), deploy locally
+npx hardhat run scripts/deploy.js --network localhost
 ```
 
-2) Frontend (Vite + React)
+2) Frontend — start the development server
 
-```
+```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-Open the URL printed by Vite (usually `http://localhost:5173`) to view the app.
+Open the local URL printed by Vite (commonly `http://localhost:3000/` or `http://localhost:5173/`).
 
-3) Python backend (optional)
+3) Backend (example) — optional FastAPI backend (Supabase-backed)
 
-The example backend lives in `frontend_with_backend/backend` and provides helpers for DB setup and integrations.
-
-```
+```bash
 cd frontend_with_backend/backend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-# Follow instructions in README_SETUP.md to configure database/Supabase
-python server.py
+# Create a .env with SUPABASE_URL and SUPABASE_KEY (see README_SETUP.md)
+uvicorn server:app --host 0.0.0.0 --port 8000
 ```
 
-4) Demo scripts
+Notes: the backend expects Supabase credentials or a compatible PostgreSQL + REST setup. See `frontend_with_backend/backend/README_SETUP.md` for details.
 
-- `demo.sh` and `blockchain_demo.py` are convenience scripts used to show flows end-to-end. Review them before running.
+4) Sprint3 stack (data/fraud/monitoring) — Docker Compose
 
-## Development Flow
+The `sprint3/` directory contains a `docker-compose.yml` that brings up Postgres, Redis, a fraud API and a monitoring dashboard. To run:
 
-- Start a local blockchain (`npx hardhat node`).
-- Deploy contracts (`node scripts/deploy.js`).
-- Start backend (if used) and frontend.
-- Use the frontend to mint/transfer/scan tickets, or run the demo scripts.
+```bash
+cd sprint3
+# You need Docker and Docker Compose (docker-compose or `docker compose` plugin)
+docker compose up -d
+```
 
-## Tests
+If your environment doesn't support the `docker compose` plugin, install the standalone `docker-compose` or use `docker run` to start required services.
 
-- Smart contract unit tests: run `npx hardhat test` in `smart-contracts/`.
-- Frontend: see `frontend/package.json` for available test scripts (if present).
-- Integration/test harness: `frontend_with_backend/test_integration.py` and `frontend_with_backend/backend/test_integration` (if any).
+## Demo scripts
 
-## Notes & Pointers
+- `demo.sh` runs a sequence of checks and example API calls (wallet creation, venue/event creation, minting). It assumes the Hardhat node, backend, and frontend are running.
+- `blockchain_demo.py` contains a Python-based scenario runner (see file header for usage).
 
-- The `smart-contracts/artifacts` folder contains compiled outputs used in demos.
-- `frontend/metadata.json` and `frontend/components` include UI metadata and sample components for the ticket display.
-- `frontend_with_backend/backend/init_supabase_tables.sql` and other SQL files contain example DB schema and seed data for demo purposes.
+Run the demo after starting the node, backend and frontend:
+
+```bash
+bash demo.sh
+```
+
+## Running tests
+
+- Smart contract unit tests (Hardhat):
+
+```bash
+cd smart-contracts
+npx hardhat test
+```
+
+- Frontend tests: see `frontend/package.json` for test scripts if present.
+- Backend tests: if present under `frontend_with_backend/backend/`, use `pytest` inside the virtual environment.
+
+## Notes and troubleshooting
+
+- Hardhat local node: ensure only one node is running on port 8545. If you get address-in-use errors stop previous nodes.
+- Backend Supabase errors: ensure `SUPABASE_URL` and `SUPABASE_KEY` are set in `frontend_with_backend/backend/.env`.
+- Docker Compose: some environments require installing the `docker-compose` package or using `docker compose` (Docker plugin). If `docker compose` fails, install the recommended client for your OS.
 
 ## Contributing
 
-If you'd like to contribute:
-
-- Open an issue describing the feature or bug
-- Send a PR against `main` with tests and a short description
+- Open an issue with a short description of the change.
+- Create a branch, add tests where appropriate, and send a PR to `main`.
 
 ## License
 
-This repository does not include a license file. Add a `LICENSE` if you plan to publish or share the project publicly.
+No license file is included. Add a `LICENSE` if you intend to publish under an open-source license.
 
 ## Contact
 
-For questions about this workspace contact the repo owner or open an issue in this repository.
+Open an issue or contact the repository owner for questions or environment-specific help.
