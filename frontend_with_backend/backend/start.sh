@@ -37,4 +37,6 @@ echo ""
 echo "Press CTRL+C to stop the server"
 echo ""
 
-uvicorn server:app --reload --host 0.0.0.0 --port 8000
+# Run without --reload to avoid file watch limit issues
+# To enable auto-reload, first increase system limit: sudo sysctl fs.inotify.max_user_watches=524288
+uvicorn server:app --host 0.0.0.0 --port 8000
