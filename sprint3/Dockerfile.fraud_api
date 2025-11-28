@@ -1,0 +1,22 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY ml_pipeline/ ./ml_pipeline/
+COPY api/ ./api/
+COPY security/ ./security/
+COPY config/ ./config/
+COPY demos/ ./demos/
+
+# Download model from S3 (or copy local)
+RUN mkdir -p ml_pipeline/models/
+COPY ml_pipeline/models/fraud_model_v1.2.3.pkl ml_pipeline/models/
+
+EXPOSE 5001
+
+CMD ["gunicorn", "--bind", "0.0.0.0:5001", "--workers", "4", "--timeout", "60", "api.fraud_api:app"]
