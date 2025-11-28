@@ -30,7 +30,10 @@ FEATURE_COLS = [
 ]
 
 # Load model
-MODEL_PATH = 'sprint3/ml_pipeline/models/fraud_model_v1.2.3.pkl'
+# Load model
+MODEL_PATH = Path('ml_pipeline/models/fraud_model_v1.2.3.pkl')
+if not MODEL_PATH.exists():
+    MODEL_PATH = Path('sprint3/ml_pipeline/models/fraud_model_v1.2.3.pkl')
 model = None
 
 def load_model():
@@ -45,6 +48,9 @@ def load_model():
         print(f"⚠️  Model not found at {MODEL_PATH}")
         print("   Run: python sprint3/ml_pipeline/train_fraud_model.py")
         return False
+
+# Initialize model on module import
+load_model()
 
 def extract_features(transaction_data):
     """
