@@ -17,7 +17,7 @@ import { Separator } from "@/components/ui/separator";
 // Ensure the backend URL is properly formatted
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL
   ? process.env.REACT_APP_BACKEND_URL.replace(/([^:])\/+$/, '$1') // Remove trailing slashes but keep ://
-  : 'http://localhost:5000';
+  : 'http://localhost:8000';
 const API = `${BACKEND_URL}${BACKEND_URL.endsWith('/') ? '' : '/'}api`;
 
 // Configure axios
@@ -287,8 +287,8 @@ const EventsPage = ({ wallet, refreshWallet }) => {
               </CardDescription>
             </CardHeader>
             <CardFooter>
-              <Button 
-                className="w-full" 
+              <Button
+                className="w-full"
                 onClick={() => handleBuyTicket(event)}
                 disabled={event.status !== 'ACTIVE'}
                 data-testid={`buy-ticket-btn-${event.event_id}`}
@@ -396,8 +396,8 @@ const MarketplacePage = ({ wallet, refreshWallet }) => {
               </CardDescription>
             </CardHeader>
             <CardFooter>
-              <Button 
-                className="w-full" 
+              <Button
+                className="w-full"
                 onClick={() => handleBuyListing(listing)}
                 data-testid={`buy-listing-btn-${listing.resale_id}`}
               >
@@ -528,9 +528,9 @@ const MyTicketsPage = ({ wallet, refreshWallet }) => {
               </CardHeader>
               <CardFooter>
                 {ticket.status === 'MINTED' && (
-                  <Button 
-                    variant="outline" 
-                    className="w-full" 
+                  <Button
+                    variant="outline"
+                    className="w-full"
                     onClick={() => handleListTicket(ticket)}
                     data-testid={`list-ticket-btn-${ticket.token_id}`}
                   >
@@ -610,7 +610,7 @@ const CreateEventPage = ({ wallet }) => {
     try {
       const response = await axios.get(`${API}/venues`);
       setVenues(response.data);
-      
+
       // Create default venue if none exist
       if (response.data.length === 0) {
         const newVenue = await axios.post(`${API}/venues`, {
@@ -630,7 +630,7 @@ const CreateEventPage = ({ wallet }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     try {
       await axios.post(`${API}/events`, {
         venue_id: parseInt(formData.venue_id),
