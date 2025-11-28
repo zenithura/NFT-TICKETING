@@ -1,0 +1,34 @@
+# Python
+venv/
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Environment
+.env
+.env.local
+
+# Data files (generated)
+sprint3/demos/data/*.csv
+sprint3/demos/data/*.json
+
+# Model files (too large)
+sprint3/ml_pipeline/models/*.pkl
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
