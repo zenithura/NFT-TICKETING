@@ -1,3 +1,6 @@
+# File header: XGBoost model training script for fraud detection.
+# Trains a binary classifier on transaction features and saves the model with metadata.
+
 """
 Train XGBoost fraud detection model on sample data.
 """
@@ -16,7 +19,8 @@ from xgboost import XGBClassifier
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# Feature columns
+# Purpose: Feature column names used for model training and prediction.
+# Side effects: None - constant list.
 FEATURE_COLS = [
     'txn_velocity_1h',
     'wallet_age_days',
@@ -30,6 +34,10 @@ FEATURE_COLS = [
     'time_to_first_resale'
 ]
 
+# Purpose: Load transaction data from CSV file for model training.
+# Params: data_path (str) — path to CSV file with transaction data.
+# Returns: DataFrame with transaction features and fraud labels.
+# Side effects: Reads CSV file from filesystem, converts boolean to int.
 def load_data(data_path='sprint3/demos/data/sample_transactions.csv'):
     """Load and prepare training data."""
     print(f"Loading data from {data_path}...")
@@ -43,6 +51,10 @@ def load_data(data_path='sprint3/demos/data/sample_transactions.csv'):
     
     return df
 
+# Purpose: Extract feature matrix and target vector from dataframe.
+# Params: df (DataFrame) — transaction data with features and labels.
+# Returns: X (DataFrame) — feature matrix; y (Series) — binary fraud labels.
+# Side effects: Fills missing values, converts target to integer.
 def prepare_features(df):
     """Prepare feature matrix and target vector."""
     X = df[FEATURE_COLS].fillna(0)
@@ -53,11 +65,16 @@ def prepare_features(df):
     
     return X, y
 
+# Purpose: Train XGBoost binary classifier for fraud detection.
+# Params: X_train (DataFrame) — training features; y_train (Series) — training labels.
+# Returns: Trained XGBClassifier model.
+# Side effects: Trains model, prints training progress.
 def train_model(X_train, y_train):
     """Train XGBoost classifier."""
     print("\nTraining XGBoost model...")
     
-    # Calculate class imbalance ratio
+    # Purpose: Calculate class imbalance ratio to handle fraud/legit imbalance.
+    # Side effects: Computes weight for positive class.
     fraud_count = y_train.sum()
     legit_count = len(y_train) - fraud_count
     scale_pos_weight = legit_count / fraud_count
@@ -83,11 +100,16 @@ def train_model(X_train, y_train):
     
     return model
 
+# Purpose: Evaluate trained model performance on test set with metrics and visualizations.
+# Params: model (XGBClassifier) — trained model; X_test (DataFrame) — test features; y_test (Series) — test labels.
+# Returns: Dictionary with performance metrics and feature importance.
+# Side effects: Generates predictions, calculates metrics, prints evaluation results.
 def evaluate_model(model, X_test, y_test):
     """Evaluate model performance."""
     print("\nEvaluating model...")
     
-    # Predictions
+    # Purpose: Generate probability predictions and binary predictions using 0.65 threshold.
+    # Side effects: Runs model inference on test set.
     y_pred_proba = model.predict_proba(X_test)[:, 1]
     y_pred = (y_pred_proba > 0.65).astype(int)  # Threshold = 0.65
     
@@ -137,6 +159,10 @@ def evaluate_model(model, X_test, y_test):
         'false_positive_rate': fpr
     }
 
+# Purpose: Save trained model to pickle file and metadata to JSON.
+# Params: model (XGBClassifier) — trained model; metrics (dict) — performance metrics; output_dir (str) — output directory.
+# Returns: Tuple of (model_path, metadata_path).
+# Side effects: Creates directory if needed, writes model and metadata files.
 def save_model(model, metrics, output_dir='sprint3/ml_pipeline/models'):
     """Save trained model and metadata."""
     Path(output_dir).mkdir(parents=True, exist_ok=True)
@@ -163,6 +189,8 @@ def save_model(model, metrics, output_dir='sprint3/ml_pipeline/models'):
     
     return model_path, metadata_path
 
+# Purpose: Main training pipeline orchestrating data loading, training, evaluation, and saving.
+# Side effects: Loads data, splits train/test, trains model, evaluates, performs cross-validation, saves model.
 def main():
     """Main training pipeline."""
     print("=" * 60)

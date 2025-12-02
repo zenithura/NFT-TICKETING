@@ -1,3 +1,6 @@
+# File header: FastAPI backend server for NFT ticketing platform.
+# Provides REST API endpoints for wallet management, events, tickets, marketplace, and scanning.
+
 from fastapi import FastAPI, APIRouter, HTTPException, Query
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -15,23 +18,27 @@ from blockchain import BlockchainService
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
-# Supabase connection
+# Purpose: Initialize Supabase database client connection.
+# Side effects: Reads environment variables, creates database client.
 supabase_url = os.environ['SUPABASE_URL']
 supabase_key = os.environ['SUPABASE_KEY']
 supabase: Client = create_client(supabase_url, supabase_key)
 
-# Initialize Blockchain Service
+# Purpose: Initialize blockchain service for smart contract interactions.
+# Side effects: Creates Web3 connection, loads contract ABI, may fail if blockchain unavailable.
 try:
     blockchain = BlockchainService()
 except Exception as e:
     logging.error(f"Failed to initialize blockchain service: {e}")
     blockchain = None
 
-# Create the main app
+# Purpose: Create FastAPI application instance and API router.
+# Side effects: Initializes web framework, sets up routing prefix.
 app = FastAPI(title="NFT Ticketing API")
 api_router = APIRouter(prefix="/api")
 
-# Enums
+# Purpose: Enumeration types for domain status values used across the API.
+# Side effects: None - type definitions only.
 class EventStatus(str, Enum):
     UPCOMING = "UPCOMING"
     ACTIVE = "ACTIVE"
@@ -61,7 +68,8 @@ class ResaleStatus(str, Enum):
     CANCELLED = "CANCELLED"
     EXPIRED = "EXPIRED"
 
-# Models
+# Purpose: Pydantic models for request/response validation and serialization.
+# Side effects: None - data class definitions only.
 class Wallet(BaseModel):
     model_config = ConfigDict(extra="ignore")
     wallet_id: Optional[int] = None
@@ -209,21 +217,33 @@ class ScanVerify(BaseModel):
     ticket_id: int
     scanner_id: int
 
-# Helper functions
+# Purpose: Retrieve wallet record from database by blockchain address.
+# Params: address (str) — Ethereum wallet address.
+# Returns: Wallet dictionary or None if not found.
+# Side effects: Queries Supabase database.
 def get_wallet_by_address(address: str):
     result = supabase.table('wallets').select('*').eq('address', address).execute()
     return result.data[0] if result.data else None
 
+# Purpose: Retrieve wallet record from database by internal wallet ID.
+# Params: wallet_id (int) — internal database wallet identifier.
+# Returns: Wallet dictionary or None if not found.
+# Side effects: Queries Supabase database.
 def get_wallet_by_id(wallet_id: int):
     result = supabase.table('wallets').select('*').eq('wallet_id', wallet_id).execute()
     return result.data[0] if result.data else None
 
-# API Routes
+# Purpose: API root endpoint returning service information.
+# Returns: JSON object with API name, version, and database type.
+# Side effects: None - read-only endpoint.
 @api_router.get("/")
 async def root():
     return {"message": "NFT Ticketing API", "version": "2.0.0", "database": "Supabase PostgreSQL"}
 
-# Wallet Routes
+# Purpose: Connect or create a wallet record for a blockchain address.
+# Params: wallet_input (WalletConnect) — contains wallet address.
+# Returns: Wallet object with database record.
+# Side effects: Creates wallet in database if not exists, queries database.
 @api_router.post("/wallet/connect", response_model=Wallet)
 async def connect_wallet(wallet_input: WalletConnect):
     try:
@@ -231,7 +251,8 @@ async def connect_wallet(wallet_input: WalletConnect):
         if existing:
             return Wallet(**existing)
         
-        # Create new wallet
+        # Purpose: Create new wallet record with default values for new users.
+        # Side effects: Inserts record into wallets table.
         wallet_data = {
             "address": wallet_input.address,
             "balance": 1000.0,
@@ -246,6 +267,10 @@ async def connect_wallet(wallet_input: WalletConnect):
         logging.error(f"Error connecting wallet: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Purpose: Retrieve wallet information by blockchain address.
+# Params: address (str) — Ethereum wallet address from URL path.
+# Returns: Wallet object or 404 if not found.
+# Side effects: Queries database.
 @api_router.get("/wallet/{address}", response_model=Wallet)
 async def get_wallet(address: str):
     try:
@@ -259,7 +284,10 @@ async def get_wallet(address: str):
         logging.error(f"Error getting wallet: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# Venue Routes
+# Purpose: Create a new venue record in the database.
+# Params: venue_input (VenueCreate) — venue details (name, location, capacity).
+# Returns: Created Venue object with generated ID.
+# Side effects: Inserts record into venues table.
 @api_router.post("/venues", response_model=Venue)
 async def create_venue(venue_input: VenueCreate):
     try:
@@ -270,6 +298,9 @@ async def create_venue(venue_input: VenueCreate):
         logging.error(f"Error creating venue: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Purpose: Retrieve all venues from the database.
+# Returns: List of Venue objects.
+# Side effects: Queries venues table.
 @api_router.get("/venues", response_model=List[Venue])
 async def get_venues():
     try:
@@ -279,11 +310,15 @@ async def get_venues():
         logging.error(f"Error getting venues: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# Event Routes
+# Purpose: Create a new event linked to a venue with ticket supply and pricing.
+# Params: event_input (EventCreate) — event details including venue, dates, supply, price.
+# Returns: Created Event object with generated ID.
+# Side effects: Inserts record into events table, initializes available_tickets.
 @api_router.post("/events", response_model=Event)
 async def create_event(event_input: EventCreate):
     try:
         event_data = event_input.model_dump()
+        # Purpose: Initialize available tickets to match total supply for new event.
         event_data['available_tickets'] = event_data['total_supply']
         event_data['status'] = EventStatus.ACTIVE.value
         
@@ -293,6 +328,10 @@ async def create_event(event_input: EventCreate):
         logging.error(f"Error creating event: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Purpose: Retrieve events from database, optionally filtered by status.
+# Params: status (Optional[EventStatus]) — filter events by status (query parameter).
+# Returns: List of Event objects.
+# Side effects: Queries events table.
 @api_router.get("/events", response_model=List[Event])
 async def get_events(status: Optional[EventStatus] = None):
     try:
@@ -305,6 +344,10 @@ async def get_events(status: Optional[EventStatus] = None):
         logging.error(f"Error getting events: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Purpose: Retrieve a specific event by ID.
+# Params: event_id (int) — event identifier from URL path.
+# Returns: Event object or 404 if not found.
+# Side effects: Queries events table.
 @api_router.get("/events/{event_id}", response_model=Event)
 async def get_event(event_id: int):
     try:
@@ -318,31 +361,36 @@ async def get_event(event_id: int):
         logging.error(f"Error getting event: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# Ticket Routes
+# Purpose: Mint a new NFT ticket for an event, creating database records and blockchain transaction.
+# Params: mint_input (TicketMint) — event ID and buyer wallet address.
+# Returns: Created Ticket object with token ID.
+# Side effects: Creates ticket/order records, updates wallet balance, decrements event supply, sends blockchain transaction.
 @api_router.post("/tickets/mint", response_model=Ticket)
 async def mint_ticket(mint_input: TicketMint):
     try:
-        # Get event
+        # Purpose: Verify event exists and retrieve event details.
+        # Side effects: Queries events table.
         event_result = supabase.table('events').select('*').eq('event_id', mint_input.event_id).execute()
         if not event_result.data:
             raise HTTPException(status_code=404, detail="Event not found")
         
         event = event_result.data[0]
         
-        # Check available tickets
+        # Purpose: Validate that tickets are still available for purchase.
         if event['available_tickets'] <= 0:
             raise HTTPException(status_code=400, detail="Event sold out")
         
-        # Get wallet
+        # Purpose: Retrieve buyer wallet record from database.
         wallet = get_wallet_by_address(mint_input.buyer_address)
         if not wallet:
             raise HTTPException(status_code=404, detail="Wallet not found")
         
-        # Check balance
+        # Purpose: Verify buyer has sufficient balance to purchase ticket.
         if wallet['balance'] < event['base_price']:
             raise HTTPException(status_code=400, detail="Insufficient balance")
         
-        # Create ticket
+        # Purpose: Create ticket record in database with generated token ID.
+        # Side effects: Inserts record into tickets table.
         ticket_data = {
             "event_id": mint_input.event_id,
             "owner_wallet_id": wallet['wallet_id'],
@@ -355,7 +403,8 @@ async def mint_ticket(mint_input: TicketMint):
         ticket_result = supabase.table('tickets').insert(ticket_data).execute()
         ticket = ticket_result.data[0]
         
-        # Create order
+        # Purpose: Create order record to track the purchase transaction.
+        # Side effects: Inserts record into orders table.
         order_data = {
             "buyer_wallet_id": wallet['wallet_id'],
             "ticket_id": ticket['ticket_id'],
@@ -369,24 +418,32 @@ async def mint_ticket(mint_input: TicketMint):
         }
         supabase.table('orders').insert(order_data).execute()
         
-        # Update wallet balance
+        # Purpose: Deduct ticket price from buyer's wallet balance.
+        # Side effects: Updates wallets table.
         new_balance = wallet['balance'] - event['base_price']
         supabase.table('wallets').update({"balance": new_balance}).eq('wallet_id', wallet['wallet_id']).execute()
         
-        # Update event available tickets
+        # Purpose: Decrement available ticket count for the event.
+        # Side effects: Updates events table.
         supabase.table('events').update({
             "available_tickets": event['available_tickets'] - 1
         }).eq('event_id', mint_input.event_id).execute()
         
-        # Mint on chain
+        # Purpose: Mint NFT on blockchain if service is available.
+        # Side effects: Sends transaction to blockchain, may fail silently.
         if blockchain:
             try:
+                # Purpose: Call blockchain service to mint NFT token on-chain.
+                # Params: to_address — buyer wallet; event_id — event identifier; token_uri — metadata URI.
+                # Returns: Transaction hash string.
+                # Side effects: Sends transaction to blockchain.
                 tx_hash = blockchain.mint_ticket(
                     to_address=mint_input.buyer_address,
                     event_id=mint_input.event_id,
                     token_uri=f"ipfs://{ticket['token_id']}" # Placeholder URI
                 )
-                # Update ticket with tx hash
+                # Purpose: Store blockchain transaction hash in ticket record.
+                # Side effects: Updates tickets table.
                 supabase.table('tickets').update({"transaction_hash": tx_hash}).eq('ticket_id', ticket['ticket_id']).execute()
                 ticket['transaction_hash'] = tx_hash
             except Exception as e:
@@ -401,6 +458,10 @@ async def mint_ticket(mint_input: TicketMint):
         logging.error(f"Error minting ticket: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Purpose: Retrieve all tickets owned by a specific wallet address.
+# Params: wallet_address (str) — Ethereum wallet address from URL path.
+# Returns: List of Ticket objects owned by the wallet.
+# Side effects: Queries database for wallet and associated tickets.
 @api_router.get("/tickets/wallet/{wallet_address}", response_model=List[Ticket])
 async def get_wallet_tickets(wallet_address: str):
     try:
@@ -414,6 +475,10 @@ async def get_wallet_tickets(wallet_address: str):
         logging.error(f"Error getting wallet tickets: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Purpose: Retrieve a specific ticket by ID.
+# Params: ticket_id (int) — ticket identifier from URL path.
+# Returns: Ticket object or 404 if not found.
+# Side effects: Queries tickets table.
 @api_router.get("/tickets/{ticket_id}", response_model=Ticket)
 async def get_ticket(ticket_id: int):
     try:
@@ -427,42 +492,47 @@ async def get_ticket(ticket_id: int):
         logging.error(f"Error getting ticket: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# Marketplace/Resale Routes
+# Purpose: List a ticket for resale on the marketplace.
+# Params: resale_input (ResaleCreate) — ticket ID, seller address, and listing price.
+# Returns: Created Resale object.
+# Side effects: Creates resale record, updates ticket status, queries database.
 @api_router.post("/marketplace/list", response_model=Resale)
 async def list_resale(resale_input: ResaleCreate):
     try:
-        # Get ticket
+        # Purpose: Retrieve ticket record and validate it exists.
         ticket_result = supabase.table('tickets').select('*').eq('ticket_id', resale_input.ticket_id).execute()
         if not ticket_result.data:
             raise HTTPException(status_code=404, detail="Ticket not found")
         
         ticket = ticket_result.data[0]
         
-        # Get seller wallet
+        # Purpose: Retrieve seller wallet and verify it exists.
         seller_wallet = get_wallet_by_address(resale_input.seller_address)
         if not seller_wallet:
             raise HTTPException(status_code=404, detail="Seller wallet not found")
         
-        # Verify ownership
+        # Purpose: Verify the seller owns the ticket before allowing listing.
         if ticket['owner_wallet_id'] != seller_wallet['wallet_id']:
             raise HTTPException(status_code=403, detail="Not ticket owner")
         
+        # Purpose: Prevent listing of already-used tickets.
         if ticket['status'] == TicketStatus.USED.value:
             raise HTTPException(status_code=400, detail="Ticket already used")
         
-        # Check if already listed
+        # Purpose: Check if ticket is already listed to prevent duplicate listings.
         existing = supabase.table('resales').select('*').eq('ticket_id', resale_input.ticket_id).eq('status', ResaleStatus.LISTED.value).execute()
         if existing.data:
             raise HTTPException(status_code=400, detail="Ticket already listed")
         
-        # Get original order
+        # Purpose: Retrieve original purchase order to calculate markup percentage.
         order_result = supabase.table('orders').select('*').eq('ticket_id', resale_input.ticket_id).eq('order_type', 'PRIMARY').execute()
         if not order_result.data:
             raise HTTPException(status_code=404, detail="Original order not found")
         
         original_order = order_result.data[0]
         
-        # Create resale
+        # Purpose: Create resale listing record with calculated markup.
+        # Side effects: Inserts record into resales table.
         resale_data = {
             "ticket_id": resale_input.ticket_id,
             "seller_wallet_id": seller_wallet['wallet_id'],
@@ -475,7 +545,8 @@ async def list_resale(resale_input: ResaleCreate):
         
         result = supabase.table('resales').insert(resale_data).execute()
         
-        # Update ticket status
+        # Purpose: Mark ticket as transferred to indicate it's listed for resale.
+        # Side effects: Updates tickets table.
         supabase.table('tickets').update({'status': TicketStatus.TRANSFERRED.value}).eq('ticket_id', resale_input.ticket_id).execute()
         
         return Resale(**result.data[0])
@@ -485,6 +556,9 @@ async def list_resale(resale_input: ResaleCreate):
         logging.error(f"Error listing resale: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Purpose: Retrieve all active resale listings from the marketplace.
+# Returns: List of Resale objects with LISTED status.
+# Side effects: Queries resales table.
 @api_router.get("/marketplace/listings", response_model=List[Resale])
 async def get_marketplace_listings():
     try:
@@ -494,10 +568,14 @@ async def get_marketplace_listings():
         logging.error(f"Error getting marketplace listings: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Purpose: Purchase a listed ticket from the marketplace.
+# Params: buy_input (ResaleBuy) — resale ID and buyer wallet address.
+# Returns: Success message JSON.
+# Side effects: Transfers ticket ownership, updates balances, creates order, marks resale as sold.
 @api_router.post("/marketplace/buy")
 async def buy_resale(buy_input: ResaleBuy):
     try:
-        # Get resale
+        # Purpose: Retrieve resale listing and validate it's available.
         resale_result = supabase.table('resales').select('*').eq('resale_id', buy_input.resale_id).execute()
         if not resale_result.data:
             raise HTTPException(status_code=404, detail="Resale not found")
@@ -506,7 +584,7 @@ async def buy_resale(buy_input: ResaleBuy):
         if resale['status'] != ResaleStatus.LISTED.value:
             raise HTTPException(status_code=400, detail="Resale not available")
         
-        # Get buyer wallet
+        # Purpose: Retrieve buyer wallet and verify sufficient balance.
         buyer_wallet = get_wallet_by_address(buy_input.buyer_address)
         if not buyer_wallet:
             raise HTTPException(status_code=404, detail="Buyer wallet not found")
@@ -514,21 +592,23 @@ async def buy_resale(buy_input: ResaleBuy):
         if buyer_wallet['balance'] < resale['listing_price']:
             raise HTTPException(status_code=400, detail="Insufficient balance")
         
-        # Get ticket
+        # Purpose: Retrieve ticket record for ownership transfer.
         ticket_result = supabase.table('tickets').select('*').eq('ticket_id', resale['ticket_id']).execute()
         ticket = ticket_result.data[0]
         
-        # Get seller wallet
+        # Purpose: Retrieve seller wallet for payment processing.
         seller_wallet = get_wallet_by_id(resale['seller_wallet_id'])
         
-        # Transfer ticket
+        # Purpose: Transfer ticket ownership to buyer and update status.
+        # Side effects: Updates tickets table.
         supabase.table('tickets').update({
             'owner_wallet_id': buyer_wallet['wallet_id'],
             'status': TicketStatus.ACTIVE.value,
             'last_transfer_at': datetime.now(timezone.utc).isoformat()
         }).eq('ticket_id', resale['ticket_id']).execute()
         
-        # Create resale order
+        # Purpose: Create order record for the resale transaction.
+        # Side effects: Inserts record into orders table.
         order_data = {
             "buyer_wallet_id": buyer_wallet['wallet_id'],
             "ticket_id": resale['ticket_id'],
@@ -542,17 +622,20 @@ async def buy_resale(buy_input: ResaleBuy):
         }
         supabase.table('orders').insert(order_data).execute()
         
-        # Update buyer balance
+        # Purpose: Deduct purchase price from buyer's balance.
+        # Side effects: Updates wallets table.
         supabase.table('wallets').update({
             'balance': buyer_wallet['balance'] - resale['listing_price']
         }).eq('wallet_id', buyer_wallet['wallet_id']).execute()
         
-        # Update seller balance
+        # Purpose: Credit sale proceeds to seller's balance.
+        # Side effects: Updates wallets table.
         supabase.table('wallets').update({
             'balance': seller_wallet['balance'] + resale['listing_price']
         }).eq('wallet_id', seller_wallet['wallet_id']).execute()
         
-        # Update resale
+        # Purpose: Mark resale as sold and record buyer information.
+        # Side effects: Updates resales table.
         supabase.table('resales').update({
             'status': ResaleStatus.SOLD.value,
             'buyer_wallet_id': buyer_wallet['wallet_id'],
@@ -566,7 +649,10 @@ async def buy_resale(buy_input: ResaleBuy):
         logging.error(f"Error buying resale: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# Scanner Routes
+# Purpose: Register a new scanner device for ticket verification at venues.
+# Params: scanner_input (ScannerRegister) — venue ID, operator name, and optional wallet.
+# Returns: Created Scanner object with generated device ID.
+# Side effects: Inserts record into scanners table.
 @api_router.post("/scanner/register", response_model=Scanner)
 async def register_scanner(scanner_input: ScannerRegister):
     try:
@@ -579,24 +665,28 @@ async def register_scanner(scanner_input: ScannerRegister):
         logging.error(f"Error registering scanner: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Purpose: Verify and scan a ticket at event entry, preventing reuse.
+# Params: scan_input (ScanVerify) — ticket ID and scanner ID.
+# Returns: Scan object with validation result.
+# Side effects: Creates scan record, marks ticket as used if valid, may call blockchain.
 @api_router.post("/scanner/verify", response_model=Scan)
 async def verify_ticket(scan_input: ScanVerify):
     try:
-        # Get ticket
+        # Purpose: Retrieve ticket record and validate it exists.
         ticket_result = supabase.table('tickets').select('*').eq('ticket_id', scan_input.ticket_id).execute()
         if not ticket_result.data:
             raise HTTPException(status_code=404, detail="Ticket not found")
         
         ticket = ticket_result.data[0]
         
-        # Get scanner
+        # Purpose: Retrieve scanner record and validate it exists.
         scanner_result = supabase.table('scanners').select('*').eq('scanner_id', scan_input.scanner_id).execute()
         if not scanner_result.data:
             raise HTTPException(status_code=404, detail="Scanner not found")
         
         scanner = scanner_result.data[0]
         
-        # Check if already used
+        # Purpose: Validate ticket hasn't been used already.
         valid = True
         error_msg = None
         
@@ -604,7 +694,8 @@ async def verify_ticket(scan_input: ScanVerify):
             valid = False
             error_msg = "Ticket already used"
         
-        # Create scan record
+        # Purpose: Create scan record to log the verification attempt.
+        # Side effects: Inserts record into scans table.
         scan_data = {
             "ticket_id": scan_input.ticket_id,
             "scanner_id": scan_input.scanner_id,
@@ -617,13 +708,15 @@ async def verify_ticket(scan_input: ScanVerify):
         
         result = supabase.table('scans').insert(scan_data).execute()
         
-        # Mark ticket as used if valid
+        # Purpose: Mark ticket as used if validation passed.
+        # Side effects: Updates tickets table.
         if valid:
             supabase.table('tickets').update({'status': TicketStatus.USED.value}).eq('ticket_id', scan_input.ticket_id).execute()
         else:
             raise HTTPException(status_code=400, detail=error_msg)
         
-        # Scan on chain
+        # Purpose: Update ticket scan status on blockchain if service available.
+        # Side effects: May send transaction to blockchain.
         if valid and blockchain:
             try:
                 # We need the token_id (int) from the contract, but our DB ticket_id is int.
@@ -647,6 +740,10 @@ async def verify_ticket(scan_input: ScanVerify):
         logging.error(f"Error verifying ticket: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# Purpose: Retrieve all scan records for a specific venue.
+# Params: venue_id (int) — venue identifier from URL path.
+# Returns: List of Scan objects.
+# Side effects: Queries scans table.
 @api_router.get("/scans/venue/{venue_id}", response_model=List[Scan])
 async def get_venue_scans(venue_id: int):
     try:
@@ -656,9 +753,12 @@ async def get_venue_scans(venue_id: int):
         logging.error(f"Error getting venue scans: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-# Include router
+# Purpose: Register API router with main FastAPI application.
+# Side effects: Mounts all API routes under /api prefix.
 app.include_router(api_router)
 
+# Purpose: Configure CORS middleware to allow frontend requests from localhost.
+# Side effects: Enables cross-origin requests from specified origins.
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,

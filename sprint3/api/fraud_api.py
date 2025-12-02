@@ -1,3 +1,6 @@
+# File header: Flask API service for real-time fraud detection using trained ML model.
+# Provides endpoints for single and batch fraud predictions on ticket transactions.
+
 """
 Fraud Detection API - Demo Version
 Provides real-time fraud prediction endpoint with mock data support.
@@ -15,7 +18,8 @@ from datetime import datetime
 app = Flask(__name__)
 CORS(app)
 
-# Feature columns (must match training)
+# Purpose: Feature column names that must match the training data schema.
+# Side effects: None - constant list.
 FEATURE_COLS = [
     'txn_velocity_1h',
     'wallet_age_days',
@@ -29,13 +33,16 @@ FEATURE_COLS = [
     'time_to_first_resale'
 ]
 
-# Load model
-# Load model
+# Purpose: Path to trained fraud detection model file.
+# Side effects: None - path configuration.
 MODEL_PATH = Path('ml_pipeline/models/fraud_model_v1.2.3.pkl')
 if not MODEL_PATH.exists():
     MODEL_PATH = Path('sprint3/ml_pipeline/models/fraud_model_v1.2.3.pkl')
 model = None
 
+# Purpose: Load trained XGBoost model from pickle file into memory.
+# Returns: True if model loaded successfully, False otherwise.
+# Side effects: Reads model file from filesystem, sets global model variable.
 def load_model():
     """Load trained model."""
     global model
@@ -49,9 +56,14 @@ def load_model():
         print("   Run: python sprint3/ml_pipeline/train_fraud_model.py")
         return False
 
-# Initialize model on module import
+# Purpose: Initialize model on module import for immediate availability.
+# Side effects: Calls load_model() at import time.
 load_model()
 
+# Purpose: Extract feature vector from transaction data for model prediction.
+# Params: transaction_data (dict) — transaction details with optional feature values.
+# Returns: Dictionary of feature values, using defaults if not provided.
+# Side effects: Calculates price deviation ratio if prices provided.
 def extract_features(transaction_data):
     """
     Extract features from transaction data.
@@ -78,6 +90,9 @@ def extract_features(transaction_data):
     
     return features
 
+# Purpose: Health check endpoint to verify API and model status.
+# Returns: JSON with service status, model version, and timestamp.
+# Side effects: None - read-only endpoint.
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint."""
@@ -87,6 +102,10 @@ def health_check():
         'timestamp': datetime.now().isoformat()
     })
 
+# Purpose: Predict fraud probability for a single transaction.
+# Params: JSON body with transaction_id, wallet_address, ticket_id, price_paid, optional fields.
+# Returns: JSON with fraud_score, decision, confidence, and feature values.
+# Side effects: Runs ML model inference, logs prediction result.
 @app.route('/api/v1/ml/predict/fraud', methods=['POST'])
 def predict_fraud():
     """
@@ -122,16 +141,20 @@ def predict_fraud():
         if not all(field in data for field in required_fields):
             return jsonify({'error': f'Missing required fields: {required_fields}'}), 400
         
-        # Extract features
+        # Purpose: Extract feature values from transaction data.
         features = extract_features(data)
         
-        # Prepare feature vector
+        # Purpose: Convert features to numpy array format required by model.
+        # Side effects: Creates feature vector array.
         feature_vector = np.array([[features[col] for col in FEATURE_COLS]])
         
-        # Model inference
+        # Purpose: Run model inference to get fraud probability.
+        # Returns: Probability score between 0 and 1.
+        # Side effects: Executes ML model prediction.
         fraud_score = float(model.predict_proba(feature_vector)[0][1])
         
-        # Decision logic
+        # Purpose: Map fraud score to action decision based on risk thresholds.
+        # Side effects: None - decision logic only.
         if fraud_score > 0.85:
             decision = "BLOCKED"
         elif fraud_score > 0.65:
@@ -141,7 +164,7 @@ def predict_fraud():
         else:
             decision = "APPROVED"
         
-        # Confidence (distance from decision boundary)
+        # Purpose: Calculate confidence as distance from decision boundary (0.5).
         confidence = float(1 - abs(fraud_score - 0.5) * 2)
         
         # Get feature importance
@@ -167,6 +190,10 @@ def predict_fraud():
         print(f"Error in fraud prediction: {str(e)}")
         return jsonify({'error': 'Internal server error', 'details': str(e)}), 500
 
+# Purpose: Predict fraud for multiple transactions in a single request.
+# Params: JSON body with 'transactions' array of transaction objects.
+# Returns: JSON with predictions array containing fraud_score and decision for each transaction.
+# Side effects: Runs model inference for each transaction, processes batch.
 @app.route('/api/v1/ml/batch/predict', methods=['POST'])
 def batch_predict():
     """Batch prediction endpoint for multiple transactions."""
@@ -210,6 +237,9 @@ def batch_predict():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+# Purpose: Retrieve model metadata and training information.
+# Returns: JSON with model version, features, and training metrics.
+# Side effects: Reads metadata JSON file from filesystem.
 @app.route('/api/v1/ml/model/info', methods=['GET'])
 def model_info():
     """Get model information and metadata."""
