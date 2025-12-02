@@ -1,24 +1,33 @@
+# File header: Integration test script for ticket minting workflow.
+# Tests complete flow: wallet connection, venue creation, event creation, and ticket minting.
+
 import requests
 import json
 import os
 import time
 
-# Configuration
+# Purpose: API base URL for backend server.
+# Side effects: None - configuration constant.
 API_URL = "http://localhost:8000/api"
 
+# Purpose: Test complete ticket minting workflow end-to-end.
+# Side effects: Makes HTTP requests to API, prints test results.
 def test_mint_ticket():
     print("Testing mint ticket...")
-    # 1. Create a wallet
+    # Purpose: Use Hardhat test account #1 for testing.
+    # Side effects: Sets wallet address for test.
     wallet_address = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8" # Hardhat Account #1
     
-    # Connect wallet
+    # Purpose: Connect wallet to backend system.
+    # Side effects: Sends POST request, creates wallet record in database.
     resp = requests.post(f"{API_URL}/wallet/connect", json={"address": wallet_address})
     if resp.status_code != 200:
         print(f"Failed to connect wallet: {resp.text}")
         return
     print("Wallet connected")
     
-    # 2. Create venue
+    # Purpose: Create test venue for event.
+    # Side effects: Sends POST request, creates venue record in database.
     venue_data = {
         "name": "Test Venue",
         "capacity": 100,
@@ -32,7 +41,8 @@ def test_mint_ticket():
     venue_id = resp.json()['venue_id']
     print(f"Venue created: {venue_id}")
     
-    # 3. Create event
+    # Purpose: Create test event linked to venue.
+    # Side effects: Sends POST request, creates event record in database.
     event_data = {
         "venue_id": venue_id,
         "name": "Test Event",
@@ -47,7 +57,8 @@ def test_mint_ticket():
     event_id = resp.json()['event_id']
     print(f"Event created: {event_id}")
     
-    # 4. Mint ticket
+    # Purpose: Mint NFT ticket on blockchain for the event.
+    # Side effects: Sends POST request, creates ticket record, executes blockchain transaction.
     mint_data = {
         "event_id": event_id,
         "buyer_address": wallet_address
@@ -60,13 +71,18 @@ def test_mint_ticket():
     ticket = resp.json()
     print(f"Ticket minted: {ticket}")
     
+    # Purpose: Verify blockchain transaction hash was returned.
+    # Side effects: Prints transaction hash or warning message.
     if 'transaction_hash' in ticket and ticket['transaction_hash']:
         print(f"Transaction Hash: {ticket['transaction_hash']}")
     else:
         print("WARNING: No transaction hash returned!")
 
+# Purpose: Main execution block - run integration test with delay for server startup.
+# Side effects: Waits 2 seconds, executes test, handles exceptions.
 if __name__ == "__main__":
-    # Wait for server to start if running in parallel
+    # Purpose: Wait for server to start if running in parallel.
+    # Side effects: Delays execution by 2 seconds.
     time.sleep(2)
     try:
         test_mint_ticket()

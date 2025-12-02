@@ -1,3 +1,6 @@
+# File header: Test script for ticket minting on blockchain.
+# Tests wallet connection, event retrieval, and ticket minting with blockchain verification.
+
 #!/usr/bin/env python3
 """Test ticket minting on blockchain"""
 import requests
@@ -5,7 +8,8 @@ import json
 
 print("🎫 Testing Ticket Purchase & Blockchain Minting\n")
 
-# 1. Connect a test wallet
+# Purpose: Connect test wallet to backend system.
+# Side effects: Sends POST request, creates wallet record in database.
 print("1️⃣ Connecting wallet...")
 wallet_address = "0x70997970C51812dc3A010C7d01b50e0d17dc79C8"  # Second Hardhat account
 
@@ -18,7 +22,8 @@ wallet = response.json()
 print(f"   Wallet ID: {wallet.get('wallet_id')}")
 print(f"   Balance: {wallet.get('balance')} ETH")
 
-# 2. Get available events
+# Purpose: Retrieve available events from backend.
+# Side effects: Sends GET request, retrieves event list from database.
 print("\n2️⃣ Fetching events...")
 response = requests.get("http://localhost:5000/api/events")
 events = response.json()
@@ -31,7 +36,8 @@ else:
     print("   ❌ No events found!")
     exit(1)
 
-# 3. Mint a ticket
+# Purpose: Mint NFT ticket on blockchain for selected event.
+# Side effects: Sends POST request, creates ticket record, executes blockchain transaction.
 print("\n3️⃣ Minting ticket...")
 response = requests.post(
     "http://localhost:5000/api/tickets/mint",
@@ -41,6 +47,8 @@ response = requests.post(
     }
 )
 
+# Purpose: Verify ticket minting success and display transaction details.
+# Side effects: Prints ticket information and blockchain transaction hash.
 if response.status_code == 200:
     ticket = response.json()
     print(f"   ✅ Ticket minted!")
@@ -48,6 +56,8 @@ if response.status_code == 200:
     print(f"   Token ID: {ticket.get('token_id')}")
     print(f"   Transaction Hash: {ticket.get('transaction_hash')}")
     
+    # Purpose: Verify blockchain transaction was successful.
+    # Side effects: Prints success message or warning.
     if ticket.get('transaction_hash'):
         print(f"\n   🎉 BLOCKCHAIN TRANSACTION SUCCESSFUL!")
         print(f"   TX: {ticket.get('transaction_hash')}")

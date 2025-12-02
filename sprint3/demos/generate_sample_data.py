@@ -1,3 +1,6 @@
+# File header: Sample transaction data generator for fraud detection model training and testing.
+# Creates synthetic NFT ticketing transactions with realistic fraud patterns and feature engineering.
+
 """
 Generate sample transaction data for testing and demo purposes.
 Creates realistic NFT ticketing transaction data with fraud patterns.
@@ -9,9 +12,14 @@ from datetime import datetime, timedelta
 import random
 import json
 
+# Purpose: Set random seeds for reproducible data generation.
+# Side effects: Ensures consistent output across runs.
 np.random.seed(42)
 random.seed(42)
 
+# Purpose: Generate a random Ethereum wallet address for synthetic transactions.
+# Returns: String with '0x' prefix followed by 40 hexadecimal characters.
+# Side effects: None - pure function.
 def generate_wallet_address():
     """Generate a random Ethereum wallet address."""
     return '0x' + ''.join(random.choices('0123456789abcdef', k=40))
@@ -29,38 +37,48 @@ def generate_sample_data(n_transactions=10000, fraud_rate=0.012):
     """
     print(f"Generating {n_transactions} sample transactions...")
     
-    # Generate base data
+    # Purpose: Initialize data storage and set time range for transactions.
+    # Side effects: Creates empty list, calculates start date.
     data = []
     start_date = datetime.now() - timedelta(days=90)
     
-    # Create wallet pool (some wallets will have multiple transactions)
+    # Purpose: Create wallet pool to simulate wallet reuse patterns.
+    # Side effects: Generates unique wallet addresses (1/3 of transaction count).
     wallet_pool = [generate_wallet_address() for _ in range(n_transactions // 3)]
     
-    # Event pool
+    # Purpose: Generate event pool with varying capacities and floor prices.
+    # Side effects: Creates 100 event IDs with random capacity and pricing.
     events = [f"evt_{i:04d}" for i in range(100)]
     event_capacities = {evt: random.randint(100, 5000) for evt in events}
     event_floor_prices = {evt: random.uniform(20, 200) for evt in events}
     
+    # Purpose: Generate individual transactions with fraud patterns.
+    # Side effects: Creates transaction records and appends to data list.
     for i in range(n_transactions):
-        # Determine if this is a fraud transaction
+        # Purpose: Randomly mark transactions as fraudulent based on fraud_rate.
+        # Side effects: Determines transaction fraud status.
         is_fraud = random.random() < fraud_rate
         
-        # Select wallet (fraudsters reuse wallets more)
+        # Purpose: Select wallet with bias - fraudsters reuse wallets more frequently.
+        # Side effects: Assigns wallet address to transaction.
         if is_fraud and random.random() < 0.7:
             wallet = random.choice(wallet_pool[:50])  # Fraudsters from small pool
         else:
             wallet = random.choice(wallet_pool)
         
-        # Transaction details
+        # Purpose: Assign random event and timestamp within 90-day window.
+        # Side effects: Sets event_id and timestamp for transaction.
         event_id = random.choice(events)
         timestamp = start_date + timedelta(
             seconds=random.randint(0, 90 * 24 * 3600)
         )
         
-        # Price (fraudsters often pay unusual prices)
+        # Purpose: Calculate transaction price with fraud-specific patterns.
+        # Side effects: Sets price_paid based on floor price and fraud status.
         floor_price = event_floor_prices[event_id]
         if is_fraud:
-            # Fraudulent transactions have unusual pricing
+            # Purpose: Fraudulent transactions use unusual pricing multipliers.
+            # Side effects: Creates suspicious price patterns.
             price_multiplier = random.choice([0.3, 0.5, 2.5, 3.0])
         else:
             price_multiplier = random.uniform(0.9, 1.3)
@@ -88,20 +106,27 @@ def generate_sample_data(n_transactions=10000, fraud_rate=0.012):
         
         data.append(transaction)
     
+    # Purpose: Convert transaction list to pandas DataFrame for feature engineering.
+    # Side effects: Creates DataFrame from collected transaction data.
     df = pd.DataFrame(data)
     
-    # Add derived features
+    # Purpose: Compute derived features required for fraud detection model.
+    # Side effects: Adds feature columns to DataFrame.
     print("Computing features...")
     
-    # Wallet age (days since first transaction)
+    # Purpose: Calculate wallet age in days since first transaction.
+    # Side effects: Adds wallet_first_txn and wallet_age_days columns.
     wallet_first_txn = df.groupby('wallet_address')['timestamp'].min()
     df['wallet_first_txn'] = df['wallet_address'].map(wallet_first_txn)
     df['wallet_age_days'] = (df['timestamp'] - df['wallet_first_txn']).dt.total_seconds() / 86400
     
-    # Transaction velocity (transactions in last hour)
+    # Purpose: Calculate transaction velocity (number of transactions in last hour).
+    # Side effects: Adds txn_velocity_1h column, sorts DataFrame by timestamp.
     df = df.sort_values('timestamp')
     df['txn_velocity_1h'] = 0
     
+    # Purpose: Count transactions per wallet within 1-hour window before current transaction.
+    # Side effects: Updates txn_velocity_1h for each transaction.
     for idx, row in df.iterrows():
         wallet = row['wallet_address']
         time = row['timestamp']
@@ -114,33 +139,41 @@ def generate_sample_data(n_transactions=10000, fraud_rate=0.012):
         ])
         df.at[idx, 'txn_velocity_1h'] = count
     
-    # Price deviation ratio
+    # Purpose: Calculate price deviation ratio from floor price.
+    # Side effects: Adds price_deviation_ratio column.
     df['price_deviation_ratio'] = (df['price_paid'] - df['floor_price']) / df['floor_price']
     
-    # Cross-event attendance
+    # Purpose: Count unique events attended per wallet (cross-event attendance).
+    # Side effects: Adds cross_event_attendance column.
     wallet_event_counts = df.groupby('wallet_address')['event_id'].nunique()
     df['cross_event_attendance'] = df['wallet_address'].map(wallet_event_counts)
     
-    # Payment method diversity
+    # Purpose: Count unique payment methods used per wallet.
+    # Side effects: Adds payment_method_diversity column.
     wallet_payment_diversity = df.groupby('wallet_address')['payment_method'].nunique()
     df['payment_method_diversity'] = df['wallet_address'].map(wallet_payment_diversity)
     
-    # Geo velocity flag (simplified - random for demo)
+    # Purpose: Generate geo velocity flag (simplified - random for demo).
+    # Side effects: Adds geo_velocity_flag column (30% of fraud cases flagged).
     df['geo_velocity_flag'] = df['is_fraud'] & (random.random() < 0.3)
     
-    # Event popularity score (simplified)
+    # Purpose: Calculate event popularity as tickets sold / capacity.
+    # Side effects: Adds event_popularity_score column.
     event_ticket_counts = df.groupby('event_id').size()
     df['event_popularity_score'] = df['event_id'].map(
         lambda x: event_ticket_counts[x] / event_capacities[x] if x in event_ticket_counts else 0
     )
     
-    # Avg ticket hold time (hours) - random for demo
+    # Purpose: Generate average ticket hold time using exponential distribution (48h mean).
+    # Side effects: Adds avg_ticket_hold_time column.
     df['avg_ticket_hold_time'] = np.random.exponential(48, size=len(df))
     
-    # Social graph centrality (random for demo)
+    # Purpose: Generate social graph centrality score using beta distribution.
+    # Side effects: Adds social_graph_centrality column.
     df['social_graph_centrality'] = np.random.beta(2, 5, size=len(df))
     
-    # Time to first resale (minutes) - random for demo
+    # Purpose: Calculate time to first resale in minutes (exponential, 20h mean for resales).
+    # Side effects: Adds time_to_first_resale column (0 for non-resales).
     df['time_to_first_resale'] = np.where(
         df['is_resale'],
         np.random.exponential(1200, size=len(df)),  # 20 hours avg
@@ -153,19 +186,28 @@ def generate_sample_data(n_transactions=10000, fraud_rate=0.012):
     
     return df
 
+# Purpose: Save generated sample data to CSV and JSON files, and create train/test split.
+# Params: df (DataFrame) — transaction data; output_dir (str) — directory path for output files.
+# Returns: Tuple of (csv_path, json_path) file paths.
+# Side effects: Creates directory, writes files to filesystem.
 def save_sample_data(df, output_dir='sprint3/demos/data'):
     """Save sample data to CSV and JSON."""
     import os
+    # Purpose: Create output directory if it doesn't exist.
+    # Side effects: Creates directory structure.
     os.makedirs(output_dir, exist_ok=True)
     
-    # Save full dataset
+    # Purpose: Save full dataset as CSV for model training.
+    # Side effects: Writes CSV file to filesystem.
     csv_path = f'{output_dir}/sample_transactions.csv'
     df.to_csv(csv_path, index=False)
     print(f"Saved CSV: {csv_path}")
     
-    # Save a subset as JSON for API testing
+    # Purpose: Save subset as JSON for API testing (first 100 records).
+    # Side effects: Converts timestamps to strings, writes JSON file.
     sample_json = df.head(100).to_dict('records')
-    # Convert timestamps and other non-serializable types to strings
+    # Purpose: Convert timestamps and other non-serializable types to strings.
+    # Side effects: Modifies record dictionaries in-place.
     for record in sample_json:
         record['timestamp'] = str(record['timestamp'])
         record['wallet_first_txn'] = str(record['wallet_first_txn'])
@@ -175,7 +217,8 @@ def save_sample_data(df, output_dir='sprint3/demos/data'):
         json.dump(sample_json, f, indent=2)
     print(f"Saved JSON: {json_path}")
     
-    # Save train/test split
+    # Purpose: Split data into train/test sets with stratified sampling on fraud label.
+    # Side effects: Creates train_data.csv and test_data.csv files.
     from sklearn.model_selection import train_test_split
     
     train_df, test_df = train_test_split(df, test_size=0.2, stratify=df['is_fraud'], random_state=42)
@@ -186,13 +229,19 @@ def save_sample_data(df, output_dir='sprint3/demos/data'):
     
     return csv_path, json_path
 
+# Purpose: Main execution block - generate sample data and save to files.
+# Side effects: Generates 10,000 transactions with 1.2% fraud rate, writes output files.
 if __name__ == '__main__':
-    # Generate sample data
+    # Purpose: Generate 10,000 sample transactions with 1.2% fraud rate.
+    # Side effects: Creates DataFrame with transaction data and features.
     df = generate_sample_data(n_transactions=10000, fraud_rate=0.012)
     
-    # Save to files
+    # Purpose: Save generated data to CSV, JSON, and train/test split files.
+    # Side effects: Writes files to sprint3/demos/data directory.
     csv_path, json_path = save_sample_data(df)
     
+    # Purpose: Print summary statistics of generated data.
+    # Side effects: Outputs to console.
     print("\n✅ Sample data generation complete!")
     print(f"\nData summary:")
     print(f"  Total transactions: {len(df)}")
