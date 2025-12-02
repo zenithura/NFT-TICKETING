@@ -310,3 +310,34 @@ input:focus {
 .animate-slide-up {
   animation: slideUp 0.5s ease-out;
 }
+
+/* Purpose: Prevent parent containers from clipping floating UI elements. */
+/* Side effects: Ensures modals, dropdowns, and tooltips are not clipped. */
+body {
+  overflow-x: hidden;
+}
+
+/* Purpose: Ensure portal containers don't clip content. */
+#modal-portal-root,
+#dropdown-portal-root {
+  overflow: visible !important;
+  pointer-events: none;
+}
+
+/* Purpose: Prevent navbar from clipping dropdowns. */
+nav {
+  overflow: visible !important;
+}
+
+/* Purpose: Ensure main container doesn't clip floating elements. */
+main {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* Purpose: Prevent clipping in flex containers. */
+.flex,
+.flex-col {
+  min-width: 0;
+  min-height: 0;
+}

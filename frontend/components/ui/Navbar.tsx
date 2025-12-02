@@ -1,7 +1,8 @@
 // File header: Navigation bar component with language switcher and wallet connection.
 // Provides main navigation links, role-based menu, and language selection.
 
-import React from 'react';
+import React, { useRef, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Wallet, Menu, X, ChevronDown, Shield, Users, Ticket, ScanLine, Zap, LogIn, LogOut, User, Copy } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -9,6 +10,7 @@ import { useWeb3 } from '../../services/web3Context';
 import { useAuth } from '../../services/authContext';
 import { UserRole } from '../../types';
 import { cn, formatAddress } from '../../lib/utils';
+import { calculateDropdownPosition } from '../../lib/viewportUtils';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { ThemeToggle } from './ThemeToggle';
 import { WalletConnectionModal } from '../WalletConnectionModal';
@@ -18,11 +20,78 @@ export const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const { isConnected, address, connectMetaMask, connectManual, disconnect, balance, userRole, setUserRole, isConnecting, error } = useWeb3();
   const { isAuthenticated, user, logout } = useAuth();
-  const [isMenuOpen, setIsMenuOpen] = React.useState(false);
-  const [isWalletModalOpen, setIsWalletModalOpen] = React.useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
+  const [isRoleMenuOpen, setIsRoleMenuOpen] = useState(false);
+  const [isWalletMenuOpen, setIsWalletMenuOpen] = useState(false);
   const location = useLocation();
+  
+  const roleTriggerRef = useRef<HTMLButtonElement>(null);
+  const walletTriggerRef = useRef<HTMLButtonElement>(null);
+  const roleMenuRef = useRef<HTMLDivElement>(null);
+  const walletMenuRef = useRef<HTMLDivElement>(null);
+  const [roleMenuPosition, setRoleMenuPosition] = useState<{ top: number; left?: number; right?: number; side: string } | null>(null);
+  const [walletMenuPosition, setWalletMenuPosition] = useState<{ top: number; left?: number; right?: number; side: string } | null>(null);
 
   const isActive = (path: string) => location.pathname === path;
+
+  // Purpose: Calculate dropdown positions when opened.
+  // Side effects: Updates position state based on viewport boundaries.
+  useEffect(() => {
+    if (isRoleMenuOpen && roleTriggerRef.current && roleMenuRef.current) {
+      const triggerRect = roleTriggerRef.current.getBoundingClientRect();
+      const menuWidth = 192; // w-48
+      const menuHeight = roleMenuRef.current.offsetHeight || 200;
+      const pos = calculateDropdownPosition(triggerRect, menuWidth, menuHeight, 8);
+      setRoleMenuPosition(pos);
+
+      const handleResize = () => {
+        if (roleTriggerRef.current && roleMenuRef.current) {
+          const newTriggerRect = roleTriggerRef.current.getBoundingClientRect();
+          const newMenuHeight = roleMenuRef.current.offsetHeight || 200;
+          const newPos = calculateDropdownPosition(newTriggerRect, menuWidth, newMenuHeight, 8);
+          setRoleMenuPosition(newPos);
+        }
+      };
+
+      window.addEventListener('resize', handleResize);
+      window.addEventListener('scroll', handleResize, true);
+      return () => {
+        window.removeEventListener('resize', handleResize);
+        window.removeEventListener('scroll', handleResize, true);
+      };
+    } else {
+      setRoleMenuPosition(null);
+    }
+  }, [isRoleMenuOpen]);
+
+  useEffect(() => {
+    if (isWalletMenuOpen && walletTriggerRef.current && walletMenuRef.current) {
+      const triggerRect = walletTriggerRef.current.getBoundingClientRect();
+      const menuWidth = 192; // w-48
+      const menuHeight = walletMenuRef.current.offsetHeight || 100;
+      const pos = calculateDropdownPosition(triggerRect, menuWidth, menuHeight, 8);
+      setWalletMenuPosition(pos);
+
+      const handleResize = () => {
+        if (walletTriggerRef.current && walletMenuRef.current) {
+          const newTriggerRect = walletTriggerRef.current.getBoundingClientRect();
+          const newMenuHeight = walletMenuRef.current.offsetHeight || 100;
+          const newPos = calculateDropdownPosition(newTriggerRect, menuWidth, newMenuHeight, 8);
+          setWalletMenuPosition(newPos);
+        }
+      };
+
+      window.addEventListener('resize', handleResize);
+      window.addEventListener('scroll', handleResize, true);
+      return () => {
+        window.removeEventListener('resize', handleResize);
+        window.removeEventListener('scroll', handleResize, true);
+      };
+    } else {
+      setWalletMenuPosition(null);
+    }
+  }, [isWalletMenuOpen]);
 
   const getLinks = () => {
     const common = [{ path: '/', label: t('nav.marketplace') }];
@@ -122,31 +191,53 @@ export const Navbar: React.FC = () => {
             {isConnected ? (
               <>
                 {/* Role Switcher (Demo) */}
-                <div className="relative group">
-                  <button className="flex items-center gap-2 px-3 py-1.5 rounded bg-background-elevated border border-border text-xs font-medium text-foreground-secondary hover:border-border-hover hover:text-foreground transition-colors">
+                <div className="relative">
+                  <button
+                    ref={roleTriggerRef}
+                    onMouseEnter={() => setIsRoleMenuOpen(true)}
+                    onMouseLeave={() => setIsRoleMenuOpen(false)}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded bg-background-elevated border border-border text-xs font-medium text-foreground-secondary hover:border-border-hover hover:text-foreground transition-colors"
+                  >
                     {userRole === UserRole.ADMIN && <Shield size={12} className="text-error" />}
                     {userRole === UserRole.ORGANIZER && <Users size={12} className="text-primary" />}
                     {userRole === UserRole.BUYER && <Ticket size={12} className="text-success" />}
                     {t(`roles.${userRole}`)}
                     <ChevronDown size={12} />
                   </button>
-                  <div className="absolute right-0 top-full mt-2 w-48 bg-background-elevated border border-border rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
-                    <div className="p-1">
-                      <div className="px-3 py-2 text-[10px] uppercase font-bold text-foreground-tertiary tracking-wider">{t('nav.switchView')}</div>
-                      {Object.values(UserRole).map((role) => (
-                        <button
-                          key={role}
-                          onClick={() => setUserRole(role)}
-                          className={cn(
-                            "w-full text-left px-3 py-2 text-sm rounded hover:bg-background-hover flex items-center gap-2",
-                            userRole === role ? "text-primary bg-primary/10" : "text-foreground-secondary"
-                          )}
-                        >
-                          {t(`roles.${role}`)}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                  {isRoleMenuOpen && roleMenuPosition && typeof document !== 'undefined' && createPortal(
+                    <div
+                      onMouseEnter={() => setIsRoleMenuOpen(true)}
+                      onMouseLeave={() => setIsRoleMenuOpen(false)}
+                      ref={roleMenuRef}
+                      className="fixed w-48 bg-background-elevated border border-border rounded-lg shadow-xl z-50"
+                      style={{
+                        top: roleMenuPosition.top !== undefined ? `${roleMenuPosition.top}px` : undefined,
+                        bottom: roleMenuPosition.bottom !== undefined ? `${roleMenuPosition.bottom}px` : undefined,
+                        left: roleMenuPosition.left !== undefined ? `${roleMenuPosition.left}px` : undefined,
+                        right: roleMenuPosition.right !== undefined ? `${roleMenuPosition.right}px` : undefined,
+                      }}
+                    >
+                      <div className="p-1">
+                        <div className="px-3 py-2 text-[10px] uppercase font-bold text-foreground-tertiary tracking-wider">{t('nav.switchView')}</div>
+                        {Object.values(UserRole).map((role) => (
+                          <button
+                            key={role}
+                            onClick={() => {
+                              setUserRole(role);
+                              setIsRoleMenuOpen(false);
+                            }}
+                            className={cn(
+                              "w-full text-left px-3 py-2 text-sm rounded hover:bg-background-hover flex items-center gap-2",
+                              userRole === role ? "text-primary bg-primary/10" : "text-foreground-secondary"
+                            )}
+                          >
+                            {t(`roles.${role}`)}
+                          </button>
+                        ))}
+                      </div>
+                    </div>,
+                    document.body
+                  )}
                 </div>
 
                 {/* Wallet Badge */}
@@ -154,33 +245,59 @@ export const Navbar: React.FC = () => {
                   <div className="text-sm font-mono text-foreground-secondary">
                     {balance} <span className="text-foreground-tertiary">ETH</span>
                   </div>
-                  <div className="relative group/wallet">
-                    <button className="flex items-center gap-2 bg-background-hover border border-border px-3 py-1.5 rounded text-sm font-mono text-foreground hover:border-border-hover transition-colors">
+                  <div className="relative">
+                    <button
+                      ref={walletTriggerRef}
+                      onMouseEnter={() => setIsWalletMenuOpen(true)}
+                      onMouseLeave={() => setIsWalletMenuOpen(false)}
+                      className="flex items-center gap-2 bg-background-hover border border-border px-3 py-1.5 rounded text-sm font-mono text-foreground hover:border-border-hover transition-colors"
+                    >
                       <div className="w-2 h-2 rounded-full bg-success animate-pulse-slow" />
                       {formatAddress(address || '')}
                     </button>
-                    <div className="absolute right-0 top-full mt-2 w-48 bg-background-elevated border border-border rounded-lg shadow-xl opacity-0 invisible group-hover/wallet:opacity-100 group-hover/wallet:visible transition-all z-50 p-1">
-                       <button 
-                         onClick={async () => {
-                           if (address) {
-                             try {
-                               await navigator.clipboard.writeText(address);
-                               // Could show toast notification here
-                             } catch (err) {
-                               console.error('Failed to copy address:', err);
-                             }
-                           }
-                         }}
-                         className="w-full text-left px-3 py-2 text-sm text-foreground-secondary hover:bg-background-hover rounded transition-colors flex items-center gap-2"
-                       >
-                         <Copy size={14} />
-                         {t('wallet.copyAddress')}
-                       </button>
-                       <button onClick={disconnect} className="w-full text-left px-3 py-2 text-sm text-error hover:bg-error/10 rounded transition-colors flex items-center gap-2">
-                         <LogOut size={14} />
-                         {t('nav.disconnect')}
-                       </button>
-                    </div>
+                    {isWalletMenuOpen && walletMenuPosition && typeof document !== 'undefined' && createPortal(
+                      <div
+                        onMouseEnter={() => setIsWalletMenuOpen(true)}
+                        onMouseLeave={() => setIsWalletMenuOpen(false)}
+                        ref={walletMenuRef}
+                        className="fixed w-48 bg-background-elevated border border-border rounded-lg shadow-xl z-50 p-1"
+                        style={{
+                          top: walletMenuPosition.top !== undefined ? `${walletMenuPosition.top}px` : undefined,
+                          bottom: walletMenuPosition.bottom !== undefined ? `${walletMenuPosition.bottom}px` : undefined,
+                          left: walletMenuPosition.left !== undefined ? `${walletMenuPosition.left}px` : undefined,
+                          right: walletMenuPosition.right !== undefined ? `${walletMenuPosition.right}px` : undefined,
+                        }}
+                      >
+                        <button 
+                          onClick={async () => {
+                            if (address) {
+                              try {
+                                await navigator.clipboard.writeText(address);
+                                setIsWalletMenuOpen(false);
+                                // Could show toast notification here
+                              } catch (err) {
+                                console.error('Failed to copy address:', err);
+                              }
+                            }
+                          }}
+                          className="w-full text-left px-3 py-2 text-sm text-foreground-secondary hover:bg-background-hover rounded transition-colors flex items-center gap-2"
+                        >
+                          <Copy size={14} />
+                          {t('wallet.copyAddress')}
+                        </button>
+                        <button 
+                          onClick={() => {
+                            disconnect();
+                            setIsWalletMenuOpen(false);
+                          }} 
+                          className="w-full text-left px-3 py-2 text-sm text-error hover:bg-error/10 rounded transition-colors flex items-center gap-2"
+                        >
+                          <LogOut size={14} />
+                          {t('nav.disconnect')}
+                        </button>
+                      </div>,
+                      document.body
+                    )}
                   </div>
                 </div>
               </>

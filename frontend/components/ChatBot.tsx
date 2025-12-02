@@ -202,7 +202,7 @@ export const ChatBot: React.FC = () => {
       <button
         onClick={toggleChat}
         className={cn(
-          "fixed bottom-6 right-6 z-50",
+          "fixed bottom-4 right-4 md:bottom-6 md:right-6 z-[100]",
           "w-14 h-14 rounded-full",
           "bg-primary hover:bg-primary-hover",
           "text-white shadow-lg shadow-primary/30",
@@ -211,6 +211,11 @@ export const ChatBot: React.FC = () => {
           "hover:scale-110 active:scale-95",
           isOpen && "hidden"
         )}
+        style={{
+          // Ensure button is always visible and not clipped
+          position: 'fixed',
+          zIndex: 100,
+        }}
         aria-label={t('chat.openChat')}
         title={t('chat.openChat')}
       >
@@ -220,22 +225,34 @@ export const ChatBot: React.FC = () => {
       {/* Purpose: Chat window overlay and container. */}
       {/* Side effects: Displays chat interface when open. */}
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-end justify-end pointer-events-none">
+        <div 
+          className="fixed inset-0 z-[99] flex items-end justify-end pointer-events-none"
+          style={{ 
+            padding: '1rem',
+            paddingBottom: 'calc(1rem + 80px)', // Account for chat button height + margin
+            maxWidth: '100vw',
+            maxHeight: '100vh',
+            overflow: 'visible'
+          }}
+        >
           {/* Backdrop */}
           <div
             className="fixed inset-0 bg-black/20 backdrop-blur-sm"
             onClick={toggleChat}
             aria-hidden="true"
+            style={{ pointerEvents: 'auto' }}
           />
 
           {/* Chat Window */}
-          <div className={cn(
-            "relative w-full max-w-md h-[600px] max-h-[85vh]",
-            "bg-background-elevated border border-border rounded-t-2xl md:rounded-2xl",
-            "shadow-2xl flex flex-col",
-            "pointer-events-auto",
-            "animate-slide-up"
-          )}>
+          <div 
+            className={cn(
+              "relative w-full max-w-md h-[600px] max-h-[85vh]",
+              "bg-background-elevated border border-border rounded-t-2xl md:rounded-2xl",
+              "shadow-2xl flex flex-col",
+              "animate-slide-up"
+            )}
+            style={{ pointerEvents: 'auto' }}
+          >
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-border">
               <div className="flex items-center gap-3">
