@@ -10,7 +10,7 @@ class UserBase(BaseModel):
     username: Optional[str] = Field(None, description="Username")
     first_name: Optional[str] = Field(None, description="First name")
     last_name: Optional[str] = Field(None, description="Last name")
-    role: str = Field(..., description="User role: BUYER or ORGANIZER")
+    role: str = Field(..., description="User role: BUYER, ORGANIZER, SCANNER, or RESELLER")
 
 
 class UserResponse(BaseModel):
@@ -31,7 +31,7 @@ class RegisterRequest(BaseModel):
     username: Optional[str] = Field(None, max_length=100)
     first_name: Optional[str] = Field(None, max_length=100)
     last_name: Optional[str] = Field(None, max_length=100)
-    role: str = Field(..., description="User role: BUYER or ORGANIZER")
+    role: str = Field(..., description="User role: BUYER, ORGANIZER, SCANNER, or RESELLER")
 
 
 class LoginRequest(BaseModel):
@@ -89,6 +89,7 @@ class TicketCreate(BaseModel):
     owner_address: str
     nft_token_id: Optional[int] = None
     status: Literal["available", "bought", "used"] = Field(default="available")
+    purchase_price: Optional[float] = Field(None, ge=0)  # Price paid when ticket was purchased
 
 
 class TicketResponse(TicketCreate):
@@ -102,10 +103,12 @@ class MarketplaceListingCreate(BaseModel):
     seller_address: str
     price: float = Field(..., ge=0)
     status: Literal["active", "sold", "cancelled"] = Field(default="active")
+    original_price: Optional[float] = Field(None, ge=0)  # Original purchase price (for markup validation)
 
 
 class MarketplaceListingResponse(MarketplaceListingCreate):
     id: int
+    original_price: Optional[float] = None  # Original purchase price (for markup display)
     created_at: Optional[datetime] = None
 
 

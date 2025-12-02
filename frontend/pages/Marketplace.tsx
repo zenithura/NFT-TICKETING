@@ -3,12 +3,15 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, MapPin, Search } from 'lucide-react';
+import { Calendar, MapPin, Search, ArrowRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { getEvents, type EventResponse } from '../services/eventService';
+import { getResaleListings, type ResaleListing } from '../services/marketplaceService';
+import { getTicket } from '../services/ticketService';
 import { Event } from '../types';
 import { NFTCoinAnimation } from '../components/3d/NFTCoinAnimation';
 import { TicketCardSkeleton } from '../components/ui/TicketCardSkeleton';
+import { ResaleListingCard } from '../components/ResaleListingCard';
 import { cn } from '../lib/utils';
 
 export const Marketplace: React.FC = () => {
@@ -18,6 +21,9 @@ export const Marketplace: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [events, setEvents] = useState<Event[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [resaleListings, setResaleListings] = useState<ResaleListing[]>([]);
+  const [resaleEvents, setResaleEvents] = useState<Event[]>([]);
+  const [isLoadingResales, setIsLoadingResales] = useState(true);
 
   // Fetch events from API
   useEffect(() => {
@@ -53,6 +59,60 @@ export const Marketplace: React.FC = () => {
     };
 
     fetchEvents();
+  }, []);
+
+  // Fetch resale listings
+  useEffect(() => {
+    const fetchResales = async () => {
+      setIsLoadingResales(true);
+      try {
+        const listings = await getResaleListings();
+        setResaleListings(listings);
+
+        // Fetch all events once
+        const allEvents = await getEvents();
+        
+        // Fetch ticket details for each listing and match with events
+        const eventMap = new Map<number, Event>();
+        
+        for (const listing of listings) {
+          try {
+            const ticket = await getTicket(listing.ticket_id);
+            const eventResponse = allEvents.find((e: EventResponse) => e.id === ticket.event_id);
+            
+            if (eventResponse && !eventMap.has(eventResponse.id)) {
+              const mappedEvent: Event = {
+                id: eventResponse.id.toString(),
+                title: eventResponse.name,
+                description: eventResponse.description,
+                date: eventResponse.date,
+                location: eventResponse.location,
+                imageUrl: eventResponse.image_url || 'https://picsum.photos/800/400?random=' + eventResponse.id,
+                price: eventResponse.price,
+                currency: (eventResponse.currency as 'ETH' | 'MATIC') || 'ETH',
+                totalTickets: eventResponse.total_tickets,
+                soldTickets: eventResponse.sold_tickets || 0,
+                organizer: eventResponse.organizer_address || 'unknown',
+                category: eventResponse.category || 'All',
+              };
+              eventMap.set(eventResponse.id, mappedEvent);
+            }
+          } catch (err) {
+            console.error(`Failed to fetch ticket/event for listing ${listing.id}:`, err);
+          }
+        }
+
+        setResaleEvents(Array.from(eventMap.values()));
+      } catch (err: any) {
+        console.error('Failed to fetch resale listings:', err);
+        setResaleListings([]);
+        setResaleEvents([]);
+      } finally {
+        setIsLoadingResales(false);
+      }
+    };
+
+    fetchResales();
   }, []);
 
   const filteredEvents = events.filter(e => {
@@ -202,6 +262,42 @@ export const Marketplace: React.FC = () => {
             </Link>
           ))
         )}
+      </div>
+
+      {/* Reselling Section */}
+      <div className="mt-16">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-2xl font-bold text-foreground">{t('marketplace.reselling')}</h2>
+            <p className="text-foreground-secondary mt-1">{t('marketplace.resellingDesc')}</p>
+          </div>
+        </div>
+
+        {/* Resale Listings Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {isLoadingResales ? (
+            <>
+              {[...Array(3)].map((_, i) => (
+                <TicketCardSkeleton key={i} />
+              ))}
+            </>
+          ) : resaleListings.length === 0 ? (
+            <div className="col-span-full text-center py-12 text-foreground-secondary border border-dashed border-border rounded-xl bg-background-elevated/50">
+              <p className="text-lg mb-2">{t('marketplace.noResales')}</p>
+              <p className="text-sm">{t('marketplace.noResalesDesc')}</p>
+            </div>
+          ) : (
+            resaleListings.map((listing) => (
+              <ResaleListingCard
+                key={listing.id}
+                listing={listing}
+                events={resaleEvents}
+                t={t}
+                i18n={i18n}
+              />
+            ))
+          )}
+        </div>
       </div>
     </div>
   );

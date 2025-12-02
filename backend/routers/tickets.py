@@ -82,6 +82,13 @@ async def create_ticket(
             "status": db_status,
         }
         
+        # Store purchase_price if provided (for resale markup validation)
+        if hasattr(ticket, 'purchase_price') and ticket.purchase_price is not None:
+            ticket_data["purchase_price"] = float(ticket.purchase_price)
+        elif hasattr(event, 'base_price') and event.get("base_price"):
+            # If no purchase_price provided, use event base_price as fallback
+            ticket_data["purchase_price"] = float(event.get("base_price", 0))
+        
         # Generate token_id if not provided (required in complete schema)
         # Use a numeric token_id for better compatibility
         if ticket.nft_token_id:
@@ -108,6 +115,11 @@ async def create_ticket(
                 }
                 if ticket.nft_token_id:
                     ticket_data["nft_token_id"] = ticket.nft_token_id
+                # Store purchase_price if provided (for simple schema)
+                if hasattr(ticket, 'purchase_price') and ticket.purchase_price is not None:
+                    ticket_data["purchase_price"] = float(ticket.purchase_price)
+                elif hasattr(event, 'base_price') and event.get("base_price"):
+                    ticket_data["purchase_price"] = float(event.get("base_price", 0))
                 response = db.table("tickets").insert(ticket_data).execute()
             else:
                 raise

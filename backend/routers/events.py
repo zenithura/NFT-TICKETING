@@ -176,7 +176,12 @@ async def get_event(
 ):
     """Get a specific event by ID."""
     try:
+        # Try to find event by event_id first
         response = db.table("events").select("*").eq("event_id", event_id).execute()
+        
+        # If not found, try by id column
+        if not response.data:
+            response = db.table("events").select("*").eq("id", event_id).execute()
         
         if not response.data:
             raise HTTPException(status_code=404, detail="Event not found")
@@ -199,19 +204,40 @@ async def get_event(
         available = event.get("available_tickets", total_supply)
         sold_count = total_supply - available
         
+        # Parse created_at to datetime if it's a string
+        from datetime import datetime
+        created_at = event.get("created_at")
+        if isinstance(created_at, str):
+            try:
+                created_at = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+            except:
+                created_at = datetime.now()
+        elif created_at is None:
+            created_at = datetime.now()
+        
+        # Format event_date to string if it's a datetime
+        event_date = event.get("event_date")
+        if isinstance(event_date, datetime):
+            event_date = event_date.isoformat()
+        elif event_date is None:
+            event_date = datetime.now().isoformat()
+        
+        # Ensure total_tickets is at least 1 (EventCreate requires gt=0)
+        total_tickets = max(1, total_supply) if total_supply else 1
+        
         formatted_event = {
             "id": event_id_actual,
-            "name": event.get("name"),
-            "description": event.get("description"),
-            "date": event.get("event_date"),
-            "location": location,
-            "total_tickets": total_supply,
+            "name": event.get("name") or "Untitled Event",
+            "description": event.get("description") or "No description",
+            "date": event_date,
+            "location": location or "Unknown Location",
+            "total_tickets": total_tickets,
             "price": float(event.get("base_price", 0)),
             "organizer_address": event.get("organizer_address") or "unknown",
-            "image_url": None,
-            "category": "All",
-            "currency": "ETH",
-            "created_at": event.get("created_at"),
+            "image_url": event.get("image_url"),
+            "category": event.get("category") or "All",
+            "currency": event.get("currency") or "ETH",
+            "created_at": created_at,
             "sold_tickets": sold_count
         }
         
@@ -220,7 +246,9 @@ async def get_event(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        import traceback
+        error_detail = f"Failed to get event: {str(e)}\n{traceback.format_exc()}"
+        raise HTTPException(status_code=500, detail=error_detail)
 
 
 @router.get("/organizer/{organizer_address}", response_model=List[EventResponse])

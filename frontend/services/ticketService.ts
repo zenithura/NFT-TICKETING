@@ -40,6 +40,7 @@ export const purchaseTickets = async (request: PurchaseTicketRequest): Promise<T
         event_id: request.event_id,
         owner_address: request.owner_address,
         status: 'available',
+        purchase_price: request.price, // Store purchase price for resale markup validation
       }),
     });
 

@@ -37,10 +37,10 @@ async def register(
         
         # Validate role
         role_upper = register_data.role.upper()
-        if role_upper not in ["BUYER", "ORGANIZER"]:
+        if role_upper not in ["BUYER", "ORGANIZER", "SCANNER", "RESELLER"]:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Role must be BUYER or ORGANIZER"
+                detail="Account type must be BUYER, ORGANIZER, SCANNER, or RESELLER"
             )
         
         # Check if email already exists

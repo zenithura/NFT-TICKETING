@@ -3,6 +3,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { UserRole } from '../types';
+import { getUser } from './authService';
 
 // Purpose: Declare window.ethereum type for TypeScript.
 // Side effects: Extends Window interface.
@@ -130,7 +131,14 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [balance, setBalance] = useState('0.00');
-  const [userRole, setUserRole] = useState<UserRole>(UserRole.BUYER);
+  // Initialize userRole from authenticated user's role, fallback to BUYER
+  const [userRole, setUserRole] = useState<UserRole>(() => {
+    const user = getUser();
+    if (user?.role) {
+      return user.role.toUpperCase() as UserRole;
+    }
+    return UserRole.BUYER;
+  });
   const [provider, setProvider] = useState<'metamask' | 'manual' | null>(() => {
     // Purpose: Load persisted provider from localStorage on mount.
     // Side effects: Reads from localStorage.
@@ -287,10 +295,11 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
   }, [updateConnection]);
 
   // Purpose: Disconnect wallet and reset all connection state.
-  // Side effects: Clears address, sets connected to false, resets balance and role, clears localStorage.
+  // Side effects: Clears address, sets connected to false, resets balance, clears localStorage.
+  // Note: userRole is preserved from authenticated user's role (handled by useEffect).
   const disconnect = useCallback(() => {
     updateConnection(null, null);
-    setUserRole(UserRole.BUYER);
+    // Keep userRole synced with authenticated user (handled by useEffect)
     setError(null);
   }, [updateConnection]);
 
@@ -320,6 +329,37 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
       }
     }
   }, [updateConnection, disconnect]);
+
+  // Purpose: Sync userRole with authenticated user's role when user changes.
+  // Side effects: Updates userRole state when authenticated user changes.
+  // Note: This runs on mount and when localStorage changes, syncing role from auth context.
+  useEffect(() => {
+    const syncUserRole = () => {
+      const user = getUser();
+      if (user?.role) {
+        const newRole = user.role.toUpperCase() as UserRole;
+        setUserRole(prevRole => {
+          if (prevRole !== newRole) {
+            return newRole;
+          }
+          return prevRole;
+        });
+      }
+    };
+    
+    // Sync on mount
+    syncUserRole();
+    
+    // Listen for storage changes (when user logs in/out)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'user' || e.key === 'access_token') {
+        syncUserRole();
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   return (
     <Web3Context.Provider
