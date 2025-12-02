@@ -2,9 +2,7 @@
 # Provides REST API endpoints for wallet management, events, tickets, marketplace, and scanning.
 
 from fastapi import FastAPI, APIRouter, HTTPException, Query
-from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
-import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict
@@ -14,15 +12,22 @@ from datetime import datetime, timezone
 from enum import Enum
 from supabase import create_client, Client
 from blockchain import BlockchainService
+from config import Config
+from middleware import (
+    SecurityHeadersMiddleware,
+    RequestLoggingMiddleware,
+    ErrorHandlingMiddleware,
+    SimpleRateLimitMiddleware
+)
 
-ROOT_DIR = Path(__file__).parent
-load_dotenv(ROOT_DIR / '.env')
-
-# Purpose: Initialize Supabase database client connection.
-# Side effects: Reads environment variables, creates database client.
-supabase_url = os.environ['SUPABASE_URL']
-supabase_key = os.environ['SUPABASE_KEY']
-supabase: Client = create_client(supabase_url, supabase_key)
+# Purpose: Initialize Supabase database client connection using centralized config.
+# Side effects: Reads environment variables via Config, creates database client.
+try:
+    supabase_url, supabase_key = Config.get_supabase_config()
+    supabase: Client = create_client(supabase_url, supabase_key)
+except ValueError as e:
+    logging.error(f"Failed to initialize Supabase: {e}")
+    raise
 
 # Purpose: Initialize blockchain service for smart contract interactions.
 # Side effects: Creates Web3 connection, loads contract ABI, may fail if blockchain unavailable.
@@ -32,9 +37,15 @@ except Exception as e:
     logging.error(f"Failed to initialize blockchain service: {e}")
     blockchain = None
 
-# Purpose: Create FastAPI application instance and API router.
+# Purpose: Create FastAPI application instance with configuration.
 # Side effects: Initializes web framework, sets up routing prefix.
-app = FastAPI(title="NFT Ticketing API")
+app_config = Config.get_app_config()
+app = FastAPI(
+    title="NFT Ticketing API",
+    version=app_config['api_version'],
+    docs_url="/docs" if app_config['debug'] else None,
+    redoc_url="/redoc" if app_config['debug'] else None
+)
 api_router = APIRouter(prefix="/api")
 
 # Purpose: Enumeration types for domain status values used across the API.
@@ -263,9 +274,11 @@ async def connect_wallet(wallet_input: WalletConnect):
         
         result = supabase.table('wallets').insert(wallet_data).execute()
         return Wallet(**result.data[0])
+    except HTTPException:
+        raise
     except Exception as e:
-        logging.error(f"Error connecting wallet: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.error(f"Error connecting wallet: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to connect wallet")
 
 # Purpose: Retrieve wallet information by blockchain address.
 # Params: address (str) — Ethereum wallet address from URL path.
@@ -281,8 +294,8 @@ async def get_wallet(address: str):
     except HTTPException:
         raise
     except Exception as e:
-        logging.error(f"Error getting wallet: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.error(f"Error getting wallet: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve wallet")
 
 # Purpose: Create a new venue record in the database.
 # Params: venue_input (VenueCreate) — venue details (name, location, capacity).
@@ -295,8 +308,8 @@ async def create_venue(venue_input: VenueCreate):
         result = supabase.table('venues').insert(venue_data).execute()
         return Venue(**result.data[0])
     except Exception as e:
-        logging.error(f"Error creating venue: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.error(f"Error creating venue: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to create venue")
 
 # Purpose: Retrieve all venues from the database.
 # Returns: List of Venue objects.
@@ -307,8 +320,8 @@ async def get_venues():
         result = supabase.table('venues').select('*').execute()
         return [Venue(**v) for v in result.data]
     except Exception as e:
-        logging.error(f"Error getting venues: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.error(f"Error getting venues: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve venues")
 
 # Purpose: Create a new event linked to a venue with ticket supply and pricing.
 # Params: event_input (EventCreate) — event details including venue, dates, supply, price.
@@ -325,8 +338,8 @@ async def create_event(event_input: EventCreate):
         result = supabase.table('events').insert(event_data).execute()
         return Event(**result.data[0])
     except Exception as e:
-        logging.error(f"Error creating event: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.error(f"Error creating event: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to create event")
 
 # Purpose: Retrieve events from database, optionally filtered by status.
 # Params: status (Optional[EventStatus]) — filter events by status (query parameter).
@@ -341,8 +354,8 @@ async def get_events(status: Optional[EventStatus] = None):
         result = query.execute()
         return [Event(**e) for e in result.data]
     except Exception as e:
-        logging.error(f"Error getting events: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.error(f"Error getting events: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve events")
 
 # Purpose: Retrieve a specific event by ID.
 # Params: event_id (int) — event identifier from URL path.
@@ -358,8 +371,8 @@ async def get_event(event_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        logging.error(f"Error getting event: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.error(f"Error getting event: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve event")
 
 # Purpose: Mint a new NFT ticket for an event, creating database records and blockchain transaction.
 # Params: mint_input (TicketMint) — event ID and buyer wallet address.
@@ -455,8 +468,8 @@ async def mint_ticket(mint_input: TicketMint):
     except HTTPException:
         raise
     except Exception as e:
-        logging.error(f"Error minting ticket: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.error(f"Error minting ticket: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to mint ticket")
 
 # Purpose: Retrieve all tickets owned by a specific wallet address.
 # Params: wallet_address (str) — Ethereum wallet address from URL path.
@@ -472,8 +485,8 @@ async def get_wallet_tickets(wallet_address: str):
         result = supabase.table('tickets').select('*').eq('owner_wallet_id', wallet['wallet_id']).execute()
         return [Ticket(**t) for t in result.data]
     except Exception as e:
-        logging.error(f"Error getting wallet tickets: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.error(f"Error getting wallet tickets: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve tickets")
 
 # Purpose: Retrieve a specific ticket by ID.
 # Params: ticket_id (int) — ticket identifier from URL path.
@@ -489,8 +502,8 @@ async def get_ticket(ticket_id: int):
     except HTTPException:
         raise
     except Exception as e:
-        logging.error(f"Error getting ticket: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.error(f"Error getting ticket: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve ticket")
 
 # Purpose: List a ticket for resale on the marketplace.
 # Params: resale_input (ResaleCreate) — ticket ID, seller address, and listing price.
@@ -553,8 +566,8 @@ async def list_resale(resale_input: ResaleCreate):
     except HTTPException:
         raise
     except Exception as e:
-        logging.error(f"Error listing resale: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.error(f"Error listing resale: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to list ticket for resale")
 
 # Purpose: Retrieve all active resale listings from the marketplace.
 # Returns: List of Resale objects with LISTED status.
@@ -565,8 +578,8 @@ async def get_marketplace_listings():
         result = supabase.table('resales').select('*').eq('status', ResaleStatus.LISTED.value).execute()
         return [Resale(**r) for r in result.data]
     except Exception as e:
-        logging.error(f"Error getting marketplace listings: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.error(f"Error getting marketplace listings: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve marketplace listings")
 
 # Purpose: Purchase a listed ticket from the marketplace.
 # Params: buy_input (ResaleBuy) — resale ID and buyer wallet address.
@@ -646,8 +659,8 @@ async def buy_resale(buy_input: ResaleBuy):
     except HTTPException:
         raise
     except Exception as e:
-        logging.error(f"Error buying resale: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.error(f"Error buying resale: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to purchase ticket")
 
 # Purpose: Register a new scanner device for ticket verification at venues.
 # Params: scanner_input (ScannerRegister) — venue ID, operator name, and optional wallet.
@@ -662,8 +675,8 @@ async def register_scanner(scanner_input: ScannerRegister):
         result = supabase.table('scanners').insert(scanner_data).execute()
         return Scanner(**result.data[0])
     except Exception as e:
-        logging.error(f"Error registering scanner: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.error(f"Error registering scanner: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to register scanner")
 
 # Purpose: Verify and scan a ticket at event entry, preventing reuse.
 # Params: scan_input (ScanVerify) — ticket ID and scanner ID.
@@ -737,8 +750,8 @@ async def verify_ticket(scan_input: ScanVerify):
     except HTTPException:
         raise
     except Exception as e:
-        logging.error(f"Error verifying ticket: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.error(f"Error verifying ticket: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to verify ticket")
 
 # Purpose: Retrieve all scan records for a specific venue.
 # Params: venue_id (int) — venue identifier from URL path.
@@ -750,26 +763,42 @@ async def get_venue_scans(venue_id: int):
         result = supabase.table('scans').select('*').eq('venue_id', venue_id).execute()
         return [Scan(**s) for s in result.data]
     except Exception as e:
-        logging.error(f"Error getting venue scans: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logging.error(f"Error getting venue scans: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to retrieve scan records")
 
 # Purpose: Register API router with main FastAPI application.
 # Side effects: Mounts all API routes under /api prefix.
 app.include_router(api_router)
 
-# Purpose: Configure CORS middleware to allow frontend requests from localhost.
-# Side effects: Enables cross-origin requests from specified origins.
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:5000"],
-    allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:[0-9]+)?",  # Allow any localhost/127.0.0.1 port for development
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
+# Purpose: Configure logging with level from configuration.
+# Side effects: Sets up logging configuration.
+log_level = getattr(logging, app_config.get('log_level', 'INFO').upper(), logging.INFO)
 logging.basicConfig(
-    level=logging.INFO,
+    level=log_level,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+# Purpose: Add security middleware (must be added in reverse order of execution).
+# Side effects: Adds security headers, request logging, error handling, rate limiting.
+security_config = Config.get_security_config()
+app.add_middleware(
+    SimpleRateLimitMiddleware,
+    requests_per_minute=security_config['rate_limit_per_minute']
+)
+app.add_middleware(ErrorHandlingMiddleware)
+app.add_middleware(RequestLoggingMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
+
+# Purpose: Configure CORS middleware to allow frontend requests from configured origins.
+# Side effects: Enables cross-origin requests from specified origins.
+cors_origins = Config.get_cors_config()
+app.add_middleware(
+    CORSMiddleware,
+    allow_credentials=True,
+    allow_origins=cors_origins,
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1)(:[0-9]+)?" if app_config['debug'] else None,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
+    expose_headers=["X-Process-Time"],
+)
