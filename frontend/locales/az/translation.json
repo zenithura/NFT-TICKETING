@@ -18,7 +18,8 @@
     "close": "Bağla",
     "open": "Aç",
     "yes": "Bəli",
-    "no": "Xeyr"
+    "no": "Xeyr",
+    "or": "VƏ YA"
   },
   "nav": {
     "marketplace": "Bazar",
@@ -257,6 +258,30 @@
     "placeholder": "Sualınızı yazın...",
     "send": "Göndər",
     "hint": "NFT biletləri, blokçeyn, ağıllı müqavilələr, cüzdanlar və ya gas xərcləri haqqında sual verin"
+  },
+  "wallet": {
+    "connectWallet": "Cüzdan Qoş",
+    "disconnect": "Ayır",
+    "connected": "Qoşulub",
+    "metaMask": "MetaMask",
+    "metaMaskSubtitle": "MetaMask genişləndirməsindən istifadə edərək qoşun",
+    "connectWithMetaMask": "MetaMask ilə Qoş",
+    "metaMaskNotFound": "MetaMask genişləndirməsi tapılmadı",
+    "installMetaMask": "MetaMask Quraşdır",
+    "manualEntry": "Manual Giriş",
+    "manualSubtitle": "Cüzdan ünvanınızı yapışdırın",
+    "submitAddress": "Ünvanı Təsdiqlə",
+    "addressRequired": "Cüzdan ünvanı tələb olunur",
+    "invalidAddress": "Etibarsız cüzdan ünvanı formatı. 0x ilə başlamalı və 40 hex simvol olmalıdır.",
+    "connecting": "Qoşulur...",
+    "connectionFailed": "Qoşulma uğursuz oldu. Zəhmət olmasa yenidən cəhd edin.",
+    "userRejected": "Qoşulma sorğusu rədd edildi",
+    "requestPending": "Qoşulma sorğusu artıq gözləyir",
+    "metaMaskLocked": "MetaMask kilidlənib. Zəhmət olmasa açın və yenidən cəhd edin.",
+    "noAccountsFound": "Hesab tapılmadı. Zəhmət olmasa MetaMask-də hesab yaradın.",
+    "wrongNetwork": "Yanlış şəbəkə. Zəhmət olmasa düzgün şəbəkəyə keçin.",
+    "copyAddress": "Ünvanı Kopyala",
+    "addressCopied": "Ünvan lövhəyə kopyalandı"
   }
 }
 

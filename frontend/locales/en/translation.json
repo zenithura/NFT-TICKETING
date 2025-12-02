@@ -18,7 +18,8 @@
     "close": "Close",
     "open": "Open",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "or": "OR"
   },
   "nav": {
     "marketplace": "Marketplace",
@@ -257,6 +258,30 @@
     "placeholder": "Type your question...",
     "send": "Send",
     "hint": "Ask about NFT tickets, blockchain, smart contracts, wallets, or gas fees"
+  },
+  "wallet": {
+    "connectWallet": "Connect Wallet",
+    "disconnect": "Disconnect",
+    "connected": "Connected",
+    "metaMask": "MetaMask",
+    "metaMaskSubtitle": "Connect using MetaMask extension",
+    "connectWithMetaMask": "Connect with MetaMask",
+    "metaMaskNotFound": "MetaMask extension not found",
+    "installMetaMask": "Install MetaMask",
+    "manualEntry": "Manual Entry",
+    "manualSubtitle": "Paste your wallet address",
+    "submitAddress": "Submit Address",
+    "addressRequired": "Wallet address is required",
+    "invalidAddress": "Invalid wallet address format. Must be 0x followed by 40 hex characters.",
+    "connecting": "Connecting...",
+    "connectionFailed": "Connection failed. Please try again.",
+    "userRejected": "Connection request was rejected",
+    "requestPending": "Connection request is already pending",
+    "metaMaskLocked": "MetaMask is locked. Please unlock it and try again.",
+    "noAccountsFound": "No accounts found. Please create an account in MetaMask.",
+    "wrongNetwork": "Wrong network. Please switch to the correct network.",
+    "copyAddress": "Copy Address",
+    "addressCopied": "Address copied to clipboard"
   }
 }
 

@@ -3,7 +3,7 @@
 
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Wallet, Menu, X, ChevronDown, Shield, Users, Ticket, ScanLine, Zap, LogIn, LogOut, User } from 'lucide-react';
+import { Wallet, Menu, X, ChevronDown, Shield, Users, Ticket, ScanLine, Zap, LogIn, LogOut, User, Copy } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useWeb3 } from '../../services/web3Context';
 import { useAuth } from '../../services/authContext';
@@ -11,13 +11,15 @@ import { UserRole } from '../../types';
 import { cn, formatAddress } from '../../lib/utils';
 import { LanguageSwitcher } from './LanguageSwitcher';
 import { ThemeToggle } from './ThemeToggle';
+import { WalletConnectionModal } from '../WalletConnectionModal';
 
 export const Navbar: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { isConnected, address, connect, disconnect, balance, userRole, setUserRole } = useWeb3();
+  const { isConnected, address, connectMetaMask, connectManual, disconnect, balance, userRole, setUserRole, isConnecting, error } = useWeb3();
   const { isAuthenticated, user, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+  const [isWalletModalOpen, setIsWalletModalOpen] = React.useState(false);
   const location = useLocation();
 
   const isActive = (path: string) => location.pathname === path;
@@ -157,8 +159,25 @@ export const Navbar: React.FC = () => {
                       <div className="w-2 h-2 rounded-full bg-success animate-pulse-slow" />
                       {formatAddress(address || '')}
                     </button>
-                    <div className="absolute right-0 top-full mt-2 w-40 bg-background-elevated border border-border rounded-lg shadow-xl opacity-0 invisible group-hover/wallet:opacity-100 group-hover/wallet:visible transition-all z-50 p-1">
-                       <button onClick={disconnect} className="w-full text-left px-3 py-2 text-sm text-error hover:bg-error/10 rounded transition-colors">
+                    <div className="absolute right-0 top-full mt-2 w-48 bg-background-elevated border border-border rounded-lg shadow-xl opacity-0 invisible group-hover/wallet:opacity-100 group-hover/wallet:visible transition-all z-50 p-1">
+                       <button 
+                         onClick={async () => {
+                           if (address) {
+                             try {
+                               await navigator.clipboard.writeText(address);
+                               // Could show toast notification here
+                             } catch (err) {
+                               console.error('Failed to copy address:', err);
+                             }
+                           }
+                         }}
+                         className="w-full text-left px-3 py-2 text-sm text-foreground-secondary hover:bg-background-hover rounded transition-colors flex items-center gap-2"
+                       >
+                         <Copy size={14} />
+                         {t('wallet.copyAddress')}
+                       </button>
+                       <button onClick={disconnect} className="w-full text-left px-3 py-2 text-sm text-error hover:bg-error/10 rounded transition-colors flex items-center gap-2">
+                         <LogOut size={14} />
                          {t('nav.disconnect')}
                        </button>
                     </div>
@@ -167,7 +186,7 @@ export const Navbar: React.FC = () => {
               </>
             ) : (
               <button
-                onClick={connect}
+                onClick={() => setIsWalletModalOpen(true)}
                 className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded font-medium text-sm transition-all hover:-translate-y-0.5 shadow-lg shadow-primary/20"
               >
                 <Wallet size={16} />
@@ -254,7 +273,7 @@ export const Navbar: React.FC = () => {
                    {t('nav.disconnect')}
                  </button>
               ) : (
-                 <button onClick={connect} className="w-full text-left text-primary px-3 py-3 font-medium flex items-center gap-2">
+                 <button onClick={() => setIsWalletModalOpen(true)} className="w-full text-left text-primary px-3 py-3 font-medium flex items-center gap-2">
                    <Wallet size={16} />
                    {t('nav.connectWallet')}
                  </button>
@@ -263,6 +282,32 @@ export const Navbar: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Wallet Connection Modal */}
+      <WalletConnectionModal
+        isOpen={isWalletModalOpen}
+        onClose={() => {
+          setIsWalletModalOpen(false);
+        }}
+        onConnectMetaMask={async () => {
+          try {
+            await connectMetaMask();
+            setIsWalletModalOpen(false);
+          } catch (err) {
+            // Error is handled in context
+          }
+        }}
+        onConnectManual={async (address: string) => {
+          try {
+            await connectManual(address);
+            setIsWalletModalOpen(false);
+          } catch (err) {
+            // Error is handled in context
+          }
+        }}
+        isConnecting={isConnecting}
+        error={error}
+      />
     </nav>
   );
 };
