@@ -94,6 +94,8 @@ class Wallet(BaseModel):
 
 class WalletConnect(BaseModel):
     address: str
+    provider: Optional[str] = None  # 'metamask' or 'manual'
+    timestamp: Optional[str] = None  # ISO timestamp
 
 class Venue(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -252,20 +254,33 @@ async def root():
     return {"message": "NFT Ticketing API", "version": "2.0.0", "database": "Supabase PostgreSQL"}
 
 # Purpose: Connect or create a wallet record for a blockchain address.
-# Params: wallet_input (WalletConnect) — contains wallet address.
+# Params: wallet_input (WalletConnect) — contains wallet address, provider, and timestamp.
 # Returns: Wallet object with database record.
-# Side effects: Creates wallet in database if not exists, queries database.
+# Side effects: Creates wallet in database if not exists, queries database, logs connection.
 @api_router.post("/wallet/connect", response_model=Wallet)
 async def connect_wallet(wallet_input: WalletConnect):
     try:
-        existing = get_wallet_by_address(wallet_input.address)
+        # Purpose: Validate Ethereum address format.
+        # Side effects: Raises HTTPException if invalid format.
+        address = wallet_input.address.strip().lower()
+        if not address.startswith('0x') or len(address) != 42:
+            raise HTTPException(status_code=400, detail="Invalid wallet address format")
+        
+        # Purpose: Validate hex characters only.
+        if not all(c in '0123456789abcdef' for c in address[2:]):
+            raise HTTPException(status_code=400, detail="Invalid wallet address format")
+        
+        # Purpose: Check for existing wallet record.
+        existing = get_wallet_by_address(address)
         if existing:
+            # Purpose: Log connection activity for existing wallet.
+            logging.info(f"Wallet reconnected: {address} via {wallet_input.provider or 'unknown'}")
             return Wallet(**existing)
         
         # Purpose: Create new wallet record with default values for new users.
         # Side effects: Inserts record into wallets table.
         wallet_data = {
-            "address": wallet_input.address,
+            "address": address,
             "balance": 1000.0,
             "allowlist_status": False,
             "verification_level": 0,
@@ -273,6 +288,10 @@ async def connect_wallet(wallet_input: WalletConnect):
         }
         
         result = supabase.table('wallets').insert(wallet_data).execute()
+        
+        # Purpose: Log new wallet connection.
+        logging.info(f"New wallet connected: {address} via {wallet_input.provider or 'unknown'} at {wallet_input.timestamp or 'unknown'}")
+        
         return Wallet(**result.data[0])
     except HTTPException:
         raise
