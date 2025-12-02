@@ -127,6 +127,7 @@ class Ticket(BaseModel):
     event_id: int
     owner_wallet_id: int
     token_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    blockchain_id: Optional[int] = None
     nft_metadata_uri: Optional[str] = None
     seat_number: Optional[str] = None
     tier: TicketTier = TicketTier.GENERAL
@@ -381,14 +382,19 @@ async def mint_ticket(mint_input: TicketMint):
         # Mint on chain
         if blockchain:
             try:
-                tx_hash = blockchain.mint_ticket(
+                tx_hash, on_chain_id = blockchain.mint_ticket(
                     to_address=mint_input.buyer_address,
                     event_id=mint_input.event_id,
                     token_uri=f"ipfs://{ticket['token_id']}" # Placeholder URI
                 )
-                # Update ticket with tx hash
-                supabase.table('tickets').update({"transaction_hash": tx_hash}).eq('ticket_id', ticket['ticket_id']).execute()
+                # Update ticket with tx hash and blockchain_id
+                update_data = {"transaction_hash": tx_hash}
+                if on_chain_id is not None:
+                    update_data["blockchain_id"] = on_chain_id
+                    
+                supabase.table('tickets').update(update_data).eq('ticket_id', ticket['ticket_id']).execute()
                 ticket['transaction_hash'] = tx_hash
+                ticket['blockchain_id'] = on_chain_id
             except Exception as e:
                 logging.error(f"Blockchain minting failed: {e}")
                 # Optional: Rollback DB or mark as failed?
@@ -478,6 +484,19 @@ async def list_resale(resale_input: ResaleCreate):
         # Update ticket status
         supabase.table('tickets').update({'status': TicketStatus.TRANSFERRED.value}).eq('ticket_id', resale_input.ticket_id).execute()
         
+        # List on chain
+        if blockchain:
+            try:
+                # Use blockchain_id if available
+                if ticket.get('blockchain_id'):
+                    # Assuming price is in Wei or consistent unit. Converting float to int.
+                    # In production, handle decimals properly (e.g. Wei)
+                    blockchain.list_ticket(ticket['blockchain_id'], int(resale_input.listing_price))
+                else:
+                    logging.warning(f"No blockchain_id for ticket {ticket['ticket_id']}, skipping on-chain listing")
+            except Exception as e:
+                logging.error(f"Blockchain listing failed: {e}")
+
         return Resale(**result.data[0])
     except HTTPException:
         raise
@@ -559,6 +578,18 @@ async def buy_resale(buy_input: ResaleBuy):
             'sold_at': datetime.now(timezone.utc).isoformat()
         }).eq('resale_id', buy_input.resale_id).execute()
         
+        # Buy on chain
+        if blockchain:
+            try:
+                # Use blockchain_id if available
+                if ticket.get('blockchain_id'):
+                    # Assuming price is in Wei or consistent unit.
+                    blockchain.buy_ticket(ticket['blockchain_id'], int(resale['listing_price']))
+                else:
+                    logging.warning(f"No blockchain_id for ticket {ticket['ticket_id']}, skipping on-chain purchase")
+            except Exception as e:
+                logging.error(f"Blockchain purchase failed: {e}")
+
         return {"success": True, "message": "Ticket purchased successfully"}
     except HTTPException:
         raise
@@ -574,6 +605,14 @@ async def register_scanner(scanner_input: ScannerRegister):
         scanner_data['device_id'] = str(uuid.uuid4())
         
         result = supabase.table('scanners').insert(scanner_data).execute()
+        
+        # Grant role on chain
+        if blockchain and scanner_input.operator_wallet:
+            try:
+                blockchain.grant_scanner_role(scanner_input.operator_wallet)
+            except Exception as e:
+                logging.error(f"Failed to grant scanner role on chain: {e}")
+                
         return Scanner(**result.data[0])
     except Exception as e:
         logging.error(f"Error registering scanner: {e}")
@@ -626,17 +665,11 @@ async def verify_ticket(scan_input: ScanVerify):
         # Scan on chain
         if valid and blockchain:
             try:
-                # We need the token_id (int) from the contract, but our DB ticket_id is int.
-                # The contract uses a counter. We need to map DB ticket to contract token ID.
-                # For simplicity in this demo, we assume DB ticket_id maps 1:1 to contract token ID if we minted sequentially.
-                # BUT, wait, contract uses its own counter.
-                # We should store the contract token ID in the DB.
-                # In mint_ticket, we didn't get the token ID back from the contract event (we just returned tx hash).
-                # For now, let's assume we can scan by just logging it on chain or skip if we don't have the ID.
-                pass
-                # To do this properly, we need to parse the logs in mint_ticket to get the actual on-chain token ID.
-                # Or we can just use the DB ticket_id if we force them to match (hard).
-                # Let's skip on-chain scan for now to avoid errors, or implement log parsing.
+                # Use blockchain_id if available
+                if ticket.get('blockchain_id'):
+                    blockchain.scan_ticket(ticket['blockchain_id'])
+                else:
+                    logging.warning(f"No blockchain_id for ticket {ticket['ticket_id']}, skipping on-chain scan")
             except Exception as e:
                 logging.error(f"Blockchain scan failed: {e}")
 

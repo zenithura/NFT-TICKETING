@@ -70,13 +70,16 @@ class BlockchainService:
             
             # Parse logs to get tokenId
             # TicketMinted(uint256 indexed tokenId, address indexed to, uint256 indexed eventId)
-            # We can find the event in logs
+            token_id = None
+            try:
+                # Process receipt logs to find TicketMinted event
+                logs = self.contract.events.TicketMinted().process_receipt(receipt)
+                if logs:
+                    token_id = logs[0]['args']['tokenId']
+            except Exception as e:
+                logger.warning(f"Failed to parse TicketMinted event: {e}")
             
-            # Simple way: return tx hash and let caller handle it, or parse here.
-            # Let's try to parse tokenId
-            
-            # For now just return tx hash
-            return self.w3.to_hex(tx_hash)
+            return self.w3.to_hex(tx_hash), token_id
             
         except Exception as e:
             logger.error(f"Error minting ticket on chain: {e}")
@@ -105,4 +108,79 @@ class BlockchainService:
             
         except Exception as e:
             logger.error(f"Error scanning ticket on chain: {e}")
+            raise e
+
+    def grant_scanner_role(self, scanner_address: str):
+        if not self.contract or not self.private_key:
+            logger.error("Contract or private key not configured")
+            return None
+            
+        try:
+            # SCANNER_ROLE is keccak256("SCANNER_ROLE")
+            scanner_role = self.w3.keccak(text="SCANNER_ROLE")
+            
+            nonce = self.w3.eth.get_transaction_count(self.wallet_address)
+            
+            tx = self.contract.functions.grantRole(scanner_role, scanner_address).build_transaction({
+                'chainId': self.w3.eth.chain_id,
+                'gas': 500000,
+                'gasPrice': self.w3.eth.gas_price,
+                'nonce': nonce,
+            })
+            
+            signed_tx = self.w3.eth.account.sign_transaction(tx, self.private_key)
+            tx_hash = self.w3.eth.send_raw_transaction(signed_tx.rawTransaction)
+            
+            receipt = self.w3.eth.wait_for_transaction_receipt(tx_hash)
+            return self.w3.to_hex(tx_hash)
+            
+        except Exception as e:
+            logger.error(f"Error granting scanner role: {e}")
+            raise e
+
+    def list_ticket(self, token_id: int, price: int):
+        """
+        Note: This usually needs to be called by the ticket owner.
+        If the server is the owner (custodial), this works.
+        If the user is the owner, the server CANNOT sign this unless approved.
+        """
+        if not self.contract or not self.private_key:
+            return None
+            
+        try:
+            nonce = self.w3.eth.get_transaction_count(self.wallet_address)
+            tx = self.contract.functions.listTicket(token_id, price).build_transaction({
+                'chainId': self.w3.eth.chain_id,
+                'gas': 500000,
+                'gasPrice': self.w3.eth.gas_price,
+                'nonce': nonce,
+            })
+            signed_tx = self.w3.eth.account.sign_transaction(tx, self.private_key)
+            tx_hash = self.w3.eth.send_raw_transaction(signed_tx.rawTransaction)
+            return self.w3.to_hex(tx_hash)
+        except Exception as e:
+            logger.error(f"Error listing ticket: {e}")
+            raise e
+
+    def buy_ticket(self, token_id: int, price: int):
+        """
+        Note: This requires sending value.
+        """
+        if not self.contract or not self.private_key:
+            return None
+            
+        try:
+            nonce = self.w3.eth.get_transaction_count(self.wallet_address)
+            tx = self.contract.functions.buyTicket(token_id).build_transaction({
+                'chainId': self.w3.eth.chain_id,
+                'gas': 500000,
+                'gasPrice': self.w3.eth.gas_price,
+                'nonce': nonce,
+                'value': price
+            })
+            signed_tx = self.w3.eth.account.sign_transaction(tx, self.private_key)
+            tx_hash = self.w3.eth.send_raw_transaction(signed_tx.rawTransaction)
+            return self.w3.to_hex(tx_hash)
+        except Exception as e:
+            logger.error(f"Error buying ticket: {e}")
             raise e
