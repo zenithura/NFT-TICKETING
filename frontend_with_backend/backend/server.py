@@ -770,6 +770,14 @@ async def get_venue_scans(venue_id: int):
 # Side effects: Mounts all API routes under /api prefix.
 app.include_router(api_router)
 
+# Purpose: Register authentication router.
+# Side effects: Mounts authentication routes under /api/auth prefix.
+try:
+    from auth_routes import auth_router
+    app.include_router(auth_router)
+except ImportError as e:
+    logger.warning(f"Could not import auth routes: {e}")
+
 # Purpose: Configure logging with level from configuration.
 # Side effects: Sets up logging configuration.
 log_level = getattr(logging, app_config.get('log_level', 'INFO').upper(), logging.INFO)

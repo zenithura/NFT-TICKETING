@@ -169,6 +169,77 @@
     "action": "Əməliyyat",
     "banUser": "İstifadəçini Blokla",
     "restrictedAccess": "Məhdud Giriş"
+  },
+  "auth": {
+    "login": {
+      "title": "Xoş Gəlmisiniz",
+      "subtitle": "Hesabınıza daxil olmaq üçün giriş edin"
+    },
+    "register": {
+      "title": "Hesab Yarat",
+      "subtitle": "NFT bilet platformasına qoşulun"
+    },
+    "forgotPassword": {
+      "title": "Şifrəni Unutdum",
+      "subtitle": "Şifrə sıfırlama linki almaq üçün e-poçtunuzu daxil edin",
+      "checkEmail": "E-poçtunuzu Yoxlayın",
+      "emailSent": "{{email}} ünvanına şifrə sıfırlama linki göndərdik"
+    },
+    "resetPassword": {
+      "title": "Şifrəni Sıfırla",
+      "subtitle": "Yeni şifrənizi daxil edin",
+      "success": "Şifrə Uğurla Sıfırlandı",
+      "redirecting": "Giriş səhifəsinə yönləndirilir..."
+    },
+    "email": "E-poçt",
+    "password": "Şifrə",
+    "confirmPassword": "Şifrəni Təsdiqlə",
+    "newPassword": "Yeni Şifrə",
+    "username": "İstifadəçi Adı",
+    "firstName": "Ad",
+    "lastName": "Soyad",
+    "emailPlaceholder": "sizin.email@misal.com",
+    "passwordPlaceholder": "Şifrənizi daxil edin",
+    "confirmPasswordPlaceholder": "Şifrənizi təsdiqləyin",
+    "usernamePlaceholder": "İstifadəçi adı seçin",
+    "firstNamePlaceholder": "Əli",
+    "lastNamePlaceholder": "Məmmədov",
+    "loginButton": "Daxil Ol",
+    "registerButton": "Hesab Yarat",
+    "resetPasswordButton": "Şifrəni Sıfırla",
+    "sendResetLink": "Sıfırlama Linki Göndər",
+    "forgotPassword": "Şifrəni Unutmusunuz?",
+    "backToLogin": "Girişə Qayıt",
+    "noAccount": "Hesabınız yoxdur?",
+    "haveAccount": "Artıq hesabınız var?",
+    "registerLink": "Qeydiyyatdan keçin",
+    "loginLink": "Daxil olun",
+    "loggingIn": "Daxil olunur...",
+    "registering": "Hesab yaradılır...",
+    "resetting": "Şifrə sıfırlanır...",
+    "sending": "Göndərilir...",
+    "loginSuccess": "Giriş uğurlu oldu!",
+    "registerSuccess": "Qeydiyyat uğurlu oldu!",
+    "resetPasswordSuccess": "Şifrə uğurla sıfırlandı!",
+    "forgotPasswordSuccess": "Şifrə sıfırlama linki e-poçtunuza göndərildi",
+    "passwordValid": "Şifrə etibarlıdır",
+    "logout": "Çıxış",
+    "errors": {
+      "invalidEmail": "Zəhmət olmasa düzgün e-poçt ünvanı daxil edin",
+      "passwordRequired": "Şifrə tələb olunur",
+      "passwordMinLength": "Şifrə ən azı 8 simvol olmalıdır",
+      "passwordUppercase": "Şifrə ən azı bir böyük hərf ehtiva etməlidir",
+      "passwordLowercase": "Şifrə ən azı bir kiçik hərf ehtiva etməlidir",
+      "passwordDigit": "Şifrə ən azı bir rəqəm ehtiva etməlidir",
+      "passwordSpecial": "Şifrə ən azı bir xüsusi simvol ehtiva etməlidir",
+      "passwordMismatch": "Şifrələr uyğun gəlmir",
+      "loginFailed": "Giriş uğursuz oldu. Məlumatlarınızı yoxlayın.",
+      "registerFailed": "Qeydiyyat uğursuz oldu. Zəhmət olmasa yenidən cəhd edin.",
+      "forgotPasswordFailed": "Sıfırlama e-poçtu göndərilmədi. Zəhmət olmasa yenidən cəhd edin.",
+      "resetPasswordFailed": "Şifrə sıfırlama uğursuz oldu. Zəhmət olmasa yenidən cəhd edin.",
+      "invalidResetToken": "Etibarsız və ya müddəti bitmiş sıfırlama tokeni",
+      "sessionExpired": "Sessiyanızın müddəti bitib. Zəhmət olmasa yenidən daxil olun."
+    }
   }
 }
 

@@ -169,6 +169,77 @@
     "action": "Action",
     "banUser": "Ban User",
     "restrictedAccess": "Restricted Access"
+  },
+  "auth": {
+    "login": {
+      "title": "Welcome Back",
+      "subtitle": "Sign in to your account to continue"
+    },
+    "register": {
+      "title": "Create Account",
+      "subtitle": "Join the NFT ticketing platform"
+    },
+    "forgotPassword": {
+      "title": "Forgot Password",
+      "subtitle": "Enter your email to receive a password reset link",
+      "checkEmail": "Check Your Email",
+      "emailSent": "We've sent a password reset link to {{email}}"
+    },
+    "resetPassword": {
+      "title": "Reset Password",
+      "subtitle": "Enter your new password",
+      "success": "Password Reset Successful",
+      "redirecting": "Redirecting to login..."
+    },
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "newPassword": "New Password",
+    "username": "Username",
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "emailPlaceholder": "your.email@example.com",
+    "passwordPlaceholder": "Enter your password",
+    "confirmPasswordPlaceholder": "Confirm your password",
+    "usernamePlaceholder": "Choose a username",
+    "firstNamePlaceholder": "John",
+    "lastNamePlaceholder": "Doe",
+    "loginButton": "Sign In",
+    "registerButton": "Create Account",
+    "resetPasswordButton": "Reset Password",
+    "sendResetLink": "Send Reset Link",
+    "forgotPassword": "Forgot Password?",
+    "backToLogin": "Back to Login",
+    "noAccount": "Don't have an account?",
+    "haveAccount": "Already have an account?",
+    "registerLink": "Sign up",
+    "loginLink": "Sign in",
+    "loggingIn": "Signing in...",
+    "registering": "Creating account...",
+    "resetting": "Resetting password...",
+    "sending": "Sending...",
+    "loginSuccess": "Login successful!",
+    "registerSuccess": "Registration successful!",
+    "resetPasswordSuccess": "Password reset successful!",
+    "forgotPasswordSuccess": "Password reset link sent to your email",
+    "passwordValid": "Password is valid",
+    "logout": "Logout",
+    "errors": {
+      "invalidEmail": "Please enter a valid email address",
+      "passwordRequired": "Password is required",
+      "passwordMinLength": "Password must be at least 8 characters",
+      "passwordUppercase": "Password must contain at least one uppercase letter",
+      "passwordLowercase": "Password must contain at least one lowercase letter",
+      "passwordDigit": "Password must contain at least one digit",
+      "passwordSpecial": "Password must contain at least one special character",
+      "passwordMismatch": "Passwords do not match",
+      "loginFailed": "Login failed. Please check your credentials.",
+      "registerFailed": "Registration failed. Please try again.",
+      "forgotPasswordFailed": "Failed to send reset email. Please try again.",
+      "resetPasswordFailed": "Password reset failed. Please try again.",
+      "invalidResetToken": "Invalid or expired reset token",
+      "sessionExpired": "Your session has expired. Please login again."
+    }
   }
 }
 
