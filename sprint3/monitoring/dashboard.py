@@ -363,4 +363,11 @@ if __name__ == '__main__':
     print("  ✅ Auto-refresh every 5 seconds")
     print("\n" + "=" * 60)
     
-    app.run_server(debug=True, host='0.0.0.0', port=8050)
+    # Purpose: Determine debug mode from environment variable (default: False for production).
+    # Side effects: Reads DEBUG environment variable.
+    import os
+    debug_mode = os.getenv('DEBUG', 'false').lower() == 'true'
+    
+    # Purpose: Start Dash server with environment-based debug configuration.
+    # Side effects: Starts HTTP server, enables debug mode only if DEBUG=true.
+    app.run_server(debug=debug_mode, host='0.0.0.0', port=8050)

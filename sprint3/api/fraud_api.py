@@ -259,12 +259,22 @@ def model_info():
             'status': 'metadata_not_found'
         }), 200
 
+# Purpose: Main execution block - start Flask API server with environment-based configuration.
+# Side effects: Starts HTTP server, loads ML model, configures debug mode from environment.
 if __name__ == '__main__':
+    import os
+    
+    # Purpose: Determine debug mode from environment variable (default: False for production).
+    # Side effects: Reads DEBUG environment variable.
+    debug_mode = os.getenv('DEBUG', 'false').lower() == 'true'
+    
     print("=" * 60)
-    print("Fraud Detection API - Demo Mode")
+    print("Fraud Detection API")
+    print(f"Mode: {'Development' if debug_mode else 'Production'}")
     print("=" * 60)
     
-    # Load model
+    # Purpose: Load ML model before starting server.
+    # Side effects: Loads model from filesystem.
     if load_model():
         print("\n🚀 Starting API server on http://localhost:5001")
         print("\nEndpoints:")
@@ -278,7 +288,9 @@ if __name__ == '__main__':
         print('    -d \'{"transaction_id": "test_001", "wallet_address": "0x123", "ticket_id": "evt_001", "price_paid": 50.00}\'')
         print("\n" + "=" * 60)
         
-        app.run(host='0.0.0.0', port=5001, debug=True)
+        # Purpose: Start Flask server with environment-based debug configuration.
+        # Side effects: Starts HTTP server, enables debug mode only if DEBUG=true.
+        app.run(host='0.0.0.0', port=5001, debug=debug_mode)
     else:
         print("\n❌ Cannot start API: Model not found")
         print("   Please run: python sprint3/demos/generate_sample_data.py")
