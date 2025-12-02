@@ -1,9 +1,13 @@
+// File header: Main React application component with routing and Web3 integration.
+// Provides lazy-loaded page components and navigation structure for NFT ticketing platform.
+
 import React, { Suspense, lazy } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Web3Provider } from './services/web3Context';
 import { Navbar } from './components/ui/Navbar';
 
-// Lazy load page components for better code splitting
+// Purpose: Lazy load page components to improve initial bundle size and code splitting.
+// Side effects: Components loaded on-demand when routes are accessed.
 const Marketplace = lazy(() => import('./pages/Marketplace').then(m => ({ default: m.Marketplace })));
 const EventDetails = lazy(() => import('./pages/EventDetails').then(m => ({ default: m.EventDetails })));
 const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
@@ -12,19 +16,25 @@ const Scanner = lazy(() => import('./pages/Scanner').then(m => ({ default: m.Sca
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
 const HeroBackground = lazy(() => import('./components/3d/HeroBackground').then(m => ({ default: m.HeroBackground })));
 
-// Loading component for Suspense fallback
-// Loading component for Suspense fallback
+// Purpose: Loading spinner component displayed while lazy-loaded pages are loading.
+// Returns: JSX with centered loading indicator.
+// Side effects: None - presentational component.
 const PageLoader = () => (
   <div className="flex items-center justify-center min-h-screen bg-background">
     <div className="animate-pulse text-foreground-secondary">Loading...</div>
   </div>
 );
 
-// Fixed loader for background to prevent CLS
+// Purpose: Fixed background placeholder to prevent layout shift during background component load.
+// Returns: JSX with fixed background div.
+// Side effects: Prevents cumulative layout shift (CLS) during initial render.
 const BackgroundLoader = () => (
   <div className="fixed inset-0 -z-10 bg-background" />
 );
 
+// Purpose: Main application component with routing, Web3 context, and page structure.
+// Returns: JSX with router, Web3 provider, navbar, routes, and footer.
+// Side effects: Sets up React Router, provides Web3 context to children, renders page components.
 const App: React.FC = () => {
   return (
     <Web3Provider>
