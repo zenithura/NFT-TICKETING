@@ -1,10 +1,11 @@
-// File header: Navigation bar component with language switcher and wallet connection.
-// Provides main navigation links, role-based menu, and language selection.
+// File header: Redesigned navigation bar component with improved UX, accessibility, and responsiveness.
+// Provides main navigation links, role-based menu, wallet connection, theme toggle, and language selection.
+// Features: Keyboard navigation, ARIA labels, smooth animations, mobile-first design, and proper focus management.
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useLayoutEffect, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Wallet, Menu, X, ChevronDown, Shield, Users, Ticket, ScanLine, Zap, LogIn, LogOut, User, Copy } from 'lucide-react';
+import { Wallet, Menu, X, ChevronDown, Shield, Users, Ticket, ScanLine, Zap, LogIn, LogOut, User, Copy, Settings } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useWeb3 } from '../../services/web3Context';
 import { useAuth } from '../../services/authContext';
@@ -15,6 +16,248 @@ import { LanguageSwitcher } from './LanguageSwitcher';
 import { ThemeToggle } from './ThemeToggle';
 import { WalletConnectionModal } from '../WalletConnectionModal';
 
+// Purpose: Reusable dropdown menu component with keyboard navigation and accessibility.
+// Props: isOpen, onClose, position, children, id, ariaLabel, triggerRef
+interface DropdownMenuProps {
+  isOpen: boolean;
+  onClose: () => void;
+  position: { top: number; left?: number; right?: number; side: string } | null;
+  children: React.ReactNode;
+  id: string;
+  ariaLabel: string;
+  className?: string;
+  triggerRef?: React.RefObject<HTMLElement>;
+}
+
+// Purpose: Reusable dropdown menu component with keyboard navigation and accessibility.
+// CRITICAL: Uses z-[60] to stay above navbar (z-50) but below modals (z-[100]).
+// Backdrop only on mobile to avoid covering other buttons on desktop.
+const DropdownMenu: React.FC<DropdownMenuProps> = ({ 
+  isOpen, 
+  onClose, 
+  position, 
+  children, 
+  id, 
+  ariaLabel,
+  className,
+  triggerRef
+}) => {
+  const menuRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+
+  // Purpose: Handle keyboard navigation (Escape to close, Tab to navigate).
+  // Side effects: Closes menu on Escape, traps focus within menu.
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // Store previous focus
+    previousFocusRef.current = document.activeElement as HTMLElement;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+        previousFocusRef.current?.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  // Purpose: Focus first focusable element when menu opens.
+  // Side effects: Sets focus to first button/link in menu.
+  useEffect(() => {
+    if (isOpen && menuRef.current) {
+      const firstFocusable = menuRef.current.querySelector<HTMLElement>(
+        'button, a, [tabindex]:not([tabindex="-1"])'
+      );
+      firstFocusable?.focus();
+    }
+  }, [isOpen]);
+
+  // Purpose: Close dropdown when clicking outside (desktop only, mobile uses backdrop).
+  // CRITICAL: Only closes if click is outside the dropdown, its trigger, and other navbar buttons.
+  // This prevents closing when clicking other navbar buttons.
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      
+      // Don't close if clicking inside the dropdown menu
+      if (menuRef.current?.contains(target)) {
+        return;
+      }
+      
+      // Don't close if clicking on any navbar button or link (including triggers for other dropdowns)
+      // Check multiple ways to ensure we catch all navbar buttons
+      const navButton = target.closest('nav button, nav a, button[aria-expanded], button[aria-haspopup]');
+      if (navButton) {
+        return; // Let the button's onClick handler manage the state
+      }
+      
+      // Don't close if clicking on other dropdown menus
+      if (target.closest('[role="menu"]')) {
+        return;
+      }
+      
+      // Don't close if clicking on LanguageSwitcher container
+      if (target.closest('.language-dropdown') || target.closest('[aria-label*="language" i]')) {
+        return;
+      }
+      
+      // Don't close if clicking on ThemeToggle
+      if (target.closest('[aria-label*="theme" i]')) {
+        return;
+      }
+      
+      // Don't close if clicking anywhere in the navbar
+      if (target.closest('nav')) {
+        return;
+      }
+      
+      // Only close if clicking completely outside navbar area
+      onClose();
+    };
+
+    // Use bubble phase (not capture) so button onClick handlers run first
+    // Add small delay to ensure button handlers have executed
+    const timeoutId = setTimeout(() => {
+      document.addEventListener('click', handleClickOutside);
+    }, 0);
+
+    return () => {
+      clearTimeout(timeoutId);
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [isOpen, onClose]);
+
+  // Calculate default position if position is not yet set
+  // This allows dropdown to render immediately before position is calculated
+  const getDefaultPosition = () => {
+    if (triggerRef?.current) {
+      const triggerRect = triggerRef.current.getBoundingClientRect();
+      return {
+        top: triggerRect.bottom + 8,
+        left: triggerRect.left,
+        side: 'bottom' as const
+      };
+    }
+    return null;
+  };
+
+  const currentPosition = position || getDefaultPosition();
+
+  if (!isOpen || !currentPosition) return null;
+
+  return createPortal(
+    <>
+      {/* Backdrop for mobile only - prevents covering other buttons on desktop */}
+      <div
+        className="fixed inset-0 z-[55] md:hidden bg-black/20 backdrop-blur-sm pointer-events-auto"
+        onClick={(e) => {
+          e.stopPropagation();
+          onClose();
+        }}
+        aria-hidden="true"
+      />
+      {/* Dropdown Menu - positioned and visible, same structure as LanguageSwitcher */}
+      <div
+        ref={menuRef}
+        id={id}
+        role="menu"
+        aria-label={ariaLabel}
+        className={cn(
+          "fixed w-48 bg-background-elevated border border-border rounded-lg shadow-xl z-[60]",
+          "animate-fade-in",
+          className
+        )}
+        style={{
+          top: currentPosition.top !== undefined ? `${currentPosition.top}px` : undefined,
+          bottom: currentPosition.bottom !== undefined ? `${currentPosition.bottom}px` : undefined,
+          left: currentPosition.left !== undefined ? `${currentPosition.left}px` : undefined,
+          right: currentPosition.right !== undefined ? `${currentPosition.right}px` : undefined,
+          visibility: 'visible',
+          opacity: 1,
+          display: 'block',
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            onClose();
+          }
+        }}
+        onClick={(e) => {
+          // Prevent clicks inside dropdown from closing it
+          e.stopPropagation();
+        }}
+        onMouseEnter={() => {
+          // Keep dropdown open when mouse enters
+          // This prevents closing when moving from trigger to dropdown
+        }}
+        onMouseLeave={(e) => {
+          // Only close if mouse is not moving back to trigger button
+          const relatedTarget = e.relatedTarget as HTMLElement;
+          if (!relatedTarget?.closest(`button[aria-controls="${id}"], button[aria-haspopup="true"]`)) {
+            // Small delay to allow moving between dropdown and trigger
+            setTimeout(() => {
+              if (!document.querySelector(`#${id}:hover`) && 
+                  !document.querySelector(`button[aria-controls="${id}"]:hover, button[aria-haspopup="true"]:hover`)) {
+                // Preserve scroll position when closing
+                const scrollY = window.scrollY;
+                const scrollX = window.scrollX;
+                onClose();
+                // Restore scroll position after closing
+                requestAnimationFrame(() => {
+                  window.scrollTo(scrollX, scrollY);
+                });
+              }
+            }, 100);
+          }
+        }}
+      >
+        {children}
+      </div>
+    </>,
+    document.body
+  );
+};
+
+// Purpose: Navigation link component with active state and keyboard support.
+interface NavLinkProps {
+  to: string;
+  children: React.ReactNode;
+  isActive: boolean;
+  onClick?: () => void;
+  icon?: React.ReactNode;
+  className?: string;
+}
+
+const NavLink: React.FC<NavLinkProps> = ({ to, children, isActive, onClick, icon, className }) => {
+  return (
+    <Link
+      to={to}
+      onClick={onClick}
+      className={cn(
+        "relative flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+        "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background",
+        isActive
+          ? "bg-primary/10 text-primary font-semibold"
+          : "text-foreground-secondary hover:text-foreground hover:bg-background-hover",
+        className
+      )}
+      aria-current={isActive ? 'page' : undefined}
+    >
+      {icon && <span className="flex-shrink-0">{icon}</span>}
+      <span>{children}</span>
+      {isActive && (
+        <span className="absolute left-0 top-0 bottom-0 w-1 bg-primary rounded-r-full" aria-hidden="true" />
+      )}
+    </Link>
+  );
+};
+
 export const Navbar: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
@@ -24,31 +267,42 @@ export const Navbar: React.FC = () => {
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
   const [isRoleMenuOpen, setIsRoleMenuOpen] = useState(false);
   const [isWalletMenuOpen, setIsWalletMenuOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const location = useLocation();
   
   const roleTriggerRef = useRef<HTMLButtonElement>(null);
   const walletTriggerRef = useRef<HTMLButtonElement>(null);
+  const userTriggerRef = useRef<HTMLButtonElement>(null);
   const roleMenuRef = useRef<HTMLDivElement>(null);
   const walletMenuRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
   const [roleMenuPosition, setRoleMenuPosition] = useState<{ top: number; left?: number; right?: number; side: string } | null>(null);
   const [walletMenuPosition, setWalletMenuPosition] = useState<{ top: number; left?: number; right?: number; side: string } | null>(null);
+  const [userMenuPosition, setUserMenuPosition] = useState<{ top: number; left?: number; right?: number; side: string } | null>(null);
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = useCallback((path: string) => location.pathname === path, [location.pathname]);
+
+  // Purpose: Close mobile menu when route changes.
+  // Side effects: Sets isMenuOpen to false on location change.
+  useEffect(() => {
+    setIsMenuOpen(false);
+  }, [location.pathname]);
 
   // Purpose: Calculate dropdown positions when opened.
   // Side effects: Updates position state based on viewport boundaries.
   useEffect(() => {
-    if (isRoleMenuOpen && roleTriggerRef.current && roleMenuRef.current) {
+    if (isRoleMenuOpen && roleTriggerRef.current) {
       const triggerRect = roleTriggerRef.current.getBoundingClientRect();
-      const menuWidth = 192; // w-48
-      const menuHeight = roleMenuRef.current.offsetHeight || 200;
+      const menuWidth = 192;
+      // Use estimated height if menu ref doesn't exist yet
+      const menuHeight = roleMenuRef.current?.offsetHeight || 200;
       const pos = calculateDropdownPosition(triggerRect, menuWidth, menuHeight, 8);
       setRoleMenuPosition(pos);
 
       const handleResize = () => {
-        if (roleTriggerRef.current && roleMenuRef.current) {
+        if (roleTriggerRef.current) {
           const newTriggerRect = roleTriggerRef.current.getBoundingClientRect();
-          const newMenuHeight = roleMenuRef.current.offsetHeight || 200;
+          const newMenuHeight = roleMenuRef.current?.offsetHeight || 200;
           const newPos = calculateDropdownPosition(newTriggerRect, menuWidth, newMenuHeight, 8);
           setRoleMenuPosition(newPos);
         }
@@ -66,17 +320,18 @@ export const Navbar: React.FC = () => {
   }, [isRoleMenuOpen]);
 
   useEffect(() => {
-    if (isWalletMenuOpen && walletTriggerRef.current && walletMenuRef.current) {
+    if (isWalletMenuOpen && walletTriggerRef.current) {
       const triggerRect = walletTriggerRef.current.getBoundingClientRect();
-      const menuWidth = 192; // w-48
-      const menuHeight = walletMenuRef.current.offsetHeight || 100;
+      const menuWidth = 192;
+      // Use estimated height if menu ref doesn't exist yet
+      const menuHeight = walletMenuRef.current?.offsetHeight || 100;
       const pos = calculateDropdownPosition(triggerRect, menuWidth, menuHeight, 8);
       setWalletMenuPosition(pos);
 
       const handleResize = () => {
-        if (walletTriggerRef.current && walletMenuRef.current) {
+        if (walletTriggerRef.current) {
           const newTriggerRect = walletTriggerRef.current.getBoundingClientRect();
-          const newMenuHeight = walletMenuRef.current.offsetHeight || 100;
+          const newMenuHeight = walletMenuRef.current?.offsetHeight || 100;
           const newPos = calculateDropdownPosition(newTriggerRect, menuWidth, newMenuHeight, 8);
           setWalletMenuPosition(newPos);
         }
@@ -93,230 +348,516 @@ export const Navbar: React.FC = () => {
     }
   }, [isWalletMenuOpen]);
 
-  const getLinks = () => {
-    const common = [{ path: '/', label: t('nav.marketplace') }];
+  useEffect(() => {
+    if (isUserMenuOpen && userTriggerRef.current) {
+      const triggerRect = userTriggerRef.current.getBoundingClientRect();
+      const menuWidth = 200;
+      // Use estimated height if menu ref doesn't exist yet
+      const menuHeight = userMenuRef.current?.offsetHeight || 150;
+      const pos = calculateDropdownPosition(triggerRect, menuWidth, menuHeight, 8);
+      setUserMenuPosition(pos);
+
+      const handleResize = () => {
+        if (userTriggerRef.current) {
+          const newTriggerRect = userTriggerRef.current.getBoundingClientRect();
+          const newMenuHeight = userMenuRef.current?.offsetHeight || 150;
+          const newPos = calculateDropdownPosition(newTriggerRect, menuWidth, newMenuHeight, 8);
+          setUserMenuPosition(newPos);
+        }
+      };
+
+      window.addEventListener('resize', handleResize);
+      window.addEventListener('scroll', handleResize, true);
+      return () => {
+        window.removeEventListener('resize', handleResize);
+        window.removeEventListener('scroll', handleResize, true);
+      };
+    } else {
+      setUserMenuPosition(null);
+    }
+  }, [isUserMenuOpen]);
+
+  // Purpose: Get navigation links based on user role.
+  // Returns: Array of link objects with path and label.
+  const getLinks = useCallback(() => {
+    const common = [{ path: '/', label: t('nav.marketplace'), icon: <Zap size={16} /> }];
     switch (userRole) {
       case UserRole.ORGANIZER:
-        return [...common, { path: '/dashboard', label: t('nav.dashboard') }, { path: '/create-event', label: t('nav.createEvent') }];
+        return [
+          ...common,
+          { path: '/dashboard', label: t('nav.dashboard'), icon: <Ticket size={16} /> },
+          { path: '/create-event', label: t('nav.createEvent'), icon: <Zap size={16} /> }
+        ];
       case UserRole.RESELLER:
-        return [...common, { path: '/dashboard', label: t('nav.resalePortal') }];
+        return [
+          ...common,
+          { path: '/dashboard', label: t('nav.resalePortal'), icon: <Ticket size={16} /> }
+        ];
       case UserRole.SCANNER:
-        return [{ path: '/scanner', label: t('nav.launchScanner') }];
+        return [
+          { path: '/scanner', label: t('nav.launchScanner'), icon: <ScanLine size={16} /> }
+        ];
       case UserRole.ADMIN:
-        return [...common, { path: '/admin', label: t('nav.adminPanel') }];
+        return [
+          ...common,
+          { path: '/admin', label: t('nav.adminPanel'), icon: <Shield size={16} /> }
+        ];
       case UserRole.BUYER:
       default:
-        return [...common, { path: '/dashboard', label: t('nav.myTickets') }];
+        return [
+          ...common,
+          { path: '/dashboard', label: t('nav.myTickets'), icon: <Ticket size={16} /> }
+        ];
     }
-  };
+  }, [userRole, t]);
+
+  // Purpose: Store scroll position before role changes to restore it after re-render.
+  // Side effects: Restores scroll position synchronously after role change.
+  const scrollPositionRef = useRef<{ x: number; y: number } | null>(null);
+  
+  // Purpose: Restore scroll position after role change re-render completes.
+  // Side effects: Restores scroll position synchronously before browser paint.
+  useLayoutEffect(() => {
+    if (scrollPositionRef.current) {
+      window.scrollTo({ 
+        left: scrollPositionRef.current.x, 
+        top: scrollPositionRef.current.y, 
+        behavior: 'auto' 
+      });
+      scrollPositionRef.current = null;
+    }
+  });
 
   const links = getLinks();
 
+  // Purpose: Handle wallet disconnect with cleanup.
+  // Side effects: Disconnects wallet and closes menus.
+  const handleDisconnect = useCallback(() => {
+    disconnect();
+    setIsWalletMenuOpen(false);
+    setIsMenuOpen(false);
+  }, [disconnect]);
+
+  // Purpose: Handle user logout with navigation.
+  // Side effects: Logs out user, navigates to home, closes menus.
+  const handleLogout = useCallback(async () => {
+    await logout();
+    navigate('/');
+    setIsUserMenuOpen(false);
+    setIsMenuOpen(false);
+  }, [logout, navigate]);
+
   return (
-    <nav className="glass sticky top-0 z-50 border-b border-border">
+    <nav 
+      className="sticky top-0 z-50 bg-background/95 backdrop-blur-md border-b border-border shadow-sm"
+      role="navigation"
+      aria-label={t('nav.mainNavigation')}
+    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           
-          {/* Logo */}
-          <div className="flex items-center gap-8">
-            <Link to="/" className="flex items-center gap-2 group">
-              <div className="w-8 h-8 bg-primary/10 rounded flex items-center justify-center border border-primary/20 group-hover:border-primary/50 transition-colors">
-                <Zap size={16} className="text-primary" />
+          {/* Logo and Desktop Navigation */}
+          <div className="flex items-center gap-8 flex-1">
+            {/* Logo */}
+            <Link 
+              to="/" 
+              className="flex items-center gap-2 group focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background rounded-lg"
+              aria-label={t('nav.home')}
+            >
+              <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center border border-primary/20 group-hover:border-primary/50 group-hover:bg-primary/20 transition-all duration-200">
+                <Zap size={18} className="text-primary" />
               </div>
-              <span className="font-semibold text-lg text-foreground tracking-tight">NFTix</span>
+              <span className="font-bold text-lg text-foreground tracking-tight hidden sm:block">
+                NFTix
+              </span>
             </Link>
             
-            {/* Desktop Links */}
-            <div className="hidden md:flex items-center gap-1">
+            {/* Desktop Navigation Links */}
+            <nav 
+              className="hidden lg:flex items-center gap-1"
+              aria-label={t('nav.mainLinks')}
+            >
               {links.map((link) => (
-                <Link 
+                <NavLink
                   key={link.path}
-                  to={link.path} 
-                  className={cn(
-                    "px-3 py-1.5 rounded text-sm font-medium transition-all",
-                    isActive(link.path) 
-                      ? "bg-background-active text-foreground" 
-                      : "text-foreground-secondary hover:text-foreground hover:bg-background-hover"
-                  )}
+                  to={link.path}
+                  isActive={isActive(link.path)}
+                  icon={link.icon}
                 >
                   {link.label}
-                </Link>
+                </NavLink>
               ))}
-            </div>
+            </nav>
           </div>
 
-          {/* Right Side */}
-          <div className="hidden md:flex items-center gap-4">
+          {/* Right Side Actions - Desktop */}
+          <div className="hidden lg:flex items-center gap-3">
             {/* Theme Toggle */}
             <ThemeToggle />
             
             {/* Language Switcher */}
             <LanguageSwitcher />
             
-            {/* Authentication Buttons */}
-            {isAuthenticated ? (
-              <div className="flex items-center gap-3">
-                <div className="text-sm text-foreground-secondary">
-                  {user?.email || user?.username}
-                </div>
-                <button
-                  onClick={async () => {
-                    await logout();
-                    navigate('/');
-                  }}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded bg-background-elevated border border-border text-sm font-medium text-foreground-secondary hover:border-border-hover hover:text-foreground transition-colors"
-                >
-                  <LogOut size={14} />
-                  {t('auth.logout')}
-                </button>
-              </div>
-            ) : (
-              <div className="flex items-center gap-2">
-                <Link
-                  to="/login"
-                  className="flex items-center gap-2 px-3 py-1.5 rounded text-sm font-medium text-foreground-secondary hover:text-foreground transition-colors"
-                >
-                  <LogIn size={14} />
-                  {t('auth.loginButton')}
-                </Link>
-                <Link
-                  to="/register"
-                  className="flex items-center gap-2 px-3 py-1.5 rounded bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
-                >
-                  {t('auth.registerButton')}
-                </Link>
-              </div>
-            )}
-            
+            {/* Wallet Section */}
             {isConnected ? (
-              <>
-                {/* Role Switcher (Demo) */}
+              <div className="flex items-center gap-2 pl-3 border-l border-border">
+                {/* Role Switcher */}
                 <div className="relative">
                   <button
                     ref={roleTriggerRef}
-                    onMouseEnter={() => setIsRoleMenuOpen(true)}
-                    onMouseLeave={() => setIsRoleMenuOpen(false)}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded bg-background-elevated border border-border text-xs font-medium text-foreground-secondary hover:border-border-hover hover:text-foreground transition-colors"
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      const newState = !isRoleMenuOpen;
+                      setIsRoleMenuOpen(newState);
+                      // Close other dropdowns when opening this one
+                      if (newState) {
+                        setIsWalletMenuOpen(false);
+                        setIsUserMenuOpen(false);
+                        // Close language switcher if open
+                        window.dispatchEvent(new CustomEvent('closeLanguageSwitcher'));
+                      }
+                    }}
+                    onMouseDown={(e) => {
+                      // Prevent focus changes that might cause scrolling
+                      if (!isRoleMenuOpen) {
+                        e.preventDefault();
+                      }
+                    }}
+                    onMouseEnter={() => {
+                      // Only open on hover if no other dropdown is open
+                      if (!isWalletMenuOpen && !isUserMenuOpen) {
+                        setIsRoleMenuOpen(true);
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      // Only close if mouse is not moving to the dropdown menu
+                      const relatedTarget = e.relatedTarget as HTMLElement;
+                      if (!relatedTarget?.closest('#role-menu')) {
+                        setIsRoleMenuOpen(false);
+                      }
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-background-elevated border border-border text-xs font-medium text-foreground-secondary hover:border-border-hover hover:text-foreground transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                    aria-label={t('nav.switchView')}
+                    aria-expanded={isRoleMenuOpen}
+                    aria-haspopup="true"
                   >
                     {userRole === UserRole.ADMIN && <Shield size={12} className="text-error" />}
                     {userRole === UserRole.ORGANIZER && <Users size={12} className="text-primary" />}
                     {userRole === UserRole.BUYER && <Ticket size={12} className="text-success" />}
-                    {t(`roles.${userRole}`)}
-                    <ChevronDown size={12} />
+                    <span className="hidden xl:inline">{t(`roles.${userRole}`)}</span>
+                    <ChevronDown size={12} className={cn("transition-transform duration-200", isRoleMenuOpen && "rotate-180")} />
                   </button>
-                  {isRoleMenuOpen && roleMenuPosition && typeof document !== 'undefined' && createPortal(
-                    <div
-                      onMouseEnter={() => setIsRoleMenuOpen(true)}
-                      onMouseLeave={() => setIsRoleMenuOpen(false)}
-                      ref={roleMenuRef}
-                      className="fixed w-48 bg-background-elevated border border-border rounded-lg shadow-xl z-50"
-                      style={{
-                        top: roleMenuPosition.top !== undefined ? `${roleMenuPosition.top}px` : undefined,
-                        bottom: roleMenuPosition.bottom !== undefined ? `${roleMenuPosition.bottom}px` : undefined,
-                        left: roleMenuPosition.left !== undefined ? `${roleMenuPosition.left}px` : undefined,
-                        right: roleMenuPosition.right !== undefined ? `${roleMenuPosition.right}px` : undefined,
-                      }}
+                  
+                  <DropdownMenu
+                    isOpen={isRoleMenuOpen}
+                    onClose={() => {
+                      // Preserve scroll position when closing
+                      const scrollY = window.scrollY;
+                      const scrollX = window.scrollX;
+                      setIsRoleMenuOpen(false);
+                      // Restore scroll position after closing
+                      requestAnimationFrame(() => {
+                        window.scrollTo(scrollX, scrollY);
+                      });
+                    }}
+                    position={roleMenuPosition}
+                    id="role-menu"
+                    ariaLabel={t('nav.switchView')}
+                    triggerRef={roleTriggerRef}
+                  >
+                    <div 
+                      ref={roleMenuRef} 
+                      className="p-1"
                     >
-                      <div className="p-1">
-                        <div className="px-3 py-2 text-[10px] uppercase font-bold text-foreground-tertiary tracking-wider">{t('nav.switchView')}</div>
-                        {Object.values(UserRole).map((role) => (
-                          <button
-                            key={role}
-                            onClick={() => {
-                              setUserRole(role);
-                              setIsRoleMenuOpen(false);
-                            }}
-                            className={cn(
-                              "w-full text-left px-3 py-2 text-sm rounded hover:bg-background-hover flex items-center gap-2",
-                              userRole === role ? "text-primary bg-primary/10" : "text-foreground-secondary"
-                            )}
-                          >
-                            {t(`roles.${role}`)}
-                          </button>
-                        ))}
+                      <div className="px-3 py-2 text-[10px] uppercase font-bold text-foreground-tertiary tracking-wider border-b border-border">
+                        {t('nav.switchView')}
                       </div>
-                    </div>,
-                    document.body
-                  )}
+                      {Object.values(UserRole).map((role) => (
+                        <button
+                          key={role}
+                          role="menuitem"
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            e.preventDefault();
+                            // Capture scroll position before any state changes
+                            const scrollY = window.scrollY;
+                            const scrollX = window.scrollX;
+                            
+                            // Store in ref for useLayoutEffect to restore after re-render
+                            scrollPositionRef.current = { x: scrollX, y: scrollY };
+                            
+                            // Blur the button to prevent focus-related scrolling
+                            (e.currentTarget as HTMLButtonElement).blur();
+                            
+                            // Close dropdown first
+                            setIsRoleMenuOpen(false);
+                            
+                            // Change role - this will trigger re-render
+                            setUserRole(role);
+                            
+                            // Restore scroll position immediately (before React re-render)
+                            window.scrollTo({ left: scrollX, top: scrollY, behavior: 'auto' });
+                          }}
+                          onMouseDown={(e) => {
+                            // Prevent focus changes that might cause scrolling
+                            e.preventDefault();
+                            e.stopPropagation();
+                          }}
+                          className={cn(
+                            "w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-background-hover flex items-center gap-2 transition-colors duration-150",
+                            "focus:outline-none focus:bg-background-hover",
+                            userRole === role ? "text-primary bg-primary/10 font-medium" : "text-foreground-secondary"
+                          )}
+                        >
+                          {role === UserRole.ADMIN && <Shield size={14} className="text-error" />}
+                          {role === UserRole.ORGANIZER && <Users size={14} className="text-primary" />}
+                          {role === UserRole.BUYER && <Ticket size={14} className="text-success" />}
+                          {role === UserRole.SCANNER && <ScanLine size={14} className="text-warning" />}
+                          {role === UserRole.RESELLER && <Ticket size={14} className="text-primary" />}
+                          <span>{t(`roles.${role}`)}</span>
+                          {userRole === role && <span className="ml-auto text-primary">✓</span>}
+                        </button>
+                      ))}
+                    </div>
+                  </DropdownMenu>
                 </div>
 
-                {/* Wallet Badge */}
-                <div className="flex items-center gap-3 pl-4 border-l border-border">
-                  <div className="text-sm font-mono text-foreground-secondary">
-                    {balance} <span className="text-foreground-tertiary">ETH</span>
-                  </div>
-                  <div className="relative">
-                    <button
-                      ref={walletTriggerRef}
-                      onMouseEnter={() => setIsWalletMenuOpen(true)}
-                      onMouseLeave={() => setIsWalletMenuOpen(false)}
-                      className="flex items-center gap-2 bg-background-hover border border-border px-3 py-1.5 rounded text-sm font-mono text-foreground hover:border-border-hover transition-colors"
+                {/* Wallet Badge with Dropdown */}
+                <div className="relative">
+                  <button
+                    ref={walletTriggerRef}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const newState = !isWalletMenuOpen;
+                      setIsWalletMenuOpen(newState);
+                      // Close other dropdowns when opening this one
+                      if (newState) {
+                        setIsRoleMenuOpen(false);
+                        setIsUserMenuOpen(false);
+                        // Close language switcher if open
+                        window.dispatchEvent(new CustomEvent('closeLanguageSwitcher'));
+                      }
+                    }}
+                    onMouseEnter={() => {
+                      // Only open on hover if no other dropdown is open
+                      if (!isRoleMenuOpen && !isUserMenuOpen) {
+                        setIsWalletMenuOpen(true);
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      // Only close if mouse is not moving to the dropdown menu
+                      const relatedTarget = e.relatedTarget as HTMLElement;
+                      if (!relatedTarget?.closest('#wallet-menu')) {
+                        setIsWalletMenuOpen(false);
+                      }
+                    }}
+                    className="flex items-center gap-2 bg-background-hover border border-border px-3 py-1.5 rounded-lg text-sm font-mono text-foreground hover:border-border-hover transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                    aria-label={t('wallet.walletMenu')}
+                    aria-expanded={isWalletMenuOpen}
+                    aria-haspopup="true"
+                  >
+                    <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                    <span className="hidden xl:inline">{formatAddress(address || '')}</span>
+                    <span className="xl:hidden">{formatAddress(address || '', 4)}</span>
+                    <ChevronDown size={12} className={cn("transition-transform duration-200", isWalletMenuOpen && "rotate-180")} />
+                  </button>
+                  
+                  <DropdownMenu
+                    isOpen={isWalletMenuOpen}
+                    onClose={() => setIsWalletMenuOpen(false)}
+                    position={walletMenuPosition}
+                    id="wallet-menu"
+                    ariaLabel={t('wallet.walletMenu')}
+                    triggerRef={walletTriggerRef}
+                  >
+                    <div 
+                      ref={walletMenuRef} 
+                      className="p-1"
                     >
-                      <div className="w-2 h-2 rounded-full bg-success animate-pulse-slow" />
-                      {formatAddress(address || '')}
-                    </button>
-                    {isWalletMenuOpen && walletMenuPosition && typeof document !== 'undefined' && createPortal(
-                      <div
-                        onMouseEnter={() => setIsWalletMenuOpen(true)}
-                        onMouseLeave={() => setIsWalletMenuOpen(false)}
-                        ref={walletMenuRef}
-                        className="fixed w-48 bg-background-elevated border border-border rounded-lg shadow-xl z-50 p-1"
-                        style={{
-                          top: walletMenuPosition.top !== undefined ? `${walletMenuPosition.top}px` : undefined,
-                          bottom: walletMenuPosition.bottom !== undefined ? `${walletMenuPosition.bottom}px` : undefined,
-                          left: walletMenuPosition.left !== undefined ? `${walletMenuPosition.left}px` : undefined,
-                          right: walletMenuPosition.right !== undefined ? `${walletMenuPosition.right}px` : undefined,
-                        }}
-                      >
-                        <button 
-                          onClick={async () => {
-                            if (address) {
-                              try {
-                                await navigator.clipboard.writeText(address);
-                                setIsWalletMenuOpen(false);
-                                // Could show toast notification here
-                              } catch (err) {
-                                console.error('Failed to copy address:', err);
-                              }
+                      {/* Balance Display */}
+                      <div className="px-3 py-2 border-b border-border">
+                        <div className="text-xs text-foreground-tertiary mb-1">{t('wallet.balance')}</div>
+                        <div className="text-sm font-mono font-semibold text-foreground">
+                          {balance} <span className="text-foreground-tertiary">ETH</span>
+                        </div>
+                      </div>
+                      
+                      {/* Copy Address */}
+                      <button
+                        role="menuitem"
+                        type="button"
+                        onClick={async (e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          if (address) {
+                            try {
+                              await navigator.clipboard.writeText(address);
+                              setIsWalletMenuOpen(false);
+                            } catch (err) {
+                              console.error('Failed to copy address:', err);
                             }
-                          }}
-                          className="w-full text-left px-3 py-2 text-sm text-foreground-secondary hover:bg-background-hover rounded transition-colors flex items-center gap-2"
-                        >
-                          <Copy size={14} />
-                          {t('wallet.copyAddress')}
-                        </button>
-                        <button 
-                          onClick={() => {
-                            disconnect();
-                            setIsWalletMenuOpen(false);
-                          }} 
-                          className="w-full text-left px-3 py-2 text-sm text-error hover:bg-error/10 rounded transition-colors flex items-center gap-2"
-                        >
-                          <LogOut size={14} />
-                          {t('nav.disconnect')}
-                        </button>
-                      </div>,
-                      document.body
-                    )}
-                  </div>
+                          }
+                        }}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                        }}
+                        className="w-full text-left px-3 py-2 text-sm text-foreground-secondary hover:bg-background-hover rounded-lg transition-colors duration-150 flex items-center gap-2 focus:outline-none focus:bg-background-hover"
+                      >
+                        <Copy size={14} />
+                        {t('wallet.copyAddress')}
+                      </button>
+                      
+                      {/* Disconnect */}
+                      <button
+                        role="menuitem"
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          handleDisconnect();
+                        }}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                        }}
+                        className="w-full text-left px-3 py-2 text-sm text-error hover:bg-error/10 rounded-lg transition-colors duration-150 flex items-center gap-2 focus:outline-none focus:bg-error/10"
+                      >
+                        <LogOut size={14} />
+                        {t('nav.disconnect')}
+                      </button>
+                    </div>
+                  </DropdownMenu>
                 </div>
-              </>
+              </div>
             ) : (
               <button
                 onClick={() => setIsWalletModalOpen(true)}
-                className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded font-medium text-sm transition-all hover:-translate-y-0.5 shadow-lg shadow-primary/20"
+                className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 hover:-translate-y-0.5 shadow-lg shadow-primary/20 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                aria-label={t('nav.connectWallet')}
               >
                 <Wallet size={16} />
-                {t('nav.connectWallet')}
+                <span className="hidden xl:inline">{t('nav.connectWallet')}</span>
+                <span className="xl:hidden">{t('nav.connect')}</span>
               </button>
+            )}
+
+            {/* User Menu (Authentication) */}
+            {isAuthenticated ? (
+              <div className="relative pl-3 border-l border-border">
+                <button
+                  ref={userTriggerRef}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const newState = !isUserMenuOpen;
+                    setIsUserMenuOpen(newState);
+                    // Close other dropdowns when opening this one
+                    if (newState) {
+                      setIsRoleMenuOpen(false);
+                      setIsWalletMenuOpen(false);
+                      // Close language switcher if open
+                      window.dispatchEvent(new CustomEvent('closeLanguageSwitcher'));
+                    }
+                  }}
+                  onMouseEnter={() => {
+                    // Only open on hover if no other dropdown is open
+                    if (!isRoleMenuOpen && !isWalletMenuOpen) {
+                      setIsUserMenuOpen(true);
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    // Only close if mouse is not moving to the dropdown menu
+                    const relatedTarget = e.relatedTarget as HTMLElement;
+                    if (!relatedTarget?.closest('#user-menu')) {
+                      setIsUserMenuOpen(false);
+                    }
+                  }}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-background-elevated border border-border text-sm font-medium text-foreground-secondary hover:border-border-hover hover:text-foreground transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                  aria-label={t('nav.userMenu')}
+                  aria-expanded={isUserMenuOpen}
+                  aria-haspopup="true"
+                >
+                  <User size={16} />
+                  <span className="hidden xl:inline max-w-[120px] truncate">
+                    {user?.email || user?.username}
+                  </span>
+                  <ChevronDown size={12} className={cn("transition-transform duration-200", isUserMenuOpen && "rotate-180")} />
+                </button>
+                
+                <DropdownMenu
+                  isOpen={isUserMenuOpen}
+                  onClose={() => setIsUserMenuOpen(false)}
+                  position={userMenuPosition}
+                  id="user-menu"
+                  ariaLabel={t('nav.userMenu')}
+                  triggerRef={userTriggerRef}
+                >
+                  <div 
+                    ref={userMenuRef} 
+                    className="p-1"
+                  >
+                    <div className="px-3 py-2 border-b border-border">
+                      <div className="text-sm font-medium text-foreground truncate">
+                        {user?.email || user?.username}
+                      </div>
+                      {user?.email && (
+                        <div className="text-xs text-foreground-tertiary truncate">
+                          {user.email}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      role="menuitem"
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        handleLogout();
+                      }}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                      }}
+                      className="w-full text-left px-3 py-2 text-sm text-error hover:bg-error/10 rounded-lg transition-colors duration-150 flex items-center gap-2 focus:outline-none focus:bg-error/10 mt-1"
+                    >
+                      <LogOut size={14} />
+                      {t('auth.logout')}
+                    </button>
+                  </div>
+                </DropdownMenu>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 pl-3 border-l border-border">
+                <Link
+                  to="/login"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-foreground-secondary hover:text-foreground hover:bg-background-hover transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                >
+                  <LogIn size={14} />
+                  <span className="hidden xl:inline">{t('auth.loginButton')}</span>
+                  <span className="xl:hidden">{t('auth.login')}</span>
+                </Link>
+                <Link
+                  to="/register"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary-hover transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                >
+                  <span className="hidden xl:inline">{t('auth.registerButton')}</span>
+                  <span className="xl:hidden">{t('auth.register')}</span>
+                </Link>
+              </div>
             )}
           </div>
 
-          {/* Mobile Toggle */}
-          <div className="md:hidden flex items-center">
+          {/* Mobile Menu Toggle */}
+          <div className="lg:hidden flex items-center gap-2">
+            {/* Theme Toggle - Mobile */}
+            <ThemeToggle />
+            
+            {/* Hamburger Menu Button */}
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="p-2 rounded text-foreground-secondary hover:bg-background-hover hover:text-foreground"
+              className="p-2 rounded-lg text-foreground-secondary hover:bg-background-hover hover:text-foreground transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+              aria-label={isMenuOpen ? t('nav.closeMenu') : t('nav.openMenu')}
+              aria-expanded={isMenuOpen}
             >
               {isMenuOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
@@ -326,40 +867,108 @@ export const Navbar: React.FC = () => {
 
       {/* Mobile Menu */}
       {isMenuOpen && (
-        <div className="md:hidden bg-background-elevated border-b border-border animate-fade-in">
-          <div className="px-4 pt-2 pb-4 space-y-1">
+        <div 
+          className="lg:hidden bg-background-elevated border-t border-border animate-slide-down"
+          role="menu"
+          aria-label={t('nav.mobileMenu')}
+        >
+          <div className="px-4 py-3 space-y-1">
+            {/* Navigation Links */}
             {links.map((link) => (
-              <Link 
+              <NavLink
                 key={link.path}
-                to={link.path} 
-                onClick={() => setIsMenuOpen(false)} 
-                className={cn(
-                  "block px-3 py-3 rounded-lg text-base font-medium",
-                  isActive(link.path) ? "bg-background-active text-foreground" : "text-foreground-secondary"
-                )}
+                to={link.path}
+                isActive={isActive(link.path)}
+                onClick={() => setIsMenuOpen(false)}
+                icon={link.icon}
+                className="w-full"
               >
                 {link.label}
-              </Link>
+              </NavLink>
             ))}
-            <div className="pt-4 border-t border-border mt-4 space-y-1">
-              {/* Mobile Theme Toggle */}
-              <div className="px-3 py-2 flex items-center justify-between">
-                <span className="text-sm text-foreground-secondary">{t('theme.theme')}</span>
-                <ThemeToggle />
+            
+            {/* Divider */}
+            <div className="pt-3 border-t border-border mt-3 space-y-1">
+              {/* Language Switcher - Mobile */}
+              <div className="px-4 py-2">
+                <LanguageSwitcher />
               </div>
               
+              {/* Wallet Section - Mobile */}
+              {isConnected ? (
+                <>
+                  <div className="px-4 py-2 border-b border-border mb-2">
+                    <div className="text-xs text-foreground-tertiary mb-1">{t('wallet.balance')}</div>
+                    <div className="text-sm font-mono font-semibold text-foreground">
+                      {balance} <span className="text-foreground-tertiary">ETH</span>
+                    </div>
+                    <div className="text-xs font-mono text-foreground-secondary mt-1">
+                      {formatAddress(address || '')}
+                    </div>
+                  </div>
+                  
+                  {/* Role Switcher - Mobile */}
+                  <div className="px-4 py-2 border-b border-border mb-2">
+                    <div className="text-xs text-foreground-tertiary mb-2">{t('nav.switchView')}</div>
+                    <div className="flex flex-wrap gap-2">
+                      {Object.values(UserRole).map((role) => (
+                        <button
+                          key={role}
+                          onClick={() => {
+                            setUserRole(role);
+                            setIsMenuOpen(false);
+                          }}
+                          className={cn(
+                            "px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200",
+                            "focus:outline-none focus:ring-2 focus:ring-primary",
+                            userRole === role
+                              ? "bg-primary/10 text-primary border border-primary/20"
+                              : "bg-background-hover text-foreground-secondary border border-border"
+                          )}
+                        >
+                          {t(`roles.${role}`)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <button
+                    onClick={handleDisconnect}
+                    className="w-full text-left px-4 py-3 text-sm text-error hover:bg-error/10 rounded-lg transition-colors duration-150 flex items-center gap-2 focus:outline-none focus:bg-error/10"
+                  >
+                    <LogOut size={16} />
+                    {t('nav.disconnect')}
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => {
+                    setIsWalletModalOpen(true);
+                    setIsMenuOpen(false);
+                  }}
+                  className="w-full text-left px-4 py-3 text-sm text-primary hover:bg-primary/10 rounded-lg transition-colors duration-150 flex items-center gap-2 focus:outline-none focus:bg-primary/10"
+                >
+                  <Wallet size={16} />
+                  {t('nav.connectWallet')}
+                </button>
+              )}
+              
+              {/* Authentication - Mobile */}
               {isAuthenticated ? (
                 <>
-                  <div className="px-3 py-2 text-sm text-foreground-secondary">
-                    {user?.email || user?.username}
+                  <div className="px-4 py-2 border-t border-border mt-2 pt-3">
+                    <div className="text-sm font-medium text-foreground mb-1">
+                      {user?.email || user?.username}
+                    </div>
+                    {user?.email && (
+                      <div className="text-xs text-foreground-tertiary">
+                        {user.email}
+                      </div>
+                    )}
                   </div>
-                  <button 
-                    onClick={async () => {
-                      await logout();
-                      setIsMenuOpen(false);
-                      navigate('/');
-                    }} 
-                    className="w-full text-left text-error px-3 py-3 font-medium flex items-center gap-2"
+                  <button
+                    onClick={handleLogout}
+                    className="w-full text-left px-4 py-3 text-sm text-error hover:bg-error/10 rounded-lg transition-colors duration-150 flex items-center gap-2 focus:outline-none focus:bg-error/10"
                   >
                     <LogOut size={16} />
                     {t('auth.logout')}
@@ -367,33 +976,22 @@ export const Navbar: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <Link 
-                    to="/login" 
+                  <Link
+                    to="/login"
                     onClick={() => setIsMenuOpen(false)}
-                    className="block text-left text-foreground px-3 py-3 font-medium flex items-center gap-2"
+                    className="block w-full text-left px-4 py-3 text-sm text-foreground hover:bg-background-hover rounded-lg transition-colors duration-150 flex items-center gap-2 focus:outline-none focus:bg-background-hover"
                   >
                     <LogIn size={16} />
                     {t('auth.loginButton')}
                   </Link>
-                  <Link 
-                    to="/register" 
+                  <Link
+                    to="/register"
                     onClick={() => setIsMenuOpen(false)}
-                    className="block text-left text-primary px-3 py-3 font-medium"
+                    className="block w-full text-left px-4 py-3 text-sm text-primary hover:bg-primary/10 rounded-lg transition-colors duration-150 focus:outline-none focus:bg-primary/10"
                   >
                     {t('auth.registerButton')}
                   </Link>
                 </>
-              )}
-              {isConnected ? (
-                 <button onClick={disconnect} className="w-full text-left text-foreground-secondary px-3 py-3 font-medium flex items-center gap-2">
-                   <Wallet size={16} />
-                   {t('nav.disconnect')}
-                 </button>
-              ) : (
-                 <button onClick={() => setIsWalletModalOpen(true)} className="w-full text-left text-primary px-3 py-3 font-medium flex items-center gap-2">
-                   <Wallet size={16} />
-                   {t('nav.connectWallet')}
-                 </button>
               )}
             </div>
           </div>
@@ -403,9 +1001,7 @@ export const Navbar: React.FC = () => {
       {/* Wallet Connection Modal */}
       <WalletConnectionModal
         isOpen={isWalletModalOpen}
-        onClose={() => {
-          setIsWalletModalOpen(false);
-        }}
+        onClose={() => setIsWalletModalOpen(false)}
         onConnectMetaMask={async () => {
           try {
             await connectMetaMask();

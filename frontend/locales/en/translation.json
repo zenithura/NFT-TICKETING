@@ -30,8 +30,16 @@
     "adminPanel": "Admin Panel",
     "launchScanner": "Launch Scanner",
     "connectWallet": "Connect Wallet",
+    "connect": "Connect",
     "disconnect": "Disconnect",
-    "switchView": "Switch View"
+    "switchView": "Switch View",
+    "mainNavigation": "Main navigation",
+    "mainLinks": "Main navigation links",
+    "home": "Home",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu",
+    "mobileMenu": "Mobile menu",
+    "userMenu": "User menu"
   },
   "marketplace": {
     "title": "Collect Moments, Not Just Tickets.",
@@ -140,7 +148,7 @@
     "securedBy": "Secured by Ticket721 Protocol. Verification happens on-chain."
   },
   "footer": {
-    "copyright": "© 2024 NFTix Platform. Decentralized Ticketing."
+    "copyright": "© 2025 NFTix Platform. Decentralized Ticketing."
   },
   "roles": {
     "BUYER": "Buyer",
@@ -206,7 +214,9 @@
     "firstNamePlaceholder": "John",
     "lastNamePlaceholder": "Doe",
     "loginButton": "Sign In",
+    "login": "Sign In",
     "registerButton": "Create Account",
+    "register": "Sign Up",
     "resetPasswordButton": "Reset Password",
     "sendResetLink": "Send Reset Link",
     "forgotPassword": "Forgot Password?",
@@ -281,7 +291,9 @@
     "noAccountsFound": "No accounts found. Please create an account in MetaMask.",
     "wrongNetwork": "Wrong network. Please switch to the correct network.",
     "copyAddress": "Copy Address",
-    "addressCopied": "Address copied to clipboard"
+    "addressCopied": "Address copied to clipboard",
+    "walletMenu": "Wallet menu",
+    "balance": "Balance"
   }
 }
 
