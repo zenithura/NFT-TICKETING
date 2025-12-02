@@ -1,40 +1,55 @@
 #!/usr/bin/env python3
 """
-Direct blockchain interaction demo - bypasses backend/database
-Shows the smart contract working directly
+File header: Direct blockchain interaction demo script that bypasses the backend/database.
+Demonstrates smart contract functionality by interacting directly with the TicketManager contract.
 """
 
 from web3 import Web3
 import json
 from pathlib import Path
 
-# Colors for terminal output
+# Purpose: ANSI color codes for formatted terminal output.
+# Side effects: None - constants only.
 GREEN = '\033[0;32m'
 BLUE = '\033[0;34m'
 YELLOW = '\033[1;33m'
 RED = '\033[0;31m'
 NC = '\033[0m'
 
+# Purpose: Print a formatted step header with blue border.
+# Params: step_num (int) — step number; title (str) — step description.
+# Side effects: Prints to stdout.
 def print_step(step_num, title):
     print(f"\n{BLUE}{'='*60}")
     print(f"Step {step_num}: {title}")
     print(f"{'='*60}{NC}\n")
 
+# Purpose: Print a success message with green checkmark.
+# Params: message (str) — success message to display.
+# Side effects: Prints to stdout.
 def print_success(message):
     print(f"{GREEN}✓ {message}{NC}")
 
+# Purpose: Print an error message with red X mark.
+# Params: message (str) — error message to display.
+# Side effects: Prints to stdout.
 def print_error(message):
     print(f"{RED}✗ {message}{NC}")
 
+# Purpose: Print an info message with yellow info icon.
+# Params: message (str) — info message to display.
+# Side effects: Prints to stdout.
 def print_info(message):
     print(f"{YELLOW}ℹ {message}{NC}")
 
-# Setup
+# Purpose: Initialize demo and display header banner.
+# Side effects: Prints to stdout.
 print(f"\n{BLUE}{'='*60}")
 print("NFT Ticketing - Smart Contract Demo")
 print(f"{'='*60}{NC}\n")
 
-# Connect to Hardhat node
+# Purpose: Connect to local Hardhat blockchain node for testing.
+# Side effects: Establishes HTTP connection to blockchain RPC endpoint.
 print_step(1, "Connecting to Blockchain")
 w3 = Web3(Web3.HTTPProvider('http://127.0.0.1:8545'))
 
@@ -46,7 +61,8 @@ else:
     print_error("Failed to connect to blockchain")
     exit(1)
 
-# Load contract
+# Purpose: Load smart contract ABI and create contract instance.
+# Side effects: Reads JSON file from filesystem, creates Web3 contract object.
 print_step(2, "Loading Smart Contract")
 contract_address = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
 artifact_path = Path(__file__).parent / "smart-contracts/artifacts/contracts/TicketManager.sol/TicketManager.json"
@@ -57,7 +73,8 @@ with open(artifact_path, 'r') as f:
 contract = w3.eth.contract(address=contract_address, abi=artifact['abi'])
 print_success(f"Contract loaded at {contract_address}")
 
-# Get accounts
+# Purpose: Retrieve test accounts from Hardhat node for demo transactions.
+# Side effects: Queries blockchain for available accounts.
 print_step(3, "Setting up Test Accounts")
 accounts = w3.eth.accounts
 admin = accounts[0]
@@ -68,7 +85,8 @@ print(f"   Buyer: {buyer}")
 print(f"   Admin balance: {w3.from_wei(w3.eth.get_balance(admin), 'ether')} ETH")
 print(f"   Buyer balance: {w3.from_wei(w3.eth.get_balance(buyer), 'ether')} ETH")
 
-# Check contract state
+# Purpose: Query current contract state (token counter, royalty settings).
+# Side effects: Makes read-only blockchain calls.
 print_step(4, "Checking Contract State")
 next_token_id = contract.functions.nextTokenId().call()
 royalty_recipient = contract.functions.royaltyRecipient().call()
@@ -78,7 +96,8 @@ print(f"   Next Token ID: {next_token_id}")
 print(f"   Royalty Recipient: {royalty_recipient}")
 print(f"   Royalty Rate: {royalty_bps / 100}%")
 
-# Mint a ticket
+# Purpose: Mint a new NFT ticket on the blockchain.
+# Side effects: Sends transaction to blockchain, creates new NFT token.
 print_step(5, "Minting NFT Ticket")
 event_id = 1
 token_uri = "ipfs://QmTest123/metadata.json"
@@ -86,6 +105,10 @@ token_uri = "ipfs://QmTest123/metadata.json"
 print_info(f"Minting ticket for event {event_id} to {buyer}")
 
 try:
+    # Purpose: Execute mintTicket function on smart contract.
+    # Params: buyer — recipient address; event_id — event identifier; token_uri — metadata URI.
+    # Returns: Transaction hash.
+    # Side effects: Creates new ERC721 token, emits TicketMinted event.
     tx_hash = contract.functions.mintTicket(
         buyer,
         event_id,
@@ -109,7 +132,8 @@ except Exception as e:
     print_error(f"Minting failed: {str(e)}")
     exit(1)
 
-# Verify ownership
+# Purpose: Verify that the minted ticket is owned by the buyer address.
+# Side effects: Makes read-only blockchain call to check token ownership.
 print_step(6, "Verifying Ticket Ownership")
 owner = contract.functions.ownerOf(token_id).call()
 print(f"   Token #{token_id} owner: {owner}")
@@ -119,18 +143,24 @@ if owner.lower() == buyer.lower():
 else:
     print_error("Ownership mismatch!")
 
-# Get ticket info
+# Purpose: Retrieve ticket metadata and listing status from contract.
+# Side effects: Makes read-only blockchain call.
 print_step(7, "Getting Ticket Information")
 ticket_info = contract.functions.getTicketInfo(token_id).call()
 print(f"   Event ID: {ticket_info[0][0]}")
 print(f"   Scanned: {ticket_info[0][1]}")
+# Purpose: Check if ticket is listed by verifying seller address is not zero.
 print(f"   Listed for sale: {ticket_info[1][0] != '0x0000000000000000000000000000000000000000'}")
 
-# List ticket for resale
+# Purpose: List the ticket for resale on the marketplace.
+# Side effects: Sends transaction to update listing state in contract.
 print_step(8, "Listing Ticket for Resale")
 resale_price = w3.to_wei(0.2, 'ether')  # 0.2 ETH
 
 try:
+    # Purpose: Create a resale listing for the ticket.
+    # Params: token_id — ticket identifier; resale_price — listing price in wei.
+    # Side effects: Updates contract state, emits TicketListed event.
     tx_hash = contract.functions.listTicket(
         token_id,
         resale_price
@@ -147,7 +177,8 @@ try:
 except Exception as e:
     print_error(f"Listing failed: {str(e)}")
 
-# Verify listing
+# Purpose: Verify that the ticket listing was created successfully.
+# Side effects: Makes read-only blockchain call to check listing state.
 print_step(9, "Verifying Listing")
 ticket_info = contract.functions.getTicketInfo(token_id).call()
 if ticket_info[1][0] != '0x0000000000000000000000000000000000000000':
@@ -157,13 +188,17 @@ if ticket_info[1][0] != '0x0000000000000000000000000000000000000000':
 else:
     print_error("Ticket not listed")
 
-# Buy ticket (from another account)
+# Purpose: Purchase a listed ticket from the marketplace using a different account.
+# Side effects: Sends transaction with ETH payment, transfers token ownership.
 print_step(10, "Buying Ticket from Marketplace")
 buyer2 = accounts[2]
 print(f"   Buyer 2: {buyer2}")
 print(f"   Buyer 2 balance: {w3.from_wei(w3.eth.get_balance(buyer2), 'ether')} ETH")
 
 try:
+    # Purpose: Execute buyTicket function to purchase listed ticket.
+    # Params: token_id — ticket to purchase.
+    # Side effects: Transfers ETH to seller and royalty recipient, transfers NFT ownership, emits TicketSold event.
     tx_hash = contract.functions.buyTicket(token_id).transact({
         'from': buyer2,
         'value': resale_price
@@ -188,9 +223,13 @@ try:
 except Exception as e:
     print_error(f"Purchase failed: {str(e)}")
 
-# Scan ticket (mark as used)
+# Purpose: Mark ticket as scanned/used to prevent reuse.
+# Side effects: Sends transaction to update ticket state, emits TicketScanned event.
 print_step(11, "Scanning Ticket at Event")
 try:
+    # Purpose: Mark ticket as scanned, preventing future use.
+    # Params: token_id — ticket to scan.
+    # Side effects: Updates ticket scanned flag, emits event.
     tx_hash = contract.functions.scanTicket(token_id).transact({'from': admin})
     receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
     
@@ -208,7 +247,8 @@ try:
 except Exception as e:
     print_error(f"Scan failed: {str(e)}")
 
-# Final summary
+# Purpose: Display final summary of demo execution results.
+# Side effects: Prints to stdout.
 print(f"\n{BLUE}{'='*60}")
 print("Demo Complete - Summary")
 print(f"{'='*60}{NC}\n")
