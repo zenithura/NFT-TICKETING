@@ -9,6 +9,7 @@ import { AuthProvider } from './services/authContext';
 import { ThemeProvider } from './services/themeContext';
 import { Navbar } from './components/ui/Navbar';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { ChatBot } from './components/ChatBot';
 
 // Purpose: Lazy load page components to improve initial bundle size and code splitting.
 // Side effects: Components loaded on-demand when routes are accessed.
@@ -130,6 +131,7 @@ const App: React.FC = () => {
                     </Suspense>
                   </main>
                   <Footer />
+                  <ChatBot />
                 </>
               } />
             </Routes>
