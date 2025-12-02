@@ -10,6 +10,7 @@ import { useAuth } from '../../services/authContext';
 import { UserRole } from '../../types';
 import { cn, formatAddress } from '../../lib/utils';
 import { LanguageSwitcher } from './LanguageSwitcher';
+import { ThemeToggle } from './ThemeToggle';
 
 export const Navbar: React.FC = () => {
   const { t } = useTranslation();
@@ -75,6 +76,9 @@ export const Navbar: React.FC = () => {
 
           {/* Right Side */}
           <div className="hidden md:flex items-center gap-4">
+            {/* Theme Toggle */}
+            <ThemeToggle />
+            
             {/* Language Switcher */}
             <LanguageSwitcher />
             
@@ -202,6 +206,12 @@ export const Navbar: React.FC = () => {
               </Link>
             ))}
             <div className="pt-4 border-t border-border mt-4 space-y-1">
+              {/* Mobile Theme Toggle */}
+              <div className="px-3 py-2 flex items-center justify-between">
+                <span className="text-sm text-foreground-secondary">{t('theme.theme')}</span>
+                <ThemeToggle />
+              </div>
+              
               {isAuthenticated ? (
                 <>
                   <div className="px-3 py-2 text-sm text-foreground-secondary">

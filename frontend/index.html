@@ -33,17 +33,33 @@
 
   <!-- Inline critical CSS for above-the-fold content -->
   <style>
-    /* Prevent CLS with immediate styles */
+    /* Purpose: Prevent theme flicker by applying theme before React loads. */
+    /* Theme is set via inline script below before this CSS runs. */
+    
+    /* Light theme default variables */
+    :root {
+      --bg-primary: #ffffff;
+      --color-foreground: #111111;
+    }
+    
+    /* Dark theme variables */
+    :root[data-theme="dark"],
+    html:not([data-theme]) {
+      --bg-primary: #191919;
+      --color-foreground: #EFEFEF;
+    }
+    
     html, body {
       margin: 0;
       padding: 0;
-      background-color: #191919;
-      color: #EFEFEF;
+      background-color: var(--bg-primary);
+      color: var(--color-foreground);
+      transition: background-color 0.2s ease, color 0.2s ease;
     }
     
     #root {
       min-height: 100vh;
-      background-color: #191919;
+      background-color: var(--bg-primary);
     }
 
     /* Loading state styles */
@@ -53,10 +69,53 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      background-color: #191919;
+      background-color: var(--bg-primary);
+      color: var(--color-foreground);
       z-index: 9999;
     }
   </style>
+  
+  <!-- Purpose: Apply theme immediately to prevent flicker. -->
+  <!-- This script runs before React loads to set theme from localStorage or system preference. -->
+  <script>
+    (function() {
+      // Purpose: Get theme preference from localStorage or system.
+      // Returns: 'light', 'dark', or 'system'.
+      function getInitialTheme() {
+        try {
+          const stored = localStorage.getItem('theme-preference');
+          if (stored === 'light' || stored === 'dark' || stored === 'system') {
+            return stored;
+          }
+        } catch (e) {
+          // localStorage not available
+        }
+        return 'system';
+      }
+      
+      // Purpose: Get resolved theme (system preference if theme is 'system').
+      // Returns: 'light' or 'dark'.
+      function getResolvedTheme(theme) {
+        if (theme === 'system') {
+          return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        return theme;
+      }
+      
+      // Purpose: Apply theme to document immediately.
+      // Side effects: Sets data-theme attribute on html element.
+      const theme = getInitialTheme();
+      const resolved = getResolvedTheme(theme);
+      document.documentElement.setAttribute('data-theme', resolved);
+      document.documentElement.classList.add(resolved);
+      
+      // Purpose: Update meta theme-color for mobile browsers.
+      const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+      if (metaThemeColor) {
+        metaThemeColor.setAttribute('content', resolved === 'dark' ? '#191919' : '#ffffff');
+      }
+    })();
+  </script>
 
   <script type="importmap">
 {
