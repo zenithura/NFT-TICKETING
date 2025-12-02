@@ -311,6 +311,38 @@ input:focus {
   animation: slideUp 0.5s ease-out;
 }
 
+/* Purpose: Utility class for slide-down animation (mobile menu). */
+.animate-slide-down {
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Purpose: Utility class for fade-in animation (dropdowns). */
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 /* Purpose: Prevent parent containers from clipping floating UI elements. */
 /* Side effects: Ensures modals, dropdowns, and tooltips are not clipped. */
 body {
@@ -365,8 +397,38 @@ body {
 }
 
 /* Purpose: Prevent navbar from clipping dropdowns. */
+/* CRITICAL: Navbar uses z-50, dropdowns use z-[60], modals use z-[100] */
 nav {
   overflow: visible !important;
+  position: relative;
+  z-index: 50;
+}
+
+/* Purpose: Ensure navbar buttons remain visible and clickable. */
+/* CRITICAL: Buttons must always be clickable, even when dropdowns are open */
+nav button:not([role="menuitem"]),
+nav a {
+  position: relative;
+  z-index: 51;
+  pointer-events: auto !important;
+}
+
+/* Purpose: Ensure navbar button containers don't block clicks */
+nav > div,
+nav > div > div {
+  position: relative;
+  z-index: 51;
+  pointer-events: auto;
+}
+
+/* Purpose: Dropdown menu items should have normal z-index */
+[role="menu"] {
+  z-index: 60;
+}
+
+[role="menuitem"] {
+  z-index: auto;
+  position: relative;
 }
 
 /* Purpose: Ensure main container doesn't clip floating elements. */

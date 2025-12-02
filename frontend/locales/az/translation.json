@@ -30,8 +30,16 @@
     "adminPanel": "Admin Paneli",
     "launchScanner": "Skaner Aç",
     "connectWallet": "Cüzdan Qoş",
+    "connect": "Qoş",
     "disconnect": "Ayır",
-    "switchView": "Görünüşü Dəyiş"
+    "switchView": "Görünüşü Dəyiş",
+    "mainNavigation": "Əsas naviqasiya",
+    "mainLinks": "Əsas naviqasiya keçidləri",
+    "home": "Ana Səhifə",
+    "openMenu": "Menyunu aç",
+    "closeMenu": "Menyunu bağla",
+    "mobileMenu": "Mobil menyu",
+    "userMenu": "İstifadəçi menyusu"
   },
   "marketplace": {
     "title": "Anları Topla, Yalnız Bilet Yox.",
@@ -140,7 +148,7 @@
     "securedBy": "Ticket721 Protokolu ilə qorunur. Yoxlama blokçeyndə baş verir."
   },
   "footer": {
-    "copyright": "© 2024 NFTix Platform. Mərkəzləşdirilməmiş Biletləmə."
+    "copyright": "© 2025 NFTix Platform. Mərkəzləşdirilməmiş Biletləmə."
   },
   "roles": {
     "BUYER": "Alıcı",
@@ -206,7 +214,9 @@
     "firstNamePlaceholder": "Əli",
     "lastNamePlaceholder": "Məmmədov",
     "loginButton": "Daxil Ol",
+    "login": "Daxil Ol",
     "registerButton": "Hesab Yarat",
+    "register": "Qeydiyyat",
     "resetPasswordButton": "Şifrəni Sıfırla",
     "sendResetLink": "Sıfırlama Linki Göndər",
     "forgotPassword": "Şifrəni Unutmusunuz?",
@@ -281,7 +291,9 @@
     "noAccountsFound": "Hesab tapılmadı. Zəhmət olmasa MetaMask-də hesab yaradın.",
     "wrongNetwork": "Yanlış şəbəkə. Zəhmət olmasa düzgün şəbəkəyə keçin.",
     "copyAddress": "Ünvanı Kopyala",
-    "addressCopied": "Ünvan lövhəyə kopyalandı"
+    "addressCopied": "Ünvan lövhəyə kopyalandı",
+    "walletMenu": "Cüzdan menyusu",
+    "balance": "Balans"
   }
 }
 
