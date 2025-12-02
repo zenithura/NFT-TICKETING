@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import { useWeb3 } from '../services/web3Context';
 import { UserRole } from '../types';
+import { validateTicket, useTicket } from '../services/ticketService';
 
 export const Scanner: React.FC = () => {
   const { t } = useTranslation();
@@ -32,21 +33,36 @@ export const Scanner: React.FC = () => {
      )
   }
 
-  const simulateScan = () => {
+  const simulateScan = async () => {
     setScanning(false);
-    // Randomly simulate result
-    const random = Math.random();
-    const mockAddress = '0x71...9A23';
     
-    if (random > 0.6) {
-      setResult('valid');
-      setScannedData(`Ticket #1042 - Valid - Owner: ${mockAddress}`);
-    } else if (random > 0.3) {
-      setResult('used');
-      setScannedData(`Ticket #309 - Already Used - Entry: 19:00`);
-    } else {
+    // In a real implementation, this would scan a QR code and extract ticket ID
+    // For now, we'll prompt for ticket ID or use a test ID
+    // TODO: Integrate with QR code scanner library
+    
+    // For demo: try to validate a ticket (you can modify this to accept ticket ID from QR scan)
+    const testTicketId = 1; // This should come from QR code scan
+    
+    try {
+      const validation = await validateTicket(testTicketId);
+      
+      if (validation.valid) {
+        setResult('valid');
+        setScannedData(validation.message);
+        // Optionally mark ticket as used immediately after validation
+        // await useTicket(testTicketId);
+      } else {
+        if (validation.message.includes('already used') || validation.message.includes('used')) {
+          setResult('used');
+          setScannedData(validation.message);
+        } else {
+          setResult('invalid');
+          setScannedData(validation.message);
+        }
+      }
+    } catch (error: any) {
       setResult('invalid');
-      setScannedData('Invalid Signature / Fake Ticket');
+      setScannedData(error.message || 'Failed to validate ticket');
     }
   };
 

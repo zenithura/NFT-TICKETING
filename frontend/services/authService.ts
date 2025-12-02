@@ -46,6 +46,7 @@ export interface RegisterData {
   username?: string;
   first_name?: string;
   last_name?: string;
+  role: 'BUYER' | 'ORGANIZER'; // Required role selection during signup
 }
 
 // Purpose: Get stored access token from localStorage.

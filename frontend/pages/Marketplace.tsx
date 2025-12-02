@@ -5,7 +5,8 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, MapPin, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { MOCK_EVENTS } from '../services/mockData';
+import { getEvents, type EventResponse } from '../services/eventService';
+import { Event } from '../types';
 import { NFTCoinAnimation } from '../components/3d/NFTCoinAnimation';
 import { TicketCardSkeleton } from '../components/ui/TicketCardSkeleton';
 import { cn } from '../lib/utils';
@@ -15,19 +16,48 @@ export const Marketplace: React.FC = () => {
   const [filter, setFilter] = useState('');
   const [category, setCategory] = useState('All');
   const [isLoading, setIsLoading] = useState(true);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
-  // Simulate loading delay - only on initial mount
+  // Fetch events from API
   useEffect(() => {
-    setIsLoading(true);
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 800); // Reduced to 0.8 seconds
+    const fetchEvents = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const apiEvents = await getEvents();
+        // Map API response to frontend Event interface
+        const mappedEvents: Event[] = apiEvents.map((e: EventResponse) => ({
+          id: e.id.toString(),
+          title: e.name,
+          description: e.description,
+          date: e.date,
+          location: e.location,
+          imageUrl: e.image_url || 'https://picsum.photos/800/400?random=' + e.id,
+          price: e.price,
+          currency: (e.currency as 'ETH' | 'MATIC') || 'ETH',
+          totalTickets: e.total_tickets,
+          soldTickets: e.sold_tickets || 0,
+          organizer: e.organizer_address || 'unknown',
+          category: e.category || 'All',
+        }));
+        setEvents(mappedEvents);
+      } catch (err: any) {
+        console.error('Failed to fetch events:', err);
+        setError(err.message || 'Failed to load events');
+        // Fallback to empty array on error
+        setEvents([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-    return () => clearTimeout(timer);
-  }, []); // Empty dependency array - only runs once
+    fetchEvents();
+  }, []);
 
-  const filteredEvents = MOCK_EVENTS.filter(e => {
+  const filteredEvents = events.filter(e => {
     const matchesSearch = e.title.toLowerCase().includes(filter.toLowerCase()) || 
+                         e.description.toLowerCase().includes(filter.toLowerCase()) ||
                          e.category.toLowerCase().includes(filter.toLowerCase());
     const matchesCategory = category === 'All' || e.category === category;
     return matchesSearch && matchesCategory;
@@ -93,6 +123,13 @@ export const Marketplace: React.FC = () => {
         </div>
       </div>
 
+      {/* Error Message */}
+      {error && (
+        <div className="bg-error/10 border border-error/20 text-error p-4 rounded-lg">
+          {error}
+        </div>
+      )}
+
       {/* Grid with Loading State */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {isLoading ? (
@@ -102,6 +139,11 @@ export const Marketplace: React.FC = () => {
               <TicketCardSkeleton key={i} />
             ))}
           </>
+        ) : filteredEvents.length === 0 ? (
+          <div className="col-span-full text-center py-12 text-foreground-secondary">
+            <p className="text-lg mb-2">No events found</p>
+            <p className="text-sm">Try adjusting your search or filters</p>
+          </div>
         ) : (
           // Show actual events after loading
           filteredEvents.map((event) => (

@@ -46,10 +46,10 @@ const STORAGE_KEY_PROVIDER = 'wallet_provider';
 // Purpose: API base URL from environment or default.
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
 
-// Purpose: Send wallet connection to backend API.
+// Purpose: Send wallet connection to backend API (optional - doesn't fail if endpoint doesn't exist).
 // Params: address (string) - Wallet address, provider (string) - Connection provider type.
-// Returns: Promise that resolves with wallet data.
-// Side effects: Makes HTTP POST request to backend.
+// Returns: Promise that resolves with wallet data or void if endpoint doesn't exist.
+// Side effects: Makes HTTP POST request to backend (silently fails if endpoint missing).
 const syncWithBackend = async (address: string, provider: 'metamask' | 'manual'): Promise<void> => {
   try {
     const response = await fetch(`${API_BASE_URL}/wallet/connect`, {
@@ -65,6 +65,11 @@ const syncWithBackend = async (address: string, provider: 'metamask' | 'manual')
     });
 
     if (!response.ok) {
+      // If endpoint doesn't exist (404), just silently skip - wallet connection still works
+      if (response.status === 404) {
+        console.log('Wallet connect endpoint not available - continuing without backend sync');
+        return;
+      }
       const errorData = await response.json().catch(() => ({ detail: 'Failed to connect wallet' }));
       throw new Error(errorData.detail || 'Failed to connect wallet');
     }
@@ -72,19 +77,39 @@ const syncWithBackend = async (address: string, provider: 'metamask' | 'manual')
     const data = await response.json();
     return data;
   } catch (error: any) {
+    // Silently handle network errors or missing endpoints - wallet connection still works
+    if (error.message?.includes('Failed to fetch') || error.message?.includes('404')) {
+      console.log('Wallet backend sync unavailable - continuing without sync');
+      return;
+    }
     console.error('Backend sync error:', error);
     // Don't throw - allow connection even if backend fails
-    // In production, you might want to handle this differently
   }
 };
 
-// Purpose: Get ETH balance for an address (mock for now, can be enhanced with Web3).
+// Purpose: Get ETH balance for an address using Web3 provider.
 // Params: address (string) - Wallet address.
 // Returns: Promise that resolves with balance string.
-// Side effects: None (mock implementation).
+// Side effects: Fetches balance from blockchain via Web3 provider.
 const getBalance = async (address: string): Promise<string> => {
-  // Mock balance - in production, use Web3.js or Ethers.js to fetch real balance
-  return '1.45';
+  try {
+    // Try to get balance from Web3 provider if available
+    if (typeof window !== 'undefined' && window.ethereum) {
+      const provider = window.ethereum;
+      const balance = await provider.request({
+        method: 'eth_getBalance',
+        params: [address, 'latest'],
+      });
+      // Convert from Wei to ETH (1 ETH = 10^18 Wei)
+      const balanceInEth = parseInt(balance, 16) / Math.pow(10, 18);
+      return balanceInEth.toFixed(4);
+    }
+    // Fallback: return 0 if no provider available
+    return '0.00';
+  } catch (error) {
+    console.error('Error fetching balance:', error);
+    return '0.00';
+  }
 };
 
 // Purpose: React context provider component that manages Web3 wallet connection state.

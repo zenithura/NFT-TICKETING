@@ -235,6 +235,11 @@
     "forgotPasswordSuccess": "Şifrə sıfırlama linki e-poçtunuza göndərildi",
     "passwordValid": "Şifrə etibarlıdır",
     "logout": "Çıxış",
+    "role": "Hesab Növü",
+    "roleBuyer": "Alıcı",
+    "roleBuyerDesc": "NFT biletləri almaq və idarə etmək",
+    "roleOrganizer": "Təşkilatçı",
+    "roleOrganizerDesc": "Tədbirlər yaratmaq və idarə etmək",
     "errors": {
       "invalidEmail": "Zəhmət olmasa düzgün e-poçt ünvanı daxil edin",
       "passwordRequired": "Şifrə tələb olunur",

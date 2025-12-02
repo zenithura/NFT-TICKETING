@@ -5,8 +5,10 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Calendar, MapPin, ShieldCheck, ArrowLeft, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { MOCK_EVENTS } from '../services/mockData';
+import { getEvent, type EventResponse } from '../services/eventService';
+import { Event } from '../types';
 import { useWeb3 } from '../services/web3Context';
+import { purchaseTickets } from '../services/ticketService';
 import { EventDetailsSkeleton } from '../components/ui/TicketCardSkeleton';
 import toast, { Toaster } from 'react-hot-toast';
 import { cn, formatCurrency } from '../lib/utils';
@@ -15,50 +17,117 @@ export const EventDetails: React.FC = () => {
   const { t, i18n } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
-  const { isConnected, connect, balance } = useWeb3();
-  const [event, setEvent] = useState<any>(null);
+  const { isConnected, connectMetaMask, balance, address } = useWeb3();
+  const [event, setEvent] = useState<Event | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [isBuying, setIsBuying] = useState(false);
   const [ticketCount, setTicketCount] = useState(1);
 
-  // Simulate loading delay - runs when id changes
+  // Fetch event from API
   useEffect(() => {
-    setIsLoading(true);
-    const timer = setTimeout(() => {
-      const foundEvent = MOCK_EVENTS.find(e => e.id === id);
-      setEvent(foundEvent);
-      setIsLoading(false);
-    }, 600); // Reduced to 0.6 seconds
+    const fetchEvent = async () => {
+      if (!id) {
+        setError('Invalid event ID');
+        setIsLoading(false);
+        return;
+      }
 
-    return () => clearTimeout(timer);
+      setIsLoading(true);
+      setError(null);
+      try {
+        const eventId = parseInt(id, 10);
+        if (isNaN(eventId)) {
+          throw new Error('Invalid event ID');
+        }
+
+        const apiEvent: EventResponse = await getEvent(eventId);
+        
+        // Map API response to frontend Event interface
+        const mappedEvent: Event = {
+          id: apiEvent.id.toString(),
+          title: apiEvent.name,
+          description: apiEvent.description,
+          date: apiEvent.date,
+          location: apiEvent.location,
+          imageUrl: apiEvent.image_url || 'https://picsum.photos/800/400?random=' + apiEvent.id,
+          price: apiEvent.price,
+          currency: (apiEvent.currency as 'ETH' | 'MATIC') || 'ETH',
+          totalTickets: apiEvent.total_tickets,
+          soldTickets: apiEvent.sold_tickets || 0,
+          organizer: apiEvent.organizer_address || 'unknown',
+          category: apiEvent.category || 'All',
+        };
+        
+        setEvent(mappedEvent);
+      } catch (err: any) {
+        console.error('Failed to fetch event:', err);
+        setError(err.message || 'Failed to load event');
+        setEvent(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchEvent();
   }, [id]);
 
   const handlePurchase = async () => {
-    if (!isConnected) {
+    if (!isConnected || !address) {
       toast.error(t('eventDetails.connectWalletToContinue'));
-      connect();
+      try {
+        await connectMetaMask();
+      } catch (err) {
+        // Connection failed, error already shown
+      }
       return;
     }
-    if (parseFloat(balance) < event.price * ticketCount) {
+    
+    if (event.price > 0 && parseFloat(balance) < event.price * ticketCount) {
       toast.error(t('eventDetails.insufficientFunds'));
       return;
     }
+
+    // Check if event has enough tickets available
+    if (event.totalTickets - event.soldTickets < ticketCount) {
+      toast.error(`Only ${event.totalTickets - event.soldTickets} tickets available`);
+      return;
+    }
+
     setIsBuying(true);
-    setTimeout(() => {
+
+    try {
+      // Purchase tickets - creates tickets in database
+      const purchasedTickets = await purchaseTickets({
+        event_id: parseInt(event.id, 10),
+        owner_address: address,
+        quantity: ticketCount,
+        price: event.price,
+      });
+
       toast.success(`${t('eventDetails.successfullyMinted')} ${ticketCount} ${t('eventDetails.tickets')}`);
-      navigate('/dashboard');
-    }, 2000);
+      
+      // Navigate to dashboard after a short delay to show success message
+      setTimeout(() => {
+        navigate('/dashboard');
+      }, 1500);
+    } catch (error: any) {
+      console.error('Purchase error:', error);
+      toast.error(error.message || 'Failed to purchase tickets. Please try again.');
+    } finally {
+      setIsBuying(false);
+    }
   };
 
   if (isLoading) {
     return <EventDetailsSkeleton />;
   }
 
-  if (!event) {
+  if (error || !event) {
     return (
       <div className="text-center py-20">
-        <p className="text-foreground-secondary">{t('eventDetails.eventNotFound')}</p>
+        <p className="text-foreground-secondary">{error || t('eventDetails.eventNotFound')}</p>
         <button
           onClick={() => navigate('/')}
           className="mt-4 text-primary hover:underline"
