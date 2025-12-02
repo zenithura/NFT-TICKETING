@@ -319,9 +319,49 @@ body {
 
 /* Purpose: Ensure portal containers don't clip content. */
 #modal-portal-root,
-#dropdown-portal-root {
+#dropdown-portal-root,
+#chatbot-portal-root {
   overflow: visible !important;
   pointer-events: none;
+}
+
+/* Purpose: ChatBot button positioning - ALWAYS bottom-right of viewport. */
+/* Ensures chat button is never affected by parent container transforms or overflow. */
+/* CRITICAL: These rules enforce bottom-right positioning even if parent containers interfere. */
+#chatbot-portal-root {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 0 !important;
+  height: 0 !important;
+  pointer-events: none !important;
+  z-index: 9999 !important;
+  overflow: visible !important;
+}
+
+/* Purpose: Ensure chat button is always at bottom-right, responsive spacing. */
+#chatbot-portal-root > button {
+  position: fixed !important;
+  bottom: 16px !important;
+  right: 16px !important;
+  z-index: 9999 !important;
+  transform: none !important;
+}
+
+/* Purpose: Desktop spacing - more space from edges on larger screens. */
+@media (min-width: 640px) {
+  #chatbot-portal-root > button {
+    bottom: 24px !important;
+    right: 24px !important;
+  }
+}
+
+/* Purpose: Mobile-specific adjustments to avoid browser UI overlap. */
+@media (max-width: 640px) {
+  #chatbot-portal-root > button {
+    bottom: max(16px, env(safe-area-inset-bottom, 16px)) !important;
+    right: max(16px, env(safe-area-inset-right, 16px)) !important;
+  }
 }
 
 /* Purpose: Prevent navbar from clipping dropdowns. */
