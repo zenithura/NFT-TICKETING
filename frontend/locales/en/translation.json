@@ -235,6 +235,11 @@
     "forgotPasswordSuccess": "Password reset link sent to your email",
     "passwordValid": "Password is valid",
     "logout": "Logout",
+    "role": "Account Type",
+    "roleBuyer": "Buyer",
+    "roleBuyerDesc": "Purchase and manage NFT tickets",
+    "roleOrganizer": "Organizer",
+    "roleOrganizerDesc": "Create and manage events",
     "errors": {
       "invalidEmail": "Please enter a valid email address",
       "passwordRequired": "Password is required",

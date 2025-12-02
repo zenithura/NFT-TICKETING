@@ -21,6 +21,7 @@ export const Register: React.FC = () => {
     username: '',
     firstName: '',
     lastName: '',
+    role: 'BUYER' as 'BUYER' | 'ORGANIZER', // Default to BUYER
   });
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -139,6 +140,7 @@ export const Register: React.FC = () => {
         username: formData.username || undefined,
         first_name: formData.firstName || undefined,
         last_name: formData.lastName || undefined,
+        role: formData.role, // Include selected role
       });
       toast.success(t('auth.registerSuccess'));
       navigate('/dashboard');
@@ -337,6 +339,72 @@ export const Register: React.FC = () => {
                   disabled={isLoading}
                   autoComplete="username"
                 />
+              </div>
+            </div>
+
+            {/* Role Selection */}
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-2">
+                {t('auth.role')} *
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => handleChange('role', 'BUYER')}
+                  disabled={isLoading}
+                  className={cn(
+                    "p-4 rounded-lg border-2 transition-all",
+                    "flex flex-col items-center gap-2",
+                    formData.role === 'BUYER'
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border bg-background text-foreground-secondary hover:border-border-hover"
+                  )}
+                >
+                  <div className={cn(
+                    "w-12 h-12 rounded-full flex items-center justify-center",
+                    formData.role === 'BUYER' ? "bg-primary text-white" : "bg-background-hover"
+                  )}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                      <circle cx="9" cy="7" r="4"></circle>
+                      <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+                      <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                  </div>
+                  <span className="font-medium">{t('auth.roleBuyer')}</span>
+                  <span className="text-xs text-foreground-tertiary text-center">
+                    {t('auth.roleBuyerDesc')}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleChange('role', 'ORGANIZER')}
+                  disabled={isLoading}
+                  className={cn(
+                    "p-4 rounded-lg border-2 transition-all",
+                    "flex flex-col items-center gap-2",
+                    formData.role === 'ORGANIZER'
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border bg-background text-foreground-secondary hover:border-border-hover"
+                  )}
+                >
+                  <div className={cn(
+                    "w-12 h-12 rounded-full flex items-center justify-center",
+                    formData.role === 'ORGANIZER' ? "bg-primary text-white" : "bg-background-hover"
+                  )}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                      <line x1="16" y1="2" x2="16" y2="6"></line>
+                      <line x1="8" y1="2" x2="8" y2="6"></line>
+                      <line x1="3" y1="10" x2="21" y2="10"></line>
+                    </svg>
+                  </div>
+                  <span className="font-medium">{t('auth.roleOrganizer')}</span>
+                  <span className="text-xs text-foreground-tertiary text-center">
+                    {t('auth.roleOrganizerDesc')}
+                  </span>
+                </button>
               </div>
             </div>
 

@@ -9,6 +9,7 @@ import { AuthProvider } from './services/authContext';
 import { ThemeProvider } from './services/themeContext';
 import { Navbar } from './components/ui/Navbar';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { AdminProtectedRoute } from './components/AdminProtectedRoute';
 import { ChatBot } from './components/ChatBot';
 
 // Purpose: Lazy load page components to improve initial bundle size and code splitting.
@@ -19,6 +20,7 @@ const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m
 const CreateEvent = lazy(() => import('./pages/CreateEvent').then(m => ({ default: m.CreateEvent })));
 const Scanner = lazy(() => import('./pages/Scanner').then(m => ({ default: m.Scanner })));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
+const AdminLogin = lazy(() => import('./pages/AdminLogin').then(m => ({ default: m.AdminLogin })));
 const Login = lazy(() => import('./pages/Login').then(m => ({ default: m.Login })));
 const Register = lazy(() => import('./pages/Register').then(m => ({ default: m.Register })));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword').then(m => ({ default: m.ForgotPassword })));
@@ -93,6 +95,21 @@ const App: React.FC = () => {
                 </Suspense>
               } />
 
+              {/* Admin Routes (separate layout, no navbar) */}
+              <Route path="/admin/login" element={
+                <Suspense fallback={<PageLoader />}>
+                  <AdminLogin />
+                </Suspense>
+              } />
+              <Route path="/admin/dashboard" element={
+                <AdminProtectedRoute>
+                  <Suspense fallback={<PageLoader />}>
+                    <AdminDashboard />
+                  </Suspense>
+                </AdminProtectedRoute>
+              } />
+              <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
+
               {/* Scanner Route (separate layout) */}
               <Route path="/scanner" element={
                 <ProtectedRoute requireRole="user">
@@ -119,11 +136,6 @@ const App: React.FC = () => {
                         <Route path="/create-event" element={
                           <ProtectedRoute requireRole="organizer">
                             <CreateEvent />
-                          </ProtectedRoute>
-                        } />
-                        <Route path="/admin" element={
-                          <ProtectedRoute requireRole="admin">
-                            <AdminDashboard />
                           </ProtectedRoute>
                         } />
                         <Route path="/resale" element={<Navigate to="/" replace />} />

@@ -5,9 +5,10 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useWeb3 } from '../services/web3Context';
-import { UserRole } from '../types';
-import { Ticket, Plus, TrendingUp, Shield, DollarSign, Calendar, ArrowRight } from 'lucide-react';
-import { MOCK_MY_TICKETS, MOCK_EVENTS } from '../services/mockData';
+import { UserRole, type Event, type Ticket } from '../types';
+import { Ticket as TicketIcon, Plus, TrendingUp, Shield, DollarSign, Calendar, ArrowRight } from 'lucide-react';
+import { getEvents, getOrganizerStats, type EventResponse, type OrganizerStats } from '../services/eventService';
+import { getUserTickets } from '../services/ticketService';
 import { Skeleton } from '../components/ui/skeleton';
 import { cn, formatCurrency } from '../lib/utils';
 
@@ -78,14 +79,58 @@ const StatCard = ({ title, value, icon: Icon, subtext, trend }: any) => (
 
 const BuyerDashboard = () => {
   const { t } = useTranslation();
+  const { address } = useWeb3();
   const [isLoading, setIsLoading] = useState(true);
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 800); // Reduced to 0.8 seconds
-    return () => clearTimeout(timer);
-  }, []);
+    const fetchData = async () => {
+      if (!address) {
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+      setError(null);
+      try {
+        // Fetch user tickets and events in parallel
+        const [userTickets, allEvents] = await Promise.all([
+          getUserTickets(address),
+          getEvents(),
+        ]);
+
+        // Map API events to frontend Event interface
+        const mappedEvents: Event[] = allEvents.map((e: EventResponse) => ({
+          id: e.id.toString(),
+          title: e.name,
+          description: e.description,
+          date: e.date,
+          location: e.location,
+          imageUrl: e.image_url || 'https://picsum.photos/800/400?random=' + e.id,
+          price: e.price,
+          currency: (e.currency as 'ETH' | 'MATIC') || 'ETH',
+          totalTickets: e.total_tickets,
+          soldTickets: e.sold_tickets || 0,
+          organizer: e.organizer_address || 'unknown',
+          category: e.category || 'All',
+        }));
+
+        setTickets(userTickets);
+        setEvents(mappedEvents);
+      } catch (err: any) {
+        console.error('Failed to fetch data:', err);
+        setError(err.message || 'Failed to load data');
+        setTickets([]);
+        setEvents([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [address]);
 
   if (isLoading) {
     return (
@@ -119,9 +164,13 @@ const BuyerDashboard = () => {
         </Link>
       </div>
 
-      {MOCK_MY_TICKETS.length === 0 ? (
+      {error ? (
         <div className="py-20 text-center border border-dashed border-border rounded-xl bg-background-elevated/50">
-          <Ticket className="mx-auto h-12 w-12 text-foreground-tertiary mb-4" />
+          <p className="text-foreground-secondary">{error}</p>
+        </div>
+      ) : tickets.length === 0 ? (
+        <div className="py-20 text-center border border-dashed border-border rounded-xl bg-background-elevated/50">
+          <TicketIcon className="mx-auto h-12 w-12 text-foreground-tertiary mb-4" />
           <h3 className="text-lg font-medium text-foreground">{t('dashboard.noTickets')}</h3>
           <p className="text-foreground-secondary mb-6">{t('dashboard.noTicketsDesc')}</p>
           <Link to="/" className="px-4 py-2 bg-primary text-white rounded hover:bg-primary-hover transition-colors">
@@ -130,12 +179,12 @@ const BuyerDashboard = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {MOCK_MY_TICKETS.map((ticket) => {
-            const event = MOCK_EVENTS.find(e => e.id === ticket.eventId);
+          {tickets.map((ticket) => {
+            const event = events.find(e => e.id === ticket.eventId);
             return (
               <div key={ticket.id} className="group bg-background-elevated border border-border rounded-xl overflow-hidden card-hover">
                 <div className="h-40 relative overflow-hidden bg-background-hover">
-                  {event && <img src={event.imageUrl} className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-700" />}
+                  {event && <img src={event.imageUrl} className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-700" alt={event.title} />}
                   <div className="absolute top-3 right-3">
                     <span className={cn(
                       "px-2 py-1 rounded text-xs font-bold border backdrop-blur-sm",
@@ -146,7 +195,7 @@ const BuyerDashboard = () => {
                   </div>
                 </div>
                 <div className="p-5">
-                  <h3 className="font-bold text-lg text-foreground mb-1">{event?.title}</h3>
+                  <h3 className="font-bold text-lg text-foreground mb-1">{event?.title || 'Unknown Event'}</h3>
                   <p className="text-xs font-mono text-primary mb-4">#{ticket.tokenId}</p>
 
                   <div className="flex gap-3">
@@ -169,14 +218,57 @@ const BuyerDashboard = () => {
 
 const OrganizerDashboard = () => {
   const { t } = useTranslation();
+  const { address } = useWeb3();
   const [isLoading, setIsLoading] = useState(true);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [stats, setStats] = useState<OrganizerStats | null>(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 800); // Reduced to 0.8 seconds
-    return () => clearTimeout(timer);
-  }, []);
+    const fetchData = async () => {
+      if (!address) {
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        // Fetch events and stats in parallel
+        const [apiEvents, organizerStats] = await Promise.all([
+          getEvents(),
+          getOrganizerStats(address),
+        ]);
+
+        // Map API response to frontend Event interface
+        const mappedEvents: Event[] = apiEvents.map((e: EventResponse) => ({
+          id: e.id.toString(),
+          title: e.name,
+          description: e.description,
+          date: e.date,
+          location: e.location,
+          imageUrl: e.image_url || 'https://picsum.photos/800/400?random=' + e.id,
+          price: e.price,
+          currency: (e.currency as 'ETH' | 'MATIC') || 'ETH',
+          totalTickets: e.total_tickets,
+          soldTickets: e.sold_tickets || 0,
+          organizer: e.organizer_address || 'unknown',
+          category: e.category || 'All',
+        }));
+        
+        // Filter to show only organizer's events
+        const organizerEvents = mappedEvents.filter(e => e.organizer.toLowerCase() === address.toLowerCase());
+        setEvents(organizerEvents);
+        setStats(organizerStats);
+      } catch (err) {
+        console.error('Failed to fetch data:', err);
+        setEvents([]);
+        setStats(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [address]);
 
   const salesData = [
     { name: 'Mon', sales: 40 }, { name: 'Tue', sales: 30 },
@@ -244,9 +336,26 @@ const OrganizerDashboard = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StatCard title={t('dashboard.totalRevenue')} value="45.2 ETH" icon={DollarSign} trend="+12.5%" subtext={t('dashboard.lifetimeEarnings')} />
-        <StatCard title={t('dashboard.ticketsSold')} value="1,240" icon={Ticket} trend="+5.2%" subtext={t('dashboard.acrossEvents')} />
-        <StatCard title={t('dashboard.activeEvents')} value="3" icon={Calendar} subtext={t('dashboard.nextTomorrow')} />
+        <StatCard 
+          title={t('dashboard.totalRevenue')} 
+          value={stats ? `${stats.total_revenue.toFixed(2)} ETH` : '0.00 ETH'} 
+          icon={DollarSign} 
+          trend={stats && stats.total_revenue > 0 ? "+12.5%" : undefined} 
+          subtext={t('dashboard.lifetimeEarnings')} 
+        />
+        <StatCard 
+          title={t('dashboard.ticketsSold')} 
+          value={stats ? stats.tickets_sold.toLocaleString() : '0'} 
+          icon={TicketIcon} 
+          trend={stats && stats.tickets_sold > 0 ? "+5.2%" : undefined} 
+          subtext={t('dashboard.acrossEvents')} 
+        />
+        <StatCard 
+          title={t('dashboard.activeEvents')} 
+          value={stats ? stats.active_events.toString() : '0'} 
+          icon={Calendar} 
+          subtext={t('dashboard.nextTomorrow')} 
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -264,18 +373,38 @@ const OrganizerDashboard = () => {
         <div className="bg-background-elevated p-6 rounded-xl border border-border">
           <h3 className="text-lg font-bold mb-6 text-foreground">{t('dashboard.activeEventsList')}</h3>
           <div className="space-y-4">
-            {MOCK_EVENTS.slice(0, 3).map(evt => (
-              <div key={evt.id} className="flex items-center gap-3 p-3 rounded-lg hover:bg-background-hover transition-colors cursor-pointer group">
-                <div className="w-10 h-10 rounded bg-background-hover overflow-hidden">
-                  <img src={evt.imageUrl} className="w-full h-full object-cover" />
+            {isLoading ? (
+              [...Array(3)].map((_, i) => (
+                <div key={i} className="flex items-center gap-3 p-3 rounded-lg">
+                  <Skeleton className="w-10 h-10 rounded" />
+                  <div className="flex-1">
+                    <Skeleton className="h-4 w-32 mb-2" />
+                    <Skeleton className="h-3 w-20" />
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground truncate">{evt.title}</p>
-                  <p className="text-xs text-foreground-tertiary">{evt.soldTickets}/{evt.totalTickets} {t('dashboard.sold')}</p>
-                </div>
-                <ArrowRight size={14} className="text-foreground-tertiary group-hover:text-primary" />
+              ))
+            ) : events.length === 0 ? (
+              <div className="text-center py-4 text-foreground-secondary text-sm">
+                {t('dashboard.noEvents') || 'No events yet'}
               </div>
-            ))}
+            ) : (
+              events.slice(0, 3).map(evt => (
+                <Link
+                  key={evt.id}
+                  to={`/event/${evt.id}`}
+                  className="flex items-center gap-3 p-3 rounded-lg hover:bg-background-hover transition-colors cursor-pointer group"
+                >
+                  <div className="w-10 h-10 rounded bg-background-hover overflow-hidden">
+                    <img src={evt.imageUrl} className="w-full h-full object-cover" alt={evt.title} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground truncate">{evt.title}</p>
+                    <p className="text-xs text-foreground-tertiary">{evt.soldTickets}/{evt.totalTickets} {t('dashboard.sold')}</p>
+                  </div>
+                  <ArrowRight size={14} className="text-foreground-tertiary group-hover:text-primary" />
+                </Link>
+              ))
+            )}
           </div>
         </div>
       </div>
