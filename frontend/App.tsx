@@ -5,7 +5,9 @@ import React, { Suspense, lazy } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Web3Provider } from './services/web3Context';
+import { AuthProvider } from './services/authContext';
 import { Navbar } from './components/ui/Navbar';
+import { ProtectedRoute } from './components/ProtectedRoute';
 
 // Purpose: Lazy load page components to improve initial bundle size and code splitting.
 // Side effects: Components loaded on-demand when routes are accessed.
@@ -15,6 +17,10 @@ const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m
 const CreateEvent = lazy(() => import('./pages/CreateEvent').then(m => ({ default: m.CreateEvent })));
 const Scanner = lazy(() => import('./pages/Scanner').then(m => ({ default: m.Scanner })));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then(m => ({ default: m.AdminDashboard })));
+const Login = lazy(() => import('./pages/Login').then(m => ({ default: m.Login })));
+const Register = lazy(() => import('./pages/Register').then(m => ({ default: m.Register })));
+const ForgotPassword = lazy(() => import('./pages/ForgotPassword').then(m => ({ default: m.ForgotPassword })));
+const ResetPassword = lazy(() => import('./pages/ResetPassword').then(m => ({ default: m.ResetPassword })));
 const HeroBackground = lazy(() => import('./components/3d/HeroBackground').then(m => ({ default: m.HeroBackground })));
 
 // Purpose: Loading spinner component displayed while lazy-loaded pages are loading.
@@ -49,46 +55,86 @@ const Footer: React.FC = () => {
   );
 };
 
-// Purpose: Main application component with routing, Web3 context, and page structure.
-// Returns: JSX with router, Web3 provider, navbar, routes, and footer.
-// Side effects: Sets up React Router, provides Web3 context to children, renders page components.
+// Purpose: Main application component with routing, Web3 context, Auth context, and page structure.
+// Returns: JSX with router, Web3 provider, Auth provider, navbar, routes, and footer.
+// Side effects: Sets up React Router, provides Web3 and Auth contexts to children, renders page components.
 const App: React.FC = () => {
   return (
-    <Web3Provider>
-      <Router>
-        <Suspense fallback={<BackgroundLoader />}>
-          <HeroBackground />
-        </Suspense>
-        <div className="flex flex-col min-h-screen font-sans text-foreground bg-background">
-          <Routes>
-            <Route path="/scanner" element={
-              <Suspense fallback={<PageLoader />}>
-                <Scanner />
-              </Suspense>
-            } />
+    <AuthProvider>
+      <Web3Provider>
+        <Router>
+          <Suspense fallback={<BackgroundLoader />}>
+            <HeroBackground />
+          </Suspense>
+          <div className="flex flex-col min-h-screen font-sans text-foreground bg-background">
+            <Routes>
+              {/* Public Authentication Routes */}
+              <Route path="/login" element={
+                <Suspense fallback={<PageLoader />}>
+                  <Login />
+                </Suspense>
+              } />
+              <Route path="/register" element={
+                <Suspense fallback={<PageLoader />}>
+                  <Register />
+                </Suspense>
+              } />
+              <Route path="/forgot-password" element={
+                <Suspense fallback={<PageLoader />}>
+                  <ForgotPassword />
+                </Suspense>
+              } />
+              <Route path="/reset-password" element={
+                <Suspense fallback={<PageLoader />}>
+                  <ResetPassword />
+                </Suspense>
+              } />
 
-            <Route path="*" element={
-              <>
-                <Navbar />
-                <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8 bg-background">
+              {/* Scanner Route (separate layout) */}
+              <Route path="/scanner" element={
+                <ProtectedRoute requireRole="user">
                   <Suspense fallback={<PageLoader />}>
-                    <Routes>
-                      <Route path="/" element={<Marketplace />} />
-                      <Route path="/event/:id" element={<EventDetails />} />
-                      <Route path="/dashboard" element={<Dashboard />} />
-                      <Route path="/create-event" element={<CreateEvent />} />
-                      <Route path="/admin" element={<AdminDashboard />} />
-                      <Route path="/resale" element={<Navigate to="/" replace />} />
-                    </Routes>
+                    <Scanner />
                   </Suspense>
-                </main>
-                <Footer />
-              </>
-            } />
-          </Routes>
-        </div>
-      </Router>
-    </Web3Provider>
+                </ProtectedRoute>
+              } />
+
+              {/* Main Routes with Navbar */}
+              <Route path="*" element={
+                <>
+                  <Navbar />
+                  <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8 bg-background">
+                    <Suspense fallback={<PageLoader />}>
+                      <Routes>
+                        <Route path="/" element={<Marketplace />} />
+                        <Route path="/event/:id" element={<EventDetails />} />
+                        <Route path="/dashboard" element={
+                          <ProtectedRoute>
+                            <Dashboard />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/create-event" element={
+                          <ProtectedRoute requireRole="organizer">
+                            <CreateEvent />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/admin" element={
+                          <ProtectedRoute requireRole="admin">
+                            <AdminDashboard />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/resale" element={<Navigate to="/" replace />} />
+                      </Routes>
+                    </Suspense>
+                  </main>
+                  <Footer />
+                </>
+              } />
+            </Routes>
+          </div>
+        </Router>
+      </Web3Provider>
+    </AuthProvider>
   );
 };
 

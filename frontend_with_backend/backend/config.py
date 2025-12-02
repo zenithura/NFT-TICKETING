@@ -98,6 +98,21 @@ class Config:
             'max_request_size_mb': int(os.getenv('MAX_REQUEST_SIZE_MB', '10')),
         }
     
+    # Purpose: JWT configuration for authentication tokens.
+    # Returns: Dictionary with JWT settings.
+    # Side effects: Reads JWT-related environment variables.
+    @staticmethod
+    def get_jwt_config() -> dict:
+        """Get JWT configuration."""
+        return {
+            'secret': os.getenv('JWT_SECRET'),
+            'algorithm': 'HS256',
+            'access_token_expire_minutes': int(os.getenv('ACCESS_TOKEN_EXPIRE_MINUTES', '15')),
+            'refresh_token_expire_days': int(os.getenv('REFRESH_TOKEN_EXPIRE_DAYS', '7')),
+            'max_login_attempts': int(os.getenv('MAX_LOGIN_ATTEMPTS', '5')),
+            'lockout_duration_minutes': int(os.getenv('LOCKOUT_DURATION_MINUTES', '30')),
+        }
+    
     # Purpose: Validate that all required configuration is present.
     # Side effects: Raises ValueError if required config is missing.
     @staticmethod

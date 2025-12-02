@@ -2,17 +2,20 @@
 // Provides main navigation links, role-based menu, and language selection.
 
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Wallet, Menu, X, ChevronDown, Shield, Users, Ticket, ScanLine, Zap } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Wallet, Menu, X, ChevronDown, Shield, Users, Ticket, ScanLine, Zap, LogIn, LogOut, User } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useWeb3 } from '../../services/web3Context';
+import { useAuth } from '../../services/authContext';
 import { UserRole } from '../../types';
 import { cn, formatAddress } from '../../lib/utils';
 import { LanguageSwitcher } from './LanguageSwitcher';
 
 export const Navbar: React.FC = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { isConnected, address, connect, disconnect, balance, userRole, setUserRole } = useWeb3();
+  const { isAuthenticated, user, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
   const location = useLocation();
 
@@ -74,6 +77,41 @@ export const Navbar: React.FC = () => {
           <div className="hidden md:flex items-center gap-4">
             {/* Language Switcher */}
             <LanguageSwitcher />
+            
+            {/* Authentication Buttons */}
+            {isAuthenticated ? (
+              <div className="flex items-center gap-3">
+                <div className="text-sm text-foreground-secondary">
+                  {user?.email || user?.username}
+                </div>
+                <button
+                  onClick={async () => {
+                    await logout();
+                    navigate('/');
+                  }}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded bg-background-elevated border border-border text-sm font-medium text-foreground-secondary hover:border-border-hover hover:text-foreground transition-colors"
+                >
+                  <LogOut size={14} />
+                  {t('auth.logout')}
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Link
+                  to="/login"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded text-sm font-medium text-foreground-secondary hover:text-foreground transition-colors"
+                >
+                  <LogIn size={14} />
+                  {t('auth.loginButton')}
+                </Link>
+                <Link
+                  to="/register"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+                >
+                  {t('auth.registerButton')}
+                </Link>
+              </div>
+            )}
             
             {isConnected ? (
               <>
@@ -163,11 +201,53 @@ export const Navbar: React.FC = () => {
                 {link.label}
               </Link>
             ))}
-            <div className="pt-4 border-t border-border mt-4">
-              {isConnected ? (
-                 <button onClick={disconnect} className="w-full text-left text-error px-3 py-3 font-medium">{t('nav.disconnect')}</button>
+            <div className="pt-4 border-t border-border mt-4 space-y-1">
+              {isAuthenticated ? (
+                <>
+                  <div className="px-3 py-2 text-sm text-foreground-secondary">
+                    {user?.email || user?.username}
+                  </div>
+                  <button 
+                    onClick={async () => {
+                      await logout();
+                      setIsMenuOpen(false);
+                      navigate('/');
+                    }} 
+                    className="w-full text-left text-error px-3 py-3 font-medium flex items-center gap-2"
+                  >
+                    <LogOut size={16} />
+                    {t('auth.logout')}
+                  </button>
+                </>
               ) : (
-                 <button onClick={connect} className="w-full text-left text-primary px-3 py-3 font-medium">{t('nav.connectWallet')}</button>
+                <>
+                  <Link 
+                    to="/login" 
+                    onClick={() => setIsMenuOpen(false)}
+                    className="block text-left text-foreground px-3 py-3 font-medium flex items-center gap-2"
+                  >
+                    <LogIn size={16} />
+                    {t('auth.loginButton')}
+                  </Link>
+                  <Link 
+                    to="/register" 
+                    onClick={() => setIsMenuOpen(false)}
+                    className="block text-left text-primary px-3 py-3 font-medium"
+                  >
+                    {t('auth.registerButton')}
+                  </Link>
+                </>
+              )}
+              {isConnected ? (
+                 <button onClick={disconnect} className="w-full text-left text-foreground-secondary px-3 py-3 font-medium flex items-center gap-2">
+                   <Wallet size={16} />
+                   {t('nav.disconnect')}
+                 </button>
+              ) : (
+                 <button onClick={connect} className="w-full text-left text-primary px-3 py-3 font-medium flex items-center gap-2">
+                   <Wallet size={16} />
+                   {t('nav.connectWallet')}
+                 </button>
               )}
             </div>
           </div>
