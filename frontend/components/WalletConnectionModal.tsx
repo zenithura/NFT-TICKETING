@@ -2,6 +2,7 @@
 // Provides UI for connecting wallets via MetaMask extension or manual address input.
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Wallet, ExternalLink, Copy, Check, AlertCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../lib/utils';
@@ -179,25 +180,65 @@ export const WalletConnectionModal: React.FC<WalletConnectionModalProps> = ({
     }
   };
 
-  if (!isOpen) return null;
+  // Purpose: Portal target element for rendering modal outside DOM hierarchy.
+  // Side effects: Creates portal container if it doesn't exist.
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
 
-  return (
+  useEffect(() => {
+    if (isOpen) {
+      // Purpose: Create or get portal container element.
+      // Side effects: Creates div element and appends to document.body.
+      let container = document.getElementById('modal-portal-root');
+      if (!container) {
+        container = document.createElement('div');
+        container.id = 'modal-portal-root';
+        container.style.position = 'fixed';
+        container.style.top = '0';
+        container.style.left = '0';
+        container.style.width = '100%';
+        container.style.height = '100%';
+        container.style.pointerEvents = 'none';
+        container.style.zIndex = '9999';
+        document.body.appendChild(container);
+      }
+      setPortalContainer(container);
+
+      // Purpose: Prevent body scroll when modal is open.
+      // Side effects: Adds/removes overflow-hidden class to body.
+      document.body.style.overflow = 'hidden';
+
+      return () => {
+        document.body.style.overflow = '';
+      };
+    } else {
+      setPortalContainer(null);
+    }
+  }, [isOpen]);
+
+  if (!isOpen || !portalContainer) return null;
+
+  const modalContent = (
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50"
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
         aria-hidden="true"
+        style={{ pointerEvents: 'auto', zIndex: 9999 }}
       />
 
       {/* Modal */}
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
+      <div 
+        className="fixed inset-0 flex items-center justify-center p-4"
+        style={{ pointerEvents: 'none', zIndex: 10000 }}
+      >
         <div
           className={cn(
             "relative w-full max-w-md bg-background-elevated border border-border rounded-2xl shadow-2xl",
-            "pointer-events-auto animate-slide-up",
+            "animate-slide-up",
             "max-h-[90vh] overflow-y-auto"
           )}
+          style={{ pointerEvents: 'auto' }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
@@ -349,5 +390,7 @@ export const WalletConnectionModal: React.FC<WalletConnectionModalProps> = ({
       </div>
     </>
   );
+
+  return createPortal(modalContent, portalContainer);
 };
 
