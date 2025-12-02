@@ -1,5 +1,9 @@
+// File header: Dashboard page displaying user-specific content based on role.
+// Shows buyer collection, organizer analytics, or admin portal based on user role.
+
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useWeb3 } from '../services/web3Context';
 import { UserRole } from '../types';
 import { Ticket, Plus, TrendingUp, Shield, DollarSign, Calendar, ArrowRight } from 'lucide-react';
@@ -73,6 +77,7 @@ const StatCard = ({ title, value, icon: Icon, subtext, trend }: any) => (
 );
 
 const BuyerDashboard = () => {
+  const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -87,8 +92,8 @@ const BuyerDashboard = () => {
       <div className="space-y-8 animate-fade-in">
         <div className="flex items-end justify-between pb-6 border-b border-border">
           <div>
-            <h2 className="text-3xl font-bold text-foreground">My Collection</h2>
-            <p className="text-foreground-secondary mt-1">Manage your NFT tickets and access passes.</p>
+            <h2 className="text-3xl font-bold text-foreground">{t('dashboard.myCollection')}</h2>
+            <p className="text-foreground-secondary mt-1">{t('dashboard.myCollectionDesc')}</p>
           </div>
           <Skeleton className="h-9 w-32 rounded" />
         </div>
@@ -106,21 +111,21 @@ const BuyerDashboard = () => {
     <div className="space-y-8 animate-fade-in">
       <div className="flex items-end justify-between pb-6 border-b border-border">
         <div>
-          <h2 className="text-3xl font-bold text-foreground">My Collection</h2>
-          <p className="text-foreground-secondary mt-1">Manage your NFT tickets and access passes.</p>
+          <h2 className="text-3xl font-bold text-foreground">{t('dashboard.myCollection')}</h2>
+          <p className="text-foreground-secondary mt-1">{t('dashboard.myCollectionDesc')}</p>
         </div>
         <Link to="/" className="btn-secondary text-sm flex items-center gap-2 hover:text-primary transition-colors">
-          Browse Events <ArrowRight size={14} />
+          {t('dashboard.browseEvents')} <ArrowRight size={14} />
         </Link>
       </div>
 
       {MOCK_MY_TICKETS.length === 0 ? (
         <div className="py-20 text-center border border-dashed border-border rounded-xl bg-background-elevated/50">
           <Ticket className="mx-auto h-12 w-12 text-foreground-tertiary mb-4" />
-          <h3 className="text-lg font-medium text-foreground">No tickets yet</h3>
-          <p className="text-foreground-secondary mb-6">Start your collection today.</p>
+          <h3 className="text-lg font-medium text-foreground">{t('dashboard.noTickets')}</h3>
+          <p className="text-foreground-secondary mb-6">{t('dashboard.noTicketsDesc')}</p>
           <Link to="/" className="px-4 py-2 bg-primary text-white rounded hover:bg-primary-hover transition-colors">
-            Explore Marketplace
+            {t('dashboard.exploreMarketplace')}
           </Link>
         </div>
       ) : (
@@ -146,10 +151,10 @@ const BuyerDashboard = () => {
 
                   <div className="flex gap-3">
                     <button className="flex-1 bg-foreground text-background py-2 rounded text-sm font-medium hover:opacity-90 transition-opacity">
-                      View QR
+                      {t('dashboard.viewQR')}
                     </button>
                     <button className="flex-1 border border-border text-foreground-secondary py-2 rounded text-sm font-medium hover:text-foreground hover:border-foreground transition-colors">
-                      Sell
+                      {t('dashboard.sell')}
                     </button>
                   </div>
                 </div>
@@ -163,6 +168,7 @@ const BuyerDashboard = () => {
 };
 
 const OrganizerDashboard = () => {
+  const { t } = useTranslation();
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -184,8 +190,8 @@ const OrganizerDashboard = () => {
       <div className="space-y-8 animate-fade-in">
         <div className="flex items-center justify-between pb-6 border-b border-border">
           <div>
-            <h2 className="text-3xl font-bold text-foreground">Organizer Studio</h2>
-            <p className="text-foreground-secondary mt-1">Analytics and event management.</p>
+            <h2 className="text-3xl font-bold text-foreground">{t('dashboard.organizerStudio')}</h2>
+            <p className="text-foreground-secondary mt-1">{t('dashboard.organizerStudioDesc')}</p>
           </div>
           <Skeleton className="h-10 w-36 rounded" />
         </div>
@@ -229,24 +235,24 @@ const OrganizerDashboard = () => {
     <div className="space-y-8 animate-fade-in">
       <div className="flex items-center justify-between pb-6 border-b border-border">
         <div>
-          <h2 className="text-3xl font-bold text-foreground">Organizer Studio</h2>
-          <p className="text-foreground-secondary mt-1">Analytics and event management.</p>
+          <h2 className="text-3xl font-bold text-foreground">{t('dashboard.organizerStudio')}</h2>
+          <p className="text-foreground-secondary mt-1">{t('dashboard.organizerStudioDesc')}</p>
         </div>
         <Link to="/create-event" className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded font-medium transition-all">
-          <Plus size={16} /> Create Event
+          <Plus size={16} /> {t('dashboard.createEvent')}
         </Link>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <StatCard title="Total Revenue" value="45.2 ETH" icon={DollarSign} trend="+12.5%" subtext="Lifetime earnings" />
-        <StatCard title="Tickets Sold" value="1,240" icon={Ticket} trend="+5.2%" subtext="Across 3 events" />
-        <StatCard title="Active Events" value="3" icon={Calendar} subtext="Next: tomorrow" />
+        <StatCard title={t('dashboard.totalRevenue')} value="45.2 ETH" icon={DollarSign} trend="+12.5%" subtext={t('dashboard.lifetimeEarnings')} />
+        <StatCard title={t('dashboard.ticketsSold')} value="1,240" icon={Ticket} trend="+5.2%" subtext={t('dashboard.acrossEvents')} />
+        <StatCard title={t('dashboard.activeEvents')} value="3" icon={Calendar} subtext={t('dashboard.nextTomorrow')} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Chart */}
         <div className="lg:col-span-2 bg-background-elevated p-6 rounded-xl border border-border">
-          <h3 className="text-lg font-bold mb-6 text-foreground">Sales Volume</h3>
+          <h3 className="text-lg font-bold mb-6 text-foreground">{t('dashboard.salesVolume')}</h3>
           <div className="h-64">
             <React.Suspense fallback={<Skeleton className="w-full h-full" />}>
               <LazyChart data={salesData} />
@@ -256,7 +262,7 @@ const OrganizerDashboard = () => {
 
         {/* Recent List */}
         <div className="bg-background-elevated p-6 rounded-xl border border-border">
-          <h3 className="text-lg font-bold mb-6 text-foreground">Active Events</h3>
+          <h3 className="text-lg font-bold mb-6 text-foreground">{t('dashboard.activeEventsList')}</h3>
           <div className="space-y-4">
             {MOCK_EVENTS.slice(0, 3).map(evt => (
               <div key={evt.id} className="flex items-center gap-3 p-3 rounded-lg hover:bg-background-hover transition-colors cursor-pointer group">
@@ -265,7 +271,7 @@ const OrganizerDashboard = () => {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-foreground truncate">{evt.title}</p>
-                  <p className="text-xs text-foreground-tertiary">{evt.soldTickets}/{evt.totalTickets} sold</p>
+                  <p className="text-xs text-foreground-tertiary">{evt.soldTickets}/{evt.totalTickets} {t('dashboard.sold')}</p>
                 </div>
                 <ArrowRight size={14} className="text-foreground-tertiary group-hover:text-primary" />
               </div>
@@ -277,16 +283,20 @@ const OrganizerDashboard = () => {
   );
 };
 
-const AdminView = () => (
-  <div className="text-center py-20 bg-background-elevated border border-border rounded-xl">
-    <Shield size={48} className="mx-auto text-error mb-4" />
-    <h2 className="text-2xl font-bold text-foreground">Admin Portal</h2>
-    <p className="text-foreground-secondary mb-6">System configuration and user management.</p>
-    <Link to="/admin" className="text-primary hover:underline underline-offset-4">Access Admin Dashboard &rarr;</Link>
-  </div>
-);
+const AdminView = () => {
+  const { t } = useTranslation();
+  return (
+    <div className="text-center py-20 bg-background-elevated border border-border rounded-xl">
+      <Shield size={48} className="mx-auto text-error mb-4" />
+      <h2 className="text-2xl font-bold text-foreground">{t('dashboard.adminPortal')}</h2>
+      <p className="text-foreground-secondary mb-6">{t('dashboard.adminPortalDesc')}</p>
+      <Link to="/admin" className="text-primary hover:underline underline-offset-4">{t('dashboard.accessAdminDashboard')}</Link>
+    </div>
+  );
+};
 
 export const Dashboard: React.FC = () => {
+  const { t } = useTranslation();
   const { isConnected, userRole } = useWeb3();
 
   if (!isConnected) {
@@ -294,8 +304,8 @@ export const Dashboard: React.FC = () => {
       <div className="min-h-[60vh] flex flex-col items-center justify-center text-center p-4">
         <div className="bg-background-elevated p-8 rounded-2xl border border-border max-w-md w-full shadow-2xl min-h-[300px] flex flex-col justify-center">
           <Shield className="w-12 h-12 text-foreground-tertiary mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-foreground mb-2">Wallet Connection Required</h2>
-          <p className="text-foreground-secondary mb-6">Please connect your wallet to access the dashboard.</p>
+          <h2 className="text-xl font-bold text-foreground mb-2">{t('dashboard.walletConnectionRequired')}</h2>
+          <p className="text-foreground-secondary mb-6">{t('dashboard.walletConnectionDesc')}</p>
         </div>
       </div>
     );
@@ -309,9 +319,9 @@ export const Dashboard: React.FC = () => {
       {userRole === UserRole.ADMIN && <AdminView />}
       {userRole === UserRole.SCANNER && (
         <div className="text-center py-20">
-          <h2 className="text-2xl font-bold text-foreground mb-4">Scanner Account</h2>
+          <h2 className="text-2xl font-bold text-foreground mb-4">{t('dashboard.scannerAccount')}</h2>
           <Link to="/scanner" className="px-6 py-3 bg-success text-background font-bold rounded-lg hover:bg-success-light">
-            Launch Scanner Tool
+            {t('dashboard.launchScannerTool')}
           </Link>
         </div>
       )}

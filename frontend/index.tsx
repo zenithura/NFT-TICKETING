@@ -1,5 +1,9 @@
+// File header: Application entry point with i18n initialization.
+// Initializes React application and internationalization support.
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import './i18n'; // Initialize i18n before App
 import App from './App';
 
 const rootElement = document.getElementById('root');

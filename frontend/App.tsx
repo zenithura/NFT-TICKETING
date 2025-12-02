@@ -3,6 +3,7 @@
 
 import React, { Suspense, lazy } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Web3Provider } from './services/web3Context';
 import { Navbar } from './components/ui/Navbar';
 
@@ -19,11 +20,14 @@ const HeroBackground = lazy(() => import('./components/3d/HeroBackground').then(
 // Purpose: Loading spinner component displayed while lazy-loaded pages are loading.
 // Returns: JSX with centered loading indicator.
 // Side effects: None - presentational component.
-const PageLoader = () => (
-  <div className="flex items-center justify-center min-h-screen bg-background">
-    <div className="animate-pulse text-foreground-secondary">Loading...</div>
-  </div>
-);
+const PageLoader = () => {
+  const { t } = useTranslation();
+  return (
+    <div className="flex items-center justify-center min-h-screen bg-background">
+      <div className="animate-pulse text-foreground-secondary">{t('common.loading')}</div>
+    </div>
+  );
+};
 
 // Purpose: Fixed background placeholder to prevent layout shift during background component load.
 // Returns: JSX with fixed background div.
@@ -31,6 +35,19 @@ const PageLoader = () => (
 const BackgroundLoader = () => (
   <div className="fixed inset-0 -z-10 bg-background" />
 );
+
+// Purpose: Footer component with translated copyright text.
+// Returns: JSX with footer content.
+const Footer: React.FC = () => {
+  const { t } = useTranslation();
+  return (
+    <footer className="border-t border-border py-12 mt-12 bg-background">
+      <div className="max-w-7xl mx-auto px-4 text-center text-foreground-tertiary text-sm">
+        <p>{t('footer.copyright')}</p>
+      </div>
+    </footer>
+  );
+};
 
 // Purpose: Main application component with routing, Web3 context, and page structure.
 // Returns: JSX with router, Web3 provider, navbar, routes, and footer.
@@ -65,11 +82,7 @@ const App: React.FC = () => {
                     </Routes>
                   </Suspense>
                 </main>
-                <footer className="border-t border-border py-12 mt-12 bg-background">
-                  <div className="max-w-7xl mx-auto px-4 text-center text-foreground-tertiary text-sm">
-                    <p>&copy; 2024 NFTix Platform. Decentralized Ticketing.</p>
-                  </div>
-                </footer>
+                <Footer />
               </>
             } />
           </Routes>
