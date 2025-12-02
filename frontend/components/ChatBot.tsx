@@ -2,6 +2,7 @@
 // Provides interactive chat interface for answering questions about NFT ticketing, blockchain, and Web3.
 
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { MessageCircle, X, Send, Bot, User } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../lib/utils';
@@ -195,64 +196,144 @@ export const ChatBot: React.FC = () => {
     }
   };
 
-  return (
+  // Purpose: Portal container for chat button to ensure it's always at viewport root.
+  // Side effects: Creates portal container if it doesn't exist.
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    // Purpose: Create or get portal container for chat button.
+    // Side effects: Creates div element and appends to document.body.
+    let container = document.getElementById('chatbot-portal-root');
+    if (!container) {
+      container = document.createElement('div');
+      container.id = 'chatbot-portal-root';
+      container.style.position = 'fixed';
+      container.style.top = '0';
+      container.style.left = '0';
+      container.style.width = '0';
+      container.style.height = '0';
+      container.style.pointerEvents = 'none';
+      container.style.zIndex = '9999';
+      document.body.appendChild(container);
+    }
+    setPortalContainer(container);
+
+    return () => {
+      // Cleanup: Portal container persists for performance, only remove on unmount if needed
+    };
+  }, []);
+
+  // Purpose: Floating chat button - ALWAYS positioned at bottom-right of viewport.
+  // Uses React Portal to render at body root, preventing parent container interference.
+  // Position: Fixed to viewport bottom-right (16px from edges on mobile, 24px on desktop).
+  // Z-Index: 9999 to stay above all other UI elements.
+  const chatButton = !isOpen && portalContainer ? (
+    <button
+      onClick={toggleChat}
+      className={cn(
+        // Fixed positioning to viewport bottom-right corner
+        "fixed bottom-4 right-4 sm:bottom-6 sm:right-6",
+        // Size: 56px (14 * 4) on mobile, responsive scaling
+        "w-14 h-14 sm:w-16 sm:h-16",
+        "rounded-full",
+        // Primary color with hover effects
+        "bg-primary hover:bg-primary-hover",
+        "text-white",
+        // Shadow for depth and visibility
+        "shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40",
+        // Flexbox centering
+        "flex items-center justify-center",
+        // Smooth transitions for all interactions
+        "transition-all duration-300 ease-out",
+        // Hover animations: scale up slightly, lift shadow
+        "hover:scale-110 hover:-translate-y-1",
+        // Active state: scale down for tactile feedback
+        "active:scale-95",
+        // Ensure button is always clickable
+        "cursor-pointer",
+        // Focus styles for accessibility
+        "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 focus:ring-offset-background"
+      )}
+      style={{
+        // CRITICAL: Fixed positioning relative to viewport, not parent
+        position: 'fixed',
+        // Bottom-right corner with safe spacing
+        bottom: '16px', // 1rem on mobile
+        right: '16px',  // 1rem on mobile
+        // Z-index: Highest priority to stay above all UI
+        zIndex: 9999,
+        // Ensure button is never clipped
+        pointerEvents: 'auto',
+        // Prevent any transform from parent affecting position
+        transform: 'none',
+      }}
+      aria-label={t('chat.openChat')}
+      title={t('chat.openChat')}
+      type="button"
+    >
+      <MessageCircle 
+        size={24} 
+        className="sm:w-6 sm:h-6"
+        aria-hidden="true"
+      />
+    </button>
+  ) : null;
+
+  // Purpose: Chat window overlay and container - rendered via portal when open.
+  // Side effects: Displays chat interface, prevents body scroll when open.
+  useEffect(() => {
+    if (isOpen) {
+      // Purpose: Prevent body scroll when chat is open.
+      // Side effects: Adds overflow-hidden to body.
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = '';
+      };
+    }
+  }, [isOpen]);
+
+  // Purpose: Chat window content - positioned at bottom-right, above chat button.
+  // Side effects: Renders chat interface when isOpen is true.
+  const chatWindow = isOpen && portalContainer ? (
     <>
-      {/* Purpose: Floating chat button. */}
-      {/* Side effects: Opens chat window on click. */}
-      <button
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 bg-black/20 backdrop-blur-sm"
         onClick={toggleChat}
-        className={cn(
-          "fixed bottom-4 right-4 md:bottom-6 md:right-6 z-[100]",
-          "w-14 h-14 rounded-full",
-          "bg-primary hover:bg-primary-hover",
-          "text-white shadow-lg shadow-primary/30",
-          "flex items-center justify-center",
-          "transition-all duration-300",
-          "hover:scale-110 active:scale-95",
-          isOpen && "hidden"
-        )}
-        style={{
-          // Ensure button is always visible and not clipped
-          position: 'fixed',
-          zIndex: 100,
+        aria-hidden="true"
+        style={{ 
+          pointerEvents: 'auto',
+          zIndex: 9998,
         }}
-        aria-label={t('chat.openChat')}
-        title={t('chat.openChat')}
+      />
+
+      {/* Chat Window Container - Fixed to bottom-right, above chat button */}
+      <div 
+        className="fixed flex items-end justify-end pointer-events-none"
+        style={{ 
+          bottom: '16px',
+          right: '16px',
+          // On mobile: full width minus padding, on desktop: max-width
+          width: 'calc(100vw - 2rem)',
+          maxWidth: '28rem', // 448px (max-w-md)
+          maxHeight: 'calc(100vh - 2rem - 80px)', // Account for chat button space
+          zIndex: 9999,
+          pointerEvents: 'none',
+        }}
       >
-        {isOpen ? <X size={24} /> : <MessageCircle size={24} />}
-      </button>
-
-      {/* Purpose: Chat window overlay and container. */}
-      {/* Side effects: Displays chat interface when open. */}
-      {isOpen && (
+        {/* Chat Window */}
         <div 
-          className="fixed inset-0 z-[99] flex items-end justify-end pointer-events-none"
+          className={cn(
+            "relative w-full h-[600px] max-h-[85vh]",
+            "bg-background-elevated border border-border rounded-t-2xl md:rounded-2xl",
+            "shadow-2xl flex flex-col",
+            "animate-slide-up"
+          )}
           style={{ 
-            padding: '1rem',
-            paddingBottom: 'calc(1rem + 80px)', // Account for chat button height + margin
-            maxWidth: '100vw',
-            maxHeight: '100vh',
-            overflow: 'visible'
+            pointerEvents: 'auto',
           }}
+          onClick={(e) => e.stopPropagation()}
         >
-          {/* Backdrop */}
-          <div
-            className="fixed inset-0 bg-black/20 backdrop-blur-sm"
-            onClick={toggleChat}
-            aria-hidden="true"
-            style={{ pointerEvents: 'auto' }}
-          />
-
-          {/* Chat Window */}
-          <div 
-            className={cn(
-              "relative w-full max-w-md h-[600px] max-h-[85vh]",
-              "bg-background-elevated border border-border rounded-t-2xl md:rounded-2xl",
-              "shadow-2xl flex flex-col",
-              "animate-slide-up"
-            )}
-            style={{ pointerEvents: 'auto' }}
-          >
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-border">
               <div className="flex items-center gap-3">
@@ -367,7 +448,18 @@ export const ChatBot: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
+      </>
+    ) : null;
+
+  // Purpose: Render chat button and window via portal to body root.
+  // This ensures they're never clipped by parent containers.
+  // Returns: Portal-rendered elements or null.
+  if (!portalContainer) return null;
+
+  return (
+    <>
+      {createPortal(chatButton, portalContainer)}
+      {createPortal(chatWindow, portalContainer)}
     </>
   );
 };
