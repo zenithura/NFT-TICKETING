@@ -240,6 +240,14 @@
       "invalidResetToken": "Invalid or expired reset token",
       "sessionExpired": "Your session has expired. Please login again."
     }
+  },
+  "theme": {
+    "lightMode": "Light Mode",
+    "darkMode": "Dark Mode",
+    "toggleTheme": "Toggle theme (currently {{mode}})",
+    "theme": "Theme",
+    "system": "System",
+    "systemDescription": "Use system preference"
   }
 }
 

@@ -240,6 +240,14 @@
       "invalidResetToken": "Etibarsız və ya müddəti bitmiş sıfırlama tokeni",
       "sessionExpired": "Sessiyanızın müddəti bitib. Zəhmət olmasa yenidən daxil olun."
     }
+  },
+  "theme": {
+    "lightMode": "İşıq Rejimi",
+    "darkMode": "Qaranlıq Rejim",
+    "toggleTheme": "Temani dəyişdir (hazırda {{mode}})",
+    "theme": "Tema",
+    "system": "Sistem",
+    "systemDescription": "Sistem parametrindən istifadə et"
   }
 }
 

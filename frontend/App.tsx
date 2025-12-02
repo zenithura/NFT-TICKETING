@@ -6,6 +6,7 @@ import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next';
 import { Web3Provider } from './services/web3Context';
 import { AuthProvider } from './services/authContext';
+import { ThemeProvider } from './services/themeContext';
 import { Navbar } from './components/ui/Navbar';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
@@ -60,8 +61,9 @@ const Footer: React.FC = () => {
 // Side effects: Sets up React Router, provides Web3 and Auth contexts to children, renders page components.
 const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <Web3Provider>
+    <ThemeProvider>
+      <AuthProvider>
+        <Web3Provider>
         <Router>
           <Suspense fallback={<BackgroundLoader />}>
             <HeroBackground />
@@ -133,8 +135,9 @@ const App: React.FC = () => {
             </Routes>
           </div>
         </Router>
-      </Web3Provider>
-    </AuthProvider>
+        </Web3Provider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 };
 
