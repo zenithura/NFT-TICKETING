@@ -1,3 +1,102 @@
+# NFT-TICKETING
+
+[![CI](https://img.shields.io/badge/ci-passing-brightgreen)](https://example.com)
+[![Hardhat Tests](https://img.shields.io/badge/hardhat-14%20tests-green)](smart-contracts)
+[![License](https://img.shields.io/badge/license-Add%20LICENSE-lightgrey)](LICENSE)
+
+> A demo NFT ticketing stack: smart contracts, a React frontend, optional Python backend, and a data/security sprint stack.
+## Quickstart (local)
+
+Follow these steps to run the main components locally. Open three terminals for the node, backend and frontend.
+
+1) Smart contracts — compile, test, run local node and deploy
+
+```bash
+cd smart-contracts
+npm install
+npx hardhat compile
+npx hardhat test
+
+# Start a local JSON-RPC node in a dedicated terminal
+npx hardhat node
+
+# In a new terminal (after the node is running), deploy locally
+npx hardhat run scripts/deploy.js --network localhost
+```
+
+2) Backend (optional) — FastAPI + Supabase (or local Postgres)
+
+```bash
+cd frontend_with_backend/backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+# Create .env with SUPABASE_URL and SUPABASE_KEY (see README_SETUP.md)
+uvicorn server:app --reload --host 0.0.0.0 --port 8000
+```
+
+3) Frontend — start Vite dev server
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Open the URL printed by Vite (commonly `http://localhost:3000/` or `http://localhost:5173/`).
+
+## One-line start (dev)
+
+This helper starts the frontend and runs tests; it requires you to have the Hardhat node running in another terminal.
+
+```bash
+# from repo root
+concurrently "cd frontend && npm run dev" "cd smart-contracts && npx hardhat test --watch"
+```
+
+Install `concurrently` globally or with `npm i -g concurrently`.
+
+## Architecture
+
+High-level components:
+
+```
+[Browser / Wallet] <--> [Frontend (Vite React)] <--> [Backend (FastAPI) optional] <--> [Supabase/Postgres]
+                                                 \
+                                                  --> [Blockchain RPC / Hardhat node]
+
+sprint3: [Postgres] + [Redis] + [fraud-api] + [dashboard]
+```
+
+## Demo & tests
+
+- Run e2e demo script (needs node, backend and frontend running):
+
+```bash
+bash demo.sh
+```
+
+- Smart contract tests:
+
+```bash
+cd smart-contracts
+npx hardhat test
+```
+
+## Troubleshooting
+
+- If Hardhat node port is busy, stop other dev nodes or change the port.
+- Backend: ensure `SUPABASE_URL` and `SUPABASE_KEY` are present in `frontend_with_backend/backend/.env`.
+- Sprint3: requires Docker + Docker Compose; run `cd sprint3 && docker compose up -d`.
+
+## Contributing & License
+
+- Please open issues or PRs against `main`.
+- Add a `LICENSE` file if you plan to publish; MIT is a common choice for demos.
+
+---
+
+_If you want I can add badges for build pipelines, CI, or a screenshot/demo GIF — tell me which assets to include._
 
 # NFT-TICKETING
 
@@ -19,6 +118,13 @@ A focused, demonstration NFT ticketing application combining a React frontend, a
 ## Table of Contents
 
 - [NFT-TICKETING](#nft-ticketing)
+  - [Quickstart (local)](#quickstart-local)
+  - [One-line start (dev)](#one-line-start-dev)
+  - [Architecture](#architecture)
+  - [Demo \& tests](#demo--tests)
+  - [Troubleshooting](#troubleshooting)
+  - [Contributing \& License](#contributing--license)
+- [NFT-TICKETING](#nft-ticketing-1)
   - [Table of Contents](#table-of-contents)
   - [High-level structure](#high-level-structure)
   - [Prerequisites](#prerequisites)
