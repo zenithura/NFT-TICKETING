@@ -267,7 +267,9 @@
     "subtitle": "Web3 və NFT haqqında sual verin",
     "placeholder": "Sualınızı yazın...",
     "send": "Göndər",
-    "hint": "NFT biletləri, blokçeyn, ağıllı müqavilələr, cüzdanlar və ya gas xərcləri haqqında sual verin"
+    "hint": "NFT biletləri, blokçeyn, ağıllı müqavilələr, cüzdanlar və ya gas xərcləri haqqında sual verin",
+    "error": "Mesaj göndərilmədi",
+    "errorMessage": "Bağışlayın, indi bağlantıda problem var. Zəhmət olmasa bir az sonra yenidən cəhd edin."
   },
   "wallet": {
     "connectWallet": "Cüzdan Qoş",

@@ -3,9 +3,11 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { MessageCircle, X, Send, Bot, User } from 'lucide-react';
+import { MessageCircle, X, Send, Bot, User, AlertCircle } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from '../lib/utils';
+import { sendChatMessage, checkChatbotHealth } from '../services/chatbotService';
+import { useAuth } from '../services/authContext';
 
 // Purpose: Message type definition for chat messages.
 interface Message {
@@ -15,104 +17,21 @@ interface Message {
   timestamp: Date;
 }
 
-// Purpose: Web3/NFT ticketing knowledge base responses.
-// Returns: Response string based on user query.
-// Side effects: None (pure function).
-const getChatbotResponse = (userMessage: string, language: string = 'en'): string => {
-  const message = userMessage.toLowerCase().trim();
-  
-  // Greeting responses
-  if (message.match(/^(hi|hello|hey|greetings|good morning|good afternoon|good evening)/)) {
-    return language === 'az' 
-      ? "Salam! NFT biletləmə və blokçeyn məsləhətçisiniz. Nə haqqında bilmək istəyirsiniz?"
-      : "Welcome! I'm your blockchain and NFT ticketing assistant. What would you like to know?";
-  }
-
-  // NFT Ticketing topics
-  if (message.match(/nft.*ticket|ticket.*nft|how.*mint|mint.*ticket/)) {
-    return language === 'az'
-      ? "NFT biletləri ERC-721 və ya ERC-1155 standartlarından istifadə edərək yaradılır. Biletlər ağıllı müqavilədə zərb edilir (mint edilir) və hər bilet unikal token ID-yə malikdir. Metadata IPFS-də saxlanılır və bilet məlumatlarını (tədbir adı, tarix, yer və s.) ehtiva edir."
-      : "NFT tickets are created using ERC-721 or ERC-1155 standards. Tickets are minted in a smart contract, with each ticket having a unique token ID. Metadata is stored on IPFS and contains ticket information (event name, date, venue, etc.).";
-  }
-
-  if (message.match(/verify|ownership|check.*ticket|scan.*ticket/)) {
-    return language === 'az'
-      ? "Bilet sahibliyini yoxlamaq üçün, skaner ağıllı müqavilədə ownerOf(tokenId) funksiyasını çağırır. QR kod wallet imzası ilə birləşdirilə bilər. Hər skan zamanı biletin istifadə olunub-olunmadığını yoxlamaq üçün on-chain vəziyyət yoxlanılır."
-      : "To verify ticket ownership, the scanner calls the ownerOf(tokenId) function in the smart contract. QR codes can be combined with wallet signatures. Each scan checks the on-chain state to verify if the ticket has been used.";
-  }
-
-  if (message.match(/fraud|anti.*fraud|security|prevent.*fraud/)) {
-    return language === 'az'
-      ? "NFT biletlərdə anti-fraud xüsusiyyətləri: 1) Soulbound tokenlər (transfer edilə bilməz), 2) KYC inteqrasiyası, 3) Hər bilet yalnız bir dəfə skan edilə bilər, 4) On-chain istifadə statusu, 5) ML əsaslı anomaliya aşkarlama. Bu platformada hər bilet yalnız bir dəfə istifadə edilə bilər."
-      : "Anti-fraud features in NFT tickets: 1) Soulbound tokens (non-transferable), 2) KYC integration, 3) Each ticket can only be scanned once, 4) On-chain usage status, 5) ML-based anomaly detection. On this platform, each ticket can only be used once.";
-  }
-
-  if (message.match(/resale|resell|sell.*ticket|marketplace/)) {
-    return language === 'az'
-      ? "NFT biletləri ikinci əl bazarında satıla bilər. Ağıllı müqavilə listTicket() funksiyası ilə biletləri bazar üçün siyahıya alır. buyTicket() funksiyası satın alma prosesini idarə edir. Təşkilatçılar hər satışdan royalty (məsələn, 5%) ala bilər. Bütün satışlar blokçeyndə qeydə alınır."
-      : "NFT tickets can be resold on the secondary marketplace. The smart contract lists tickets for sale using listTicket(). The buyTicket() function handles purchases. Organizers can receive royalties (e.g., 5%) on each sale. All sales are recorded on-chain.";
-  }
-
-  if (message.match(/gas|fee|cost|expensive/)) {
-    return language === 'az'
-      ? "Gas xərcləri blokçeyn şəbəkəsindən asılıdır. Polygon kimi Layer 2 həlləri Ethereum-dan daha ucuzdur. Bu platforma Polygon istifadə edir. Bilet zərb etmək təxminən $0.01-0.05, satış isə $0.02-0.10 arası ola bilər. Batch minting bir neçə bilet üçün xərcləri azaldır."
-      : "Gas fees depend on the blockchain network. Layer 2 solutions like Polygon are cheaper than Ethereum. This platform uses Polygon. Minting a ticket costs approximately $0.01-0.05, while resale costs $0.02-0.10. Batch minting reduces costs for multiple tickets.";
-  }
-
-  // Blockchain technology topics
-  if (message.match(/erc-721|erc-1155|erc-20|standard/)) {
-    return language === 'az'
-      ? "ERC-721: Hər token unikaldır (NFT). ERC-1155: Çox token standartı, eyni müqavilədə NFT və FT. ERC-20: Fungible tokenlər (kriptovalyuta). NFT biletləri üçün ERC-721 və ya ERC-1155 istifadə olunur. ERC-1155 daha çevikdir çünki eyni müqavilədə müxtəlif bilet növləri ola bilər."
-      : "ERC-721: Each token is unique (NFT). ERC-1155: Multi-token standard, NFTs and FTs in the same contract. ERC-20: Fungible tokens (cryptocurrency). NFT tickets use ERC-721 or ERC-1155. ERC-1155 is more flexible as it allows different ticket types in the same contract.";
-  }
-
-  if (message.match(/layer.*2|l2|polygon|arbitrum|optimism|rollup/)) {
-    return language === 'az'
-      ? "Layer 2 həlləri Ethereum-un miqyasını artırır və xərcləri azaldır. Polygon: Sidechain, çox aşağı gas xərcləri. Arbitrum & Optimism: Optimistic rollups. zkSync: Zero-knowledge rollup. Bu platforma Polygon istifadə edir çünki bilet əməliyyatları üçün sürətli və ucuzdur."
-      : "Layer 2 solutions scale Ethereum and reduce costs. Polygon: Sidechain with very low gas fees. Arbitrum & Optimism: Optimistic rollups. zkSync: Zero-knowledge rollup. This platform uses Polygon because it's fast and cheap for ticket operations.";
-  }
-
-  if (message.match(/ipfs|metadata|arweave|storage/)) {
-    return language === 'az'
-      ? "NFT metadata IPFS (InterPlanetary File System) və ya Arweave-də saxlanılır. IPFS: P2P şəbəkə, content-addressed. Arweave: Daimi, bir dəfə ödəniş. Metadata JSON formatındadır və bilet məlumatlarını (ad, təsvir, şəkil, atributlar) ehtiva edir. Ağıllı müqavilədə yalnız tokenURI saxlanılır."
-      : "NFT metadata is stored on IPFS (InterPlanetary File System) or Arweave. IPFS: P2P network, content-addressed. Arweave: Permanent, one-time payment. Metadata is in JSON format and contains ticket information (name, description, image, attributes). Only the tokenURI is stored in the smart contract.";
-  }
-
-  // Wallet topics
-  if (message.match(/wallet|metamask|connect.*wallet|walletconnect/)) {
-    return language === 'az'
-      ? "Cüzdanlar (MetaMask, WalletConnect, Phantom) istifadəçilərin kriptovalyuta və NFT-ləri idarə etməsinə imkan verir. Bu platforma MetaMask və WalletConnect dəstəkləyir. Cüzdan qoşulduqda, frontend Web3 provider vasitəsilə ağıllı müqavilə ilə qarşılıqlı əlaqə qurur. İstifadəçi əməliyyatları imzalamaq üçün cüzdanından təsdiq istəyir."
-      : "Wallets (MetaMask, WalletConnect, Phantom) allow users to manage cryptocurrency and NFTs. This platform supports MetaMask and WalletConnect. When a wallet connects, the frontend interacts with smart contracts via a Web3 provider. Users must approve transactions from their wallet.";
-  }
-
-  // Developer topics
-  if (message.match(/smart.*contract|solidity|deploy|contract/)) {
-    return language === 'az'
-      ? "Ağıllı müqavilələr Solidity-də yazılır və Hardhat, Truffle və ya Foundry ilə yerləşdirilir. Bu platforma TicketManager.sol müqaviləsindən istifadə edir. Əsas funksiyalar: mintTicket(), listTicket(), buyTicket(), scanTicket(). Müqavilə ERC-721 standartından miras alır və AccessControl, ReentrancyGuard istifadə edir."
-      : "Smart contracts are written in Solidity and deployed with Hardhat, Truffle, or Foundry. This platform uses the TicketManager.sol contract. Key functions: mintTicket(), listTicket(), buyTicket(), scanTicket(). The contract inherits from ERC-721 and uses AccessControl, ReentrancyGuard.";
-  }
-
-  if (message.match(/api|backend|integration|how.*integrate/)) {
-    return language === 'az'
-      ? "Backend API-lər ağıllı müqavilə ilə qarşılıqlı əlaqə üçün Web3.js və ya Ethers.js istifadə edir. Frontend wallet qoşur və istifadəçi əməliyyatları təsdiqləyir. Backend yalnız oxu əməliyyatları (bilet məlumatlarını almaq) üçün istifadə olunur. Mint və satış kimi yazma əməliyyatları birbaşa cüzdandan edilir."
-      : "Backend APIs use Web3.js or Ethers.js to interact with smart contracts. The frontend connects wallets and users approve transactions. The backend is used only for read operations (fetching ticket info). Write operations like minting and selling are done directly from the wallet.";
-  }
-
-  // Default response
-  return language === 'az'
-    ? "NFT biletləmə, blokçeyn texnologiyası, ağıllı müqavilələr, cüzdan inteqrasiyası və ya platforma funksionallığı haqqında sual verə bilərsiniz. Məsələn: 'NFT biletləri necə zərb edilir?', 'Bilet sahibliyini necə yoxlamaq olar?', 'Gas xərcləri nə qədərdir?'"
-    : "You can ask about NFT ticketing, blockchain technology, smart contracts, wallet integration, or platform functionality. For example: 'How are NFT tickets minted?', 'How to verify ticket ownership?', 'What are the gas fees?'";
-};
+// Note: getChatbotResponse function removed - now using Gemini API via backend
 
 // Purpose: ChatBot component with floating button and chat window.
 // Returns: JSX with chat interface.
 // Side effects: Manages chat state, handles user messages, generates responses.
 export const ChatBot: React.FC = () => {
   const { t, i18n } = useTranslation();
+  const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState('');
   const [isTyping, setIsTyping] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -147,10 +66,10 @@ export const ChatBot: React.FC = () => {
     }
   }, [isOpen, messages.length, i18n.language]);
 
-  // Purpose: Handle sending a message.
-  // Side effects: Adds user message, generates and adds bot response.
-  const handleSend = () => {
-    if (!inputValue.trim()) return;
+  // Purpose: Handle sending a message to Gemini API.
+  // Side effects: Adds user message, calls API, adds bot response.
+  const handleSend = async () => {
+    if (!inputValue.trim() || isTyping) return;
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -159,23 +78,66 @@ export const ChatBot: React.FC = () => {
       timestamp: new Date(),
     };
 
+    const messageText = inputValue.trim();
+    const currentSessionId = sessionId;
     setMessages(prev => [...prev, userMessage]);
     setInputValue('');
     setIsTyping(true);
+    setError(null);
 
-    // Purpose: Simulate typing delay and generate response.
-    // Side effects: Adds bot response after delay.
-    setTimeout(() => {
-      const response = getChatbotResponse(userMessage.content, i18n.language);
-      const botMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: response,
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, botMessage]);
-      setIsTyping(false);
-    }, 500);
+    // Retry function
+    const sendWithRetry = async (attempt: number = 0): Promise<void> => {
+      try {
+        // Send message to Gemini API via backend
+        const response = await sendChatMessage(
+          messageText,
+          currentSessionId || undefined,
+          user?.user_id?.toString() || undefined
+        );
+
+        // Update session ID if provided
+        if (response.session_id) {
+          setSessionId(response.session_id);
+        }
+
+        // Add bot response
+        const botMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: response.response,
+          timestamp: new Date(response.timestamp),
+        };
+
+        setMessages(prev => [...prev, botMessage]);
+        setRetryCount(0); // Reset retry count on success
+        setIsTyping(false);
+      } catch (err) {
+        console.error('Error sending message to chatbot:', err);
+        
+        // Retry logic (max 2 retries)
+        if (attempt < 2) {
+          setRetryCount(attempt + 1);
+          setTimeout(() => {
+            sendWithRetry(attempt + 1);
+          }, 1000 * (attempt + 1)); // Exponential backoff
+          return;
+        }
+
+        // Show error message after max retries
+        const errorMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          role: 'assistant',
+          content: t('chat.errorMessage') || "I'm sorry, I'm having trouble connecting right now. Please try again in a moment.",
+          timestamp: new Date(),
+        };
+        setMessages(prev => [...prev, errorMessage]);
+        setError(t('chat.error') || 'Failed to send message');
+        setIsTyping(false);
+      }
+    };
+
+    // Start sending with retry
+    sendWithRetry();
   };
 
   // Purpose: Handle Enter key press in input.
@@ -193,8 +155,25 @@ export const ChatBot: React.FC = () => {
     setIsOpen(!isOpen);
     if (isOpen) {
       setMessages([]);
+      setSessionId(null);
+      setError(null);
+      setRetryCount(0);
     }
   };
+
+  // Purpose: Check chatbot health on mount.
+  // Side effects: Logs chatbot service status.
+  useEffect(() => {
+    if (isOpen) {
+      checkChatbotHealth().then(health => {
+        if (!health.gemini_available) {
+          console.warn('Gemini API not available, using fallback mode');
+        }
+      }).catch(err => {
+        console.error('Error checking chatbot health:', err);
+      });
+    }
+  }, [isOpen]);
 
   // Purpose: Portal container for chat button to ensure it's always at viewport root.
   // Side effects: Creates portal container if it doesn't exist.
@@ -406,6 +385,18 @@ export const ChatBot: React.FC = () => {
                 </div>
               )}
 
+              {/* Error message */}
+              {error && (
+                <div className="flex gap-3 justify-start">
+                  <div className="w-8 h-8 rounded-full bg-error/20 flex items-center justify-center flex-shrink-0">
+                    <AlertCircle className="w-4 h-4 text-error" />
+                  </div>
+                  <div className="bg-error/10 border border-error/20 rounded-2xl px-4 py-2.5">
+                    <p className="text-sm text-error">{error}</p>
+                  </div>
+                </div>
+              )}
+
               <div ref={messagesEndRef} />
             </div>
 
@@ -429,7 +420,7 @@ export const ChatBot: React.FC = () => {
                 />
                 <button
                   onClick={handleSend}
-                  disabled={!inputValue.trim()}
+                  disabled={!inputValue.trim() || isTyping}
                   className={cn(
                     "px-4 py-2.5 rounded-lg",
                     "bg-primary hover:bg-primary-hover text-white",
@@ -438,6 +429,7 @@ export const ChatBot: React.FC = () => {
                     "flex items-center justify-center"
                   )}
                   aria-label={t('chat.send')}
+                  type="button"
                 >
                   <Send size={18} />
                 </button>
