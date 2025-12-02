@@ -248,6 +248,15 @@
     "theme": "Tema",
     "system": "Sistem",
     "systemDescription": "Sistem parametrindən istifadə et"
+  },
+  "chat": {
+    "openChat": "Çat Aç",
+    "closeChat": "Çatı Bağla",
+    "title": "NFT Biletləmə Köməkçisi",
+    "subtitle": "Web3 və NFT haqqında sual verin",
+    "placeholder": "Sualınızı yazın...",
+    "send": "Göndər",
+    "hint": "NFT biletləri, blokçeyn, ağıllı müqavilələr, cüzdanlar və ya gas xərcləri haqqında sual verin"
   }
 }
 

@@ -305,3 +305,8 @@ input:focus {
     background-position: -200% 0;
   }
 }
+
+/* Purpose: Utility class for slide-up animation. */
+.animate-slide-up {
+  animation: slideUp 0.5s ease-out;
+}
