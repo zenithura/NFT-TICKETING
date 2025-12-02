@@ -267,7 +267,9 @@
     "subtitle": "Ask me anything about Web3 & NFTs",
     "placeholder": "Type your question...",
     "send": "Send",
-    "hint": "Ask about NFT tickets, blockchain, smart contracts, wallets, or gas fees"
+    "hint": "Ask about NFT tickets, blockchain, smart contracts, wallets, or gas fees",
+    "error": "Failed to send message",
+    "errorMessage": "I'm sorry, I'm having trouble connecting right now. Please try again in a moment."
   },
   "wallet": {
     "connectWallet": "Connect Wallet",
