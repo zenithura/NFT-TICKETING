@@ -26,7 +26,7 @@ Add to your `.env` file:
 ```bash
 # Admin credentials
 ADMIN_USERNAME=admin
-ADMIN_PASSWORD_HASH=<hashed_password>
+ADMIN_PASSWORD_HASH=$2b$12$JD4BXrgTTRdl2pqOr//K/Ory1raZlJqCvbd6bd1OfFROqqgpNYQEe
 
 # Admin JWT settings (optional)
 ADMIN_TOKEN_EXPIRE_MINUTES=480  # 8 hours
@@ -37,7 +37,7 @@ To generate a password hash, run this in Python:
 ```python
 from passlib.context import CryptContext
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-hash = pwd_context.hash("YourNewPassword123!")
+hash = pwd_context.hash("admin")
 print(hash)
 ```
 

@@ -17,29 +17,85 @@ async def create_listing(
     listing: MarketplaceListingCreate,
     db: Client = Depends(get_supabase_admin)
 ):
-    """Create a new marketplace listing."""
+    """Create a new marketplace listing with 50% max markup validation."""
     try:
         # Verify ticket exists and belongs to seller
-        ticket_response = db.table("tickets").select("*").eq("id", listing.ticket_id).execute()
+        # Try both ticket_id and id fields
+        ticket_response = db.table("tickets").select("*").eq("ticket_id", listing.ticket_id).execute()
+        if not ticket_response.data:
+            ticket_response = db.table("tickets").select("*").eq("id", listing.ticket_id).execute()
         
         if not ticket_response.data:
             raise HTTPException(status_code=404, detail="Ticket not found")
         
         ticket = ticket_response.data[0]
-        if ticket["owner_address"] != listing.seller_address:
+        
+        # Get owner_address - either directly or from wallets table
+        ticket_owner_address = ticket.get("owner_address")
+        if not ticket_owner_address and "owner_wallet_id" in ticket:
+            wallet_lookup = db.table("wallets").select("address").eq("wallet_id", ticket["owner_wallet_id"]).execute()
+            if wallet_lookup.data:
+                ticket_owner_address = wallet_lookup.data[0]["address"]
+        
+        if not ticket_owner_address or ticket_owner_address.lower() != listing.seller_address.lower():
             raise HTTPException(status_code=403, detail="You don't own this ticket")
         
-        if ticket["status"] != "bought":
-            raise HTTPException(status_code=400, detail="Only bought tickets can be listed")
+        # Check ticket status - allow ACTIVE/available tickets to be listed
+        ticket_status = ticket.get("status", "ACTIVE")
+        if ticket_status not in ["ACTIVE", "available"]:
+            raise HTTPException(status_code=400, detail="Only active/available tickets can be listed for resale")
         
-        # Create listing
+        # Get original purchase price for markup validation
+        original_price = None
+        if listing.original_price is not None:
+            original_price = listing.original_price
+        elif ticket.get("purchase_price"):
+            original_price = float(ticket["purchase_price"])
+        else:
+            # Fallback: get event base_price
+            event_id = ticket.get("event_id")
+            if event_id:
+                event_response = db.table("events").select("base_price").eq("event_id", event_id).execute()
+                if not event_response.data:
+                    event_response = db.table("events").select("base_price").eq("id", event_id).execute()
+                if event_response.data and event_response.data[0].get("base_price"):
+                    original_price = float(event_response.data[0]["base_price"])
+        
+        # Validate 50% max markup
+        if original_price and original_price > 0:
+            max_allowed_price = original_price * 1.5  # 50% markup = 150% of original
+            if listing.price > max_allowed_price:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Resale price cannot exceed 50% markup. Maximum allowed: {max_allowed_price:.8f} ETH (original: {original_price:.8f} ETH)"
+                )
+        elif original_price == 0:
+            # Free tickets can be sold at any price
+            pass
+        else:
+            # If we can't determine original price, allow listing but warn
+            print(f"Warning: Could not determine original price for ticket {listing.ticket_id}, allowing listing without markup validation")
+        
+        # Create listing with original_price
         listing_data = listing.model_dump()
+        if original_price is not None:
+            listing_data["original_price"] = original_price
+        
+        # Update ticket status to resale_listed (map to database enum)
+        # Database uses ACTIVE, but we can track resale status separately
+        # For now, keep ticket status as ACTIVE and track resale in marketplace table
+        
         response = db.table("marketplace").insert(listing_data).execute()
         
         if not response.data:
             raise HTTPException(status_code=500, detail="Failed to create listing")
         
-        return MarketplaceListingResponse(**response.data[0])
+        listing_response = dict(response.data[0])
+        # Ensure original_price is included in response
+        if "original_price" not in listing_response:
+            listing_response["original_price"] = original_price
+        
+        return MarketplaceListingResponse(**listing_response)
     
     except HTTPException:
         raise
@@ -55,7 +111,14 @@ async def list_marketplace(
     """List all marketplace listings."""
     try:
         response = db.table("marketplace").select("*").eq("status", status).execute()
-        return [MarketplaceListingResponse(**listing) for listing in response.data]
+        listings = []
+        for listing in response.data:
+            listing_dict = dict(listing)
+            # Ensure original_price is included (may be None for old listings)
+            if "original_price" not in listing_dict:
+                listing_dict["original_price"] = None
+            listings.append(MarketplaceListingResponse(**listing_dict))
+        return listings
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

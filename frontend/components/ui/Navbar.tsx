@@ -261,22 +261,21 @@ const NavLink: React.FC<NavLinkProps> = ({ to, children, isActive, onClick, icon
 export const Navbar: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { isConnected, address, connectMetaMask, connectManual, disconnect, balance, userRole, setUserRole, isConnecting, error } = useWeb3();
+  const { isConnected, address, connectMetaMask, connectManual, disconnect, balance, isConnecting, error } = useWeb3();
   const { isAuthenticated, user, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isWalletModalOpen, setIsWalletModalOpen] = useState(false);
-  const [isRoleMenuOpen, setIsRoleMenuOpen] = useState(false);
   const [isWalletMenuOpen, setIsWalletMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const location = useLocation();
   
-  const roleTriggerRef = useRef<HTMLButtonElement>(null);
+  // Get user's actual role from authentication context
+  const userRole = user?.role ? (user.role.toUpperCase() as UserRole) : UserRole.BUYER;
+  
   const walletTriggerRef = useRef<HTMLButtonElement>(null);
   const userTriggerRef = useRef<HTMLButtonElement>(null);
-  const roleMenuRef = useRef<HTMLDivElement>(null);
   const walletMenuRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
-  const [roleMenuPosition, setRoleMenuPosition] = useState<{ top: number; left?: number; right?: number; side: string } | null>(null);
   const [walletMenuPosition, setWalletMenuPosition] = useState<{ top: number; left?: number; right?: number; side: string } | null>(null);
   const [userMenuPosition, setUserMenuPosition] = useState<{ top: number; left?: number; right?: number; side: string } | null>(null);
 
@@ -290,35 +289,6 @@ export const Navbar: React.FC = () => {
 
   // Purpose: Calculate dropdown positions when opened.
   // Side effects: Updates position state based on viewport boundaries.
-  useEffect(() => {
-    if (isRoleMenuOpen && roleTriggerRef.current) {
-      const triggerRect = roleTriggerRef.current.getBoundingClientRect();
-      const menuWidth = 192;
-      // Use estimated height if menu ref doesn't exist yet
-      const menuHeight = roleMenuRef.current?.offsetHeight || 200;
-      const pos = calculateDropdownPosition(triggerRect, menuWidth, menuHeight, 8);
-      setRoleMenuPosition(pos);
-
-      const handleResize = () => {
-        if (roleTriggerRef.current) {
-          const newTriggerRect = roleTriggerRef.current.getBoundingClientRect();
-          const newMenuHeight = roleMenuRef.current?.offsetHeight || 200;
-          const newPos = calculateDropdownPosition(newTriggerRect, menuWidth, newMenuHeight, 8);
-          setRoleMenuPosition(newPos);
-        }
-      };
-
-      window.addEventListener('resize', handleResize);
-      window.addEventListener('scroll', handleResize, true);
-      return () => {
-        window.removeEventListener('resize', handleResize);
-        window.removeEventListener('scroll', handleResize, true);
-      };
-    } else {
-      setRoleMenuPosition(null);
-    }
-  }, [isRoleMenuOpen]);
-
   useEffect(() => {
     if (isWalletMenuOpen && walletTriggerRef.current) {
       const triggerRect = walletTriggerRef.current.getBoundingClientRect();
@@ -411,23 +381,6 @@ export const Navbar: React.FC = () => {
     }
   }, [userRole, t]);
 
-  // Purpose: Store scroll position before role changes to restore it after re-render.
-  // Side effects: Restores scroll position synchronously after role change.
-  const scrollPositionRef = useRef<{ x: number; y: number } | null>(null);
-  
-  // Purpose: Restore scroll position after role change re-render completes.
-  // Side effects: Restores scroll position synchronously before browser paint.
-  useLayoutEffect(() => {
-    if (scrollPositionRef.current) {
-      window.scrollTo({ 
-        left: scrollPositionRef.current.x, 
-        top: scrollPositionRef.current.y, 
-        behavior: 'auto' 
-      });
-      scrollPositionRef.current = null;
-    }
-  });
-
   const links = getLinks();
 
   // Purpose: Handle wallet disconnect with cleanup.
@@ -501,130 +454,6 @@ export const Navbar: React.FC = () => {
             {/* Wallet Section */}
             {isConnected ? (
               <div className="flex items-center gap-2 pl-3 border-l border-border">
-                {/* Role Switcher */}
-                <div className="relative">
-                  <button
-                    ref={roleTriggerRef}
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      e.preventDefault();
-                      const newState = !isRoleMenuOpen;
-                      setIsRoleMenuOpen(newState);
-                      // Close other dropdowns when opening this one
-                      if (newState) {
-                        setIsWalletMenuOpen(false);
-                        setIsUserMenuOpen(false);
-                        // Close language switcher if open
-                        window.dispatchEvent(new CustomEvent('closeLanguageSwitcher'));
-                      }
-                    }}
-                    onMouseDown={(e) => {
-                      // Prevent focus changes that might cause scrolling
-                      if (!isRoleMenuOpen) {
-                        e.preventDefault();
-                      }
-                    }}
-                    onMouseEnter={() => {
-                      // Only open on hover if no other dropdown is open
-                      if (!isWalletMenuOpen && !isUserMenuOpen) {
-                        setIsRoleMenuOpen(true);
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      // Only close if mouse is not moving to the dropdown menu
-                      const relatedTarget = e.relatedTarget as HTMLElement;
-                      if (!relatedTarget?.closest('#role-menu')) {
-                        setIsRoleMenuOpen(false);
-                      }
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-background-elevated border border-border text-xs font-medium text-foreground-secondary hover:border-border-hover hover:text-foreground transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-                    aria-label={t('nav.switchView')}
-                    aria-expanded={isRoleMenuOpen}
-                    aria-haspopup="true"
-                  >
-                    {userRole === UserRole.ADMIN && <Shield size={12} className="text-error" />}
-                    {userRole === UserRole.ORGANIZER && <Users size={12} className="text-primary" />}
-                    {userRole === UserRole.BUYER && <Ticket size={12} className="text-success" />}
-                    <span className="hidden xl:inline">{t(`roles.${userRole}`)}</span>
-                    <ChevronDown size={12} className={cn("transition-transform duration-200", isRoleMenuOpen && "rotate-180")} />
-                  </button>
-                  
-                  <DropdownMenu
-                    isOpen={isRoleMenuOpen}
-                    onClose={() => {
-                      // Preserve scroll position when closing
-                      const scrollY = window.scrollY;
-                      const scrollX = window.scrollX;
-                      setIsRoleMenuOpen(false);
-                      // Restore scroll position after closing
-                      requestAnimationFrame(() => {
-                        window.scrollTo(scrollX, scrollY);
-                      });
-                    }}
-                    position={roleMenuPosition}
-                    id="role-menu"
-                    ariaLabel={t('nav.switchView')}
-                    triggerRef={roleTriggerRef}
-                  >
-                    <div 
-                      ref={roleMenuRef} 
-                      className="p-1"
-                    >
-                      <div className="px-3 py-2 text-[10px] uppercase font-bold text-foreground-tertiary tracking-wider border-b border-border">
-                        {t('nav.switchView')}
-                      </div>
-                      {Object.values(UserRole).map((role) => (
-                        <button
-                          key={role}
-                          role="menuitem"
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            e.preventDefault();
-                            // Capture scroll position before any state changes
-                            const scrollY = window.scrollY;
-                            const scrollX = window.scrollX;
-                            
-                            // Store in ref for useLayoutEffect to restore after re-render
-                            scrollPositionRef.current = { x: scrollX, y: scrollY };
-                            
-                            // Blur the button to prevent focus-related scrolling
-                            (e.currentTarget as HTMLButtonElement).blur();
-                            
-                            // Close dropdown first
-                            setIsRoleMenuOpen(false);
-                            
-                            // Change role - this will trigger re-render
-                            setUserRole(role);
-                            
-                            // Restore scroll position immediately (before React re-render)
-                            window.scrollTo({ left: scrollX, top: scrollY, behavior: 'auto' });
-                          }}
-                          onMouseDown={(e) => {
-                            // Prevent focus changes that might cause scrolling
-                            e.preventDefault();
-                            e.stopPropagation();
-                          }}
-                          className={cn(
-                            "w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-background-hover flex items-center gap-2 transition-colors duration-150",
-                            "focus:outline-none focus:bg-background-hover",
-                            userRole === role ? "text-primary bg-primary/10 font-medium" : "text-foreground-secondary"
-                          )}
-                        >
-                          {role === UserRole.ADMIN && <Shield size={14} className="text-error" />}
-                          {role === UserRole.ORGANIZER && <Users size={14} className="text-primary" />}
-                          {role === UserRole.BUYER && <Ticket size={14} className="text-success" />}
-                          {role === UserRole.SCANNER && <ScanLine size={14} className="text-warning" />}
-                          {role === UserRole.RESELLER && <Ticket size={14} className="text-primary" />}
-                          <span>{t(`roles.${role}`)}</span>
-                          {userRole === role && <span className="ml-auto text-primary">✓</span>}
-                        </button>
-                      ))}
-                    </div>
-                  </DropdownMenu>
-                </div>
-
                 {/* Wallet Badge with Dropdown */}
                 <div className="relative">
                   <button
@@ -635,7 +464,6 @@ export const Navbar: React.FC = () => {
                       setIsWalletMenuOpen(newState);
                       // Close other dropdowns when opening this one
                       if (newState) {
-                        setIsRoleMenuOpen(false);
                         setIsUserMenuOpen(false);
                         // Close language switcher if open
                         window.dispatchEvent(new CustomEvent('closeLanguageSwitcher'));
@@ -643,7 +471,7 @@ export const Navbar: React.FC = () => {
                     }}
                     onMouseEnter={() => {
                       // Only open on hover if no other dropdown is open
-                      if (!isRoleMenuOpen && !isUserMenuOpen) {
+                      if (!isUserMenuOpen) {
                         setIsWalletMenuOpen(true);
                       }
                     }}
@@ -752,17 +580,16 @@ export const Navbar: React.FC = () => {
                     e.stopPropagation();
                     const newState = !isUserMenuOpen;
                     setIsUserMenuOpen(newState);
-                    // Close other dropdowns when opening this one
-                    if (newState) {
-                      setIsRoleMenuOpen(false);
-                      setIsWalletMenuOpen(false);
-                      // Close language switcher if open
-                      window.dispatchEvent(new CustomEvent('closeLanguageSwitcher'));
-                    }
+                      // Close other dropdowns when opening this one
+                      if (newState) {
+                        setIsWalletMenuOpen(false);
+                        // Close language switcher if open
+                        window.dispatchEvent(new CustomEvent('closeLanguageSwitcher'));
+                      }
                   }}
                   onMouseEnter={() => {
                     // Only open on hover if no other dropdown is open
-                    if (!isRoleMenuOpen && !isWalletMenuOpen) {
+                    if (!isWalletMenuOpen) {
                       setIsUserMenuOpen(true);
                     }
                   }}
@@ -907,30 +734,6 @@ export const Navbar: React.FC = () => {
                     </div>
                   </div>
                   
-                  {/* Role Switcher - Mobile */}
-                  <div className="px-4 py-2 border-b border-border mb-2">
-                    <div className="text-xs text-foreground-tertiary mb-2">{t('nav.switchView')}</div>
-                    <div className="flex flex-wrap gap-2">
-                      {Object.values(UserRole).map((role) => (
-                        <button
-                          key={role}
-                          onClick={() => {
-                            setUserRole(role);
-                            setIsMenuOpen(false);
-                          }}
-                          className={cn(
-                            "px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200",
-                            "focus:outline-none focus:ring-2 focus:ring-primary",
-                            userRole === role
-                              ? "bg-primary/10 text-primary border border-primary/20"
-                              : "bg-background-hover text-foreground-secondary border border-border"
-                          )}
-                        >
-                          {t(`roles.${role}`)}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
                   
                   <button
                     onClick={handleDisconnect}

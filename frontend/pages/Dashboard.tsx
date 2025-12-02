@@ -5,12 +5,14 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useWeb3 } from '../services/web3Context';
+import { useAuth } from '../services/authContext';
 import { UserRole, type Event, type Ticket } from '../types';
 import { Ticket as TicketIcon, Plus, TrendingUp, Shield, DollarSign, Calendar, ArrowRight } from 'lucide-react';
 import { getEvents, getOrganizerStats, type EventResponse, type OrganizerStats } from '../services/eventService';
 import { getUserTickets } from '../services/ticketService';
 import { Skeleton } from '../components/ui/skeleton';
 import { cn, formatCurrency } from '../lib/utils';
+import { SellTicketModal } from '../components/SellTicketModal';
 
 // Lazy load heavy components
 const LazyChart = React.lazy(() => import('../components/LazyChart'));
@@ -84,6 +86,7 @@ const BuyerDashboard = () => {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [selectedTicketForSale, setSelectedTicketForSale] = useState<Ticket | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -153,16 +156,17 @@ const BuyerDashboard = () => {
   }
 
   return (
-    <div className="space-y-8 animate-fade-in">
-      <div className="flex items-end justify-between pb-6 border-b border-border">
-        <div>
-          <h2 className="text-3xl font-bold text-foreground">{t('dashboard.myCollection')}</h2>
-          <p className="text-foreground-secondary mt-1">{t('dashboard.myCollectionDesc')}</p>
+    <>
+      <div className="space-y-8 animate-fade-in">
+        <div className="flex items-end justify-between pb-6 border-b border-border">
+          <div>
+            <h2 className="text-3xl font-bold text-foreground">{t('dashboard.myCollection')}</h2>
+            <p className="text-foreground-secondary mt-1">{t('dashboard.myCollectionDesc')}</p>
+          </div>
+          <Link to="/" className="btn-secondary text-sm flex items-center gap-2 hover:text-primary transition-colors">
+            {t('dashboard.browseEvents')} <ArrowRight size={14} />
+          </Link>
         </div>
-        <Link to="/" className="btn-secondary text-sm flex items-center gap-2 hover:text-primary transition-colors">
-          {t('dashboard.browseEvents')} <ArrowRight size={14} />
-        </Link>
-      </div>
 
       {error ? (
         <div className="py-20 text-center border border-dashed border-border rounded-xl bg-background-elevated/50">
@@ -202,7 +206,10 @@ const BuyerDashboard = () => {
                     <button className="flex-1 bg-foreground text-background py-2 rounded text-sm font-medium hover:opacity-90 transition-opacity">
                       {t('dashboard.viewQR')}
                     </button>
-                    <button className="flex-1 border border-border text-foreground-secondary py-2 rounded text-sm font-medium hover:text-foreground hover:border-foreground transition-colors">
+                    <button
+                      onClick={() => setSelectedTicketForSale(ticket)}
+                      className="flex-1 border border-border text-foreground-secondary py-2 rounded text-sm font-medium hover:text-foreground hover:border-foreground transition-colors"
+                    >
                       {t('dashboard.sell')}
                     </button>
                   </div>
@@ -212,7 +219,24 @@ const BuyerDashboard = () => {
           })}
         </div>
       )}
-    </div>
+      </div>
+      {selectedTicketForSale && (
+        <SellTicketModal
+          ticketId={selectedTicketForSale.id}
+          eventId={selectedTicketForSale.eventId}
+          originalPrice={selectedTicketForSale.purchasePrice || 0}
+          isOpen={!!selectedTicketForSale}
+          onClose={() => setSelectedTicketForSale(null)}
+          onListSuccess={() => {
+            setSelectedTicketForSale(null);
+            // Refresh tickets
+            if (address) {
+              getUserTickets(address).then(setTickets).catch(console.error);
+            }
+          }}
+        />
+      )}
+    </>
   );
 };
 
@@ -426,7 +450,11 @@ const AdminView = () => {
 
 export const Dashboard: React.FC = () => {
   const { t } = useTranslation();
-  const { isConnected, userRole } = useWeb3();
+  const { isConnected } = useWeb3();
+  const { user } = useAuth();
+
+  // Get user's actual role from authentication context
+  const userRole = user?.role ? (user.role.toUpperCase() as UserRole) : UserRole.BUYER;
 
   if (!isConnected) {
     return (
