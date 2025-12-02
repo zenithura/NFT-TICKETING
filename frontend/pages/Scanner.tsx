@@ -1,11 +1,15 @@
+// File header: Scanner page for ticket verification at event entry.
+// Provides QR code scanning interface with validation results and access control.
 
 import React, { useState, useEffect } from 'react';
 import { Camera, CheckCircle, XCircle, RefreshCw, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
 import { useWeb3 } from '../services/web3Context';
 import { UserRole } from '../types';
 
 export const Scanner: React.FC = () => {
+  const { t } = useTranslation();
   const { userRole, isConnected } = useWeb3();
   const navigate = useNavigate();
   const [scanning, setScanning] = useState(true);
@@ -21,9 +25,9 @@ export const Scanner: React.FC = () => {
      return (
          <div className="min-h-screen bg-black flex flex-col items-center justify-center p-6 text-center">
              <AlertTriangle className="text-red-500 w-16 h-16 mb-4" />
-             <h2 className="text-2xl font-bold text-white mb-2">Unauthorized Access</h2>
-             <p className="text-gray-400 mb-8">You need the 'Scanner' role to access this tool.</p>
-             <Link to="/" className="text-orange-400 hover:underline">Return Home</Link>
+             <h2 className="text-2xl font-bold text-white mb-2">{t('scanner.unauthorizedAccess')}</h2>
+             <p className="text-gray-400 mb-8">{t('scanner.unauthorizedDesc')}</p>
+             <Link to="/" className="text-orange-400 hover:underline">{t('scanner.returnHome')}</Link>
          </div>
      )
   }
@@ -55,15 +59,15 @@ export const Scanner: React.FC = () => {
   return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4 relative">
       <Link to="/dashboard" className="absolute top-4 left-4 text-gray-400 hover:text-white flex items-center gap-2 z-20">
-        <ArrowLeft size={20} /> Exit
+        <ArrowLeft size={20} /> {t('scanner.exit')}
       </Link>
 
       <div className="w-full max-w-md bg-gray-900 rounded-3xl overflow-hidden border-4 border-gray-800 shadow-2xl relative">
         
         <div className="p-6 bg-gray-800 flex justify-between items-center z-10 relative">
           <div>
-             <h2 className="text-white font-bold text-xl">Gate Scanner</h2>
-             <p className="text-xs text-green-400 flex items-center gap-1"><span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"/> Online • {userRole}</p>
+             <h2 className="text-white font-bold text-xl">{t('scanner.gateScanner')}</h2>
+             <p className="text-xs text-green-400 flex items-center gap-1"><span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"/> {t('scanner.online')} • {t(`roles.${userRole}`)}</p>
           </div>
           <div className="p-2 bg-gray-700 rounded-lg">
              <Camera size={20} className="text-gray-300" />
@@ -96,7 +100,7 @@ export const Scanner: React.FC = () => {
                     onClick={simulateScan}
                     className="w-full bg-orange-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-orange-900/50 hover:bg-orange-500 transition-all active:scale-95"
                 >
-                    Tap to Scan Code
+                    {t('scanner.tapToScanCode')}
                 </button>
               </div>
             </>
@@ -107,7 +111,7 @@ export const Scanner: React.FC = () => {
                   <div className="w-28 h-28 rounded-full bg-green-500/20 flex items-center justify-center mb-6 border-4 border-green-500/50">
                     <CheckCircle className="w-16 h-16 text-green-500" />
                   </div>
-                  <h3 className="text-3xl font-bold text-white mb-2">ACCESS GRANTED</h3>
+                  <h3 className="text-3xl font-bold text-white mb-2">{t('scanner.accessGranted')}</h3>
                   <div className="bg-gray-800 p-4 rounded-xl border border-gray-700 w-full mb-4 shadow-inner">
                     <p className="text-green-400 font-mono text-sm font-medium">{scannedData}</p>
                   </div>
@@ -118,7 +122,7 @@ export const Scanner: React.FC = () => {
                    <div className="w-28 h-28 rounded-full bg-yellow-500/20 flex items-center justify-center mb-6 border-4 border-yellow-500/50">
                     <AlertTriangle className="w-16 h-16 text-yellow-500" />
                   </div>
-                  <h3 className="text-3xl font-bold text-white mb-2">ALREADY SCANNED</h3>
+                  <h3 className="text-3xl font-bold text-white mb-2">{t('scanner.alreadyScanned')}</h3>
                   <div className="bg-gray-800 p-4 rounded-xl border border-gray-700 w-full mb-4 shadow-inner">
                     <p className="text-yellow-400 font-mono text-sm font-medium">{scannedData}</p>
                   </div>
@@ -129,7 +133,7 @@ export const Scanner: React.FC = () => {
                    <div className="w-28 h-28 rounded-full bg-red-500/20 flex items-center justify-center mb-6 border-4 border-red-500/50">
                     <XCircle className="w-16 h-16 text-red-500" />
                   </div>
-                  <h3 className="text-3xl font-bold text-white mb-2">ACCESS DENIED</h3>
+                  <h3 className="text-3xl font-bold text-white mb-2">{t('scanner.accessDenied')}</h3>
                   <div className="bg-gray-800 p-4 rounded-xl border border-gray-700 w-full mb-4 shadow-inner">
                     <p className="text-red-400 font-mono text-sm font-medium">{scannedData}</p>
                   </div>
@@ -137,7 +141,7 @@ export const Scanner: React.FC = () => {
               )}
 
               <button onClick={reset} className="mt-4 flex items-center justify-center w-full py-4 rounded-xl bg-gray-800 hover:bg-gray-700 text-white font-medium transition-colors border border-gray-700">
-                <RefreshCw className="mr-2" size={20} /> Scan Next Ticket
+                <RefreshCw className="mr-2" size={20} /> {t('scanner.scanNextTicket')}
               </button>
             </div>
           )}
@@ -145,7 +149,7 @@ export const Scanner: React.FC = () => {
       </div>
       
       <p className="mt-6 text-gray-500 text-xs max-w-xs text-center font-mono">
-        Secured by Ticket721 Protocol. Verification happens on-chain.
+        {t('scanner.securedBy')}
       </p>
     </div>
   );

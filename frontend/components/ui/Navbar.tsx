@@ -1,11 +1,17 @@
+// File header: Navigation bar component with language switcher and wallet connection.
+// Provides main navigation links, role-based menu, and language selection.
+
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Wallet, Menu, X, ChevronDown, Shield, Users, Ticket, ScanLine, Zap } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useWeb3 } from '../../services/web3Context';
 import { UserRole } from '../../types';
 import { cn, formatAddress } from '../../lib/utils';
+import { LanguageSwitcher } from './LanguageSwitcher';
 
 export const Navbar: React.FC = () => {
+  const { t } = useTranslation();
   const { isConnected, address, connect, disconnect, balance, userRole, setUserRole } = useWeb3();
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
   const location = useLocation();
@@ -13,19 +19,19 @@ export const Navbar: React.FC = () => {
   const isActive = (path: string) => location.pathname === path;
 
   const getLinks = () => {
-    const common = [{ path: '/', label: 'Marketplace' }];
+    const common = [{ path: '/', label: t('nav.marketplace') }];
     switch (userRole) {
       case UserRole.ORGANIZER:
-        return [...common, { path: '/dashboard', label: 'Dashboard' }, { path: '/create-event', label: 'Create Event' }];
+        return [...common, { path: '/dashboard', label: t('nav.dashboard') }, { path: '/create-event', label: t('nav.createEvent') }];
       case UserRole.RESELLER:
-        return [...common, { path: '/dashboard', label: 'Resale Portal' }];
+        return [...common, { path: '/dashboard', label: t('nav.resalePortal') }];
       case UserRole.SCANNER:
-        return [{ path: '/scanner', label: 'Launch Scanner' }];
+        return [{ path: '/scanner', label: t('nav.launchScanner') }];
       case UserRole.ADMIN:
-        return [...common, { path: '/admin', label: 'Admin Panel' }];
+        return [...common, { path: '/admin', label: t('nav.adminPanel') }];
       case UserRole.BUYER:
       default:
-        return [...common, { path: '/dashboard', label: 'My Tickets' }];
+        return [...common, { path: '/dashboard', label: t('nav.myTickets') }];
     }
   };
 
@@ -66,6 +72,9 @@ export const Navbar: React.FC = () => {
 
           {/* Right Side */}
           <div className="hidden md:flex items-center gap-4">
+            {/* Language Switcher */}
+            <LanguageSwitcher />
+            
             {isConnected ? (
               <>
                 {/* Role Switcher (Demo) */}
@@ -74,12 +83,12 @@ export const Navbar: React.FC = () => {
                     {userRole === UserRole.ADMIN && <Shield size={12} className="text-error" />}
                     {userRole === UserRole.ORGANIZER && <Users size={12} className="text-primary" />}
                     {userRole === UserRole.BUYER && <Ticket size={12} className="text-success" />}
-                    {userRole}
+                    {t(`roles.${userRole}`)}
                     <ChevronDown size={12} />
                   </button>
                   <div className="absolute right-0 top-full mt-2 w-48 bg-background-elevated border border-border rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
                     <div className="p-1">
-                      <div className="px-3 py-2 text-[10px] uppercase font-bold text-foreground-tertiary tracking-wider">Switch View</div>
+                      <div className="px-3 py-2 text-[10px] uppercase font-bold text-foreground-tertiary tracking-wider">{t('nav.switchView')}</div>
                       {Object.values(UserRole).map((role) => (
                         <button
                           key={role}
@@ -89,7 +98,7 @@ export const Navbar: React.FC = () => {
                             userRole === role ? "text-primary bg-primary/10" : "text-foreground-secondary"
                           )}
                         >
-                          {role}
+                          {t(`roles.${role}`)}
                         </button>
                       ))}
                     </div>
@@ -108,7 +117,7 @@ export const Navbar: React.FC = () => {
                     </button>
                     <div className="absolute right-0 top-full mt-2 w-40 bg-background-elevated border border-border rounded-lg shadow-xl opacity-0 invisible group-hover/wallet:opacity-100 group-hover/wallet:visible transition-all z-50 p-1">
                        <button onClick={disconnect} className="w-full text-left px-3 py-2 text-sm text-error hover:bg-error/10 rounded transition-colors">
-                         Disconnect
+                         {t('nav.disconnect')}
                        </button>
                     </div>
                   </div>
@@ -120,7 +129,7 @@ export const Navbar: React.FC = () => {
                 className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded font-medium text-sm transition-all hover:-translate-y-0.5 shadow-lg shadow-primary/20"
               >
                 <Wallet size={16} />
-                Connect Wallet
+                {t('nav.connectWallet')}
               </button>
             )}
           </div>
@@ -156,9 +165,9 @@ export const Navbar: React.FC = () => {
             ))}
             <div className="pt-4 border-t border-border mt-4">
               {isConnected ? (
-                 <button onClick={disconnect} className="w-full text-left text-error px-3 py-3 font-medium">Disconnect</button>
+                 <button onClick={disconnect} className="w-full text-left text-error px-3 py-3 font-medium">{t('nav.disconnect')}</button>
               ) : (
-                 <button onClick={connect} className="w-full text-left text-primary px-3 py-3 font-medium">Connect Wallet</button>
+                 <button onClick={connect} className="w-full text-left text-primary px-3 py-3 font-medium">{t('nav.connectWallet')}</button>
               )}
             </div>
           </div>

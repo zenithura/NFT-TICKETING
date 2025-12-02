@@ -1,12 +1,17 @@
+// File header: Marketplace page displaying available NFT ticket events.
+// Supports filtering, searching, and browsing events by category.
+
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Calendar, MapPin, Search } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { MOCK_EVENTS } from '../services/mockData';
 import { NFTCoinAnimation } from '../components/3d/NFTCoinAnimation';
 import { TicketCardSkeleton } from '../components/ui/TicketCardSkeleton';
 import { cn } from '../lib/utils';
 
 export const Marketplace: React.FC = () => {
+  const { t, i18n } = useTranslation();
   const [filter, setFilter] = useState('');
   const [category, setCategory] = useState('All');
   const [isLoading, setIsLoading] = useState(true);
@@ -21,10 +26,12 @@ export const Marketplace: React.FC = () => {
     return () => clearTimeout(timer);
   }, []); // Empty dependency array - only runs once
 
-  const filteredEvents = MOCK_EVENTS.filter(e =>
-    (e.title.toLowerCase().includes(filter.toLowerCase()) || e.category.toLowerCase().includes(filter.toLowerCase())) &&
-    (category === 'All' || e.category === category)
-  );
+  const filteredEvents = MOCK_EVENTS.filter(e => {
+    const matchesSearch = e.title.toLowerCase().includes(filter.toLowerCase()) || 
+                         e.category.toLowerCase().includes(filter.toLowerCase());
+    const matchesCategory = category === 'All' || e.category === category;
+    return matchesSearch && matchesCategory;
+  });
 
   return (
     <div className="space-y-16 animate-fade-in">
@@ -32,21 +39,20 @@ export const Marketplace: React.FC = () => {
       <div className="relative flex flex-col md:flex-row items-center justify-between gap-12 pt-8 pb-16 border-b border-border">
         <div className="space-y-6 max-w-2xl z-10">
           <div className="inline-flex items-center px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-xs font-medium">
-            New Protocol V2 Live
+            {t('marketplace.newProtocol')}
           </div>
           <h1 className="text-5xl md:text-6xl font-bold tracking-tight text-foreground">
-            Collect Moments,<br />
-            <span className="text-gradient-primary">Not Just Tickets.</span>
+            {t('marketplace.title')}
           </h1>
           <p className="text-xl text-foreground-secondary leading-relaxed max-w-lg">
-            The decentralized marketplace for verifying, trading, and collecting event access as NFTs.
+            {t('marketplace.subtitle')}
           </p>
 
           <div className="relative max-w-md">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground-tertiary" size={18} />
             <input
               type="text"
-              placeholder="Search events..."
+              placeholder={t('marketplace.searchPlaceholder')}
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               className="w-full bg-background-elevated border border-border rounded-lg pl-12 pr-4 py-3 text-foreground placeholder:text-foreground-tertiary focus:border-primary transition-colors"
@@ -62,20 +68,26 @@ export const Marketplace: React.FC = () => {
 
       {/* Filters Section */}
       <div>
-        <h2 className="text-2xl font-bold text-foreground mb-4">Browse Events</h2>
+        <h2 className="text-2xl font-bold text-foreground mb-4">{t('marketplace.browseEvents')}</h2>
         <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
-          {['All', 'Music', 'Art', 'Technology', 'Sports'].map((cat) => (
+          {[
+            { key: 'all', label: t('marketplace.categories.all') },
+            { key: 'Music', label: t('marketplace.categories.music') },
+            { key: 'Art', label: t('marketplace.categories.art') },
+            { key: 'Technology', label: t('marketplace.categories.technology') },
+            { key: 'Sports', label: t('marketplace.categories.sports') }
+          ].map((cat) => (
             <button
-              key={cat}
-              onClick={() => setCategory(cat)}
+              key={cat.key}
+              onClick={() => setCategory(cat.key === 'all' ? 'All' : cat.key)}
               className={cn(
                 "px-4 py-1.5 rounded-full text-sm font-medium border transition-all whitespace-nowrap",
-                category === cat
+                (category === 'All' && cat.key === 'all') || category === cat.key
                   ? "bg-foreground text-background border-foreground"
                   : "bg-transparent text-foreground-secondary border-border hover:border-foreground-secondary"
               )}
             >
-              {cat}
+              {cat.label}
             </button>
           ))}
         </div>
@@ -118,7 +130,7 @@ export const Marketplace: React.FC = () => {
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <span className="text-xs font-medium text-primary uppercase tracking-wider">{event.category}</span>
-                    <span className="text-xs text-foreground-tertiary">{event.totalTickets - event.soldTickets} left</span>
+                    <span className="text-xs text-foreground-tertiary">{event.totalTickets - event.soldTickets} {t('marketplace.ticketsLeft')}</span>
                   </div>
                   <h3 className="text-lg font-bold text-foreground group-hover:text-primary transition-colors">{event.title}</h3>
                 </div>
@@ -126,7 +138,11 @@ export const Marketplace: React.FC = () => {
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm text-foreground-secondary">
                     <Calendar size={14} />
-                    <span>{new Date(event.date).toLocaleDateString()}</span>
+                    <span>{new Date(event.date).toLocaleDateString(i18n.language === 'az' ? 'az-AZ' : 'en-US', { 
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    })}</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-foreground-secondary">
                     <MapPin size={14} />
@@ -137,7 +153,7 @@ export const Marketplace: React.FC = () => {
                 <div className="pt-4 border-t border-border flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className="w-5 h-5 rounded-full bg-gradient-to-br from-orange-500 to-yellow-500" />
-                    <span className="text-xs text-foreground-secondary">By {event.organizer.slice(0, 6)}...</span>
+                    <span className="text-xs text-foreground-secondary">{t('marketplace.by')} {event.organizer.slice(0, 6)}...</span>
                   </div>
                 </div>
               </div>
