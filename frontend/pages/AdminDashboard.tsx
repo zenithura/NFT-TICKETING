@@ -7,6 +7,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { checkAdminSession, adminLogout, getAdminUser } from '../services/adminAuthService';
+import { adminToasts } from '../lib/toastService';
 import {
   Shield,
   AlertTriangle,
@@ -120,6 +121,7 @@ export const AdminDashboard: React.FC = () => {
   const handleLogout = async () => {
     try {
       await adminLogout();
+      adminToasts.logoutSuccess();
       navigate('/admin/login', { replace: true });
     } catch (error) {
       console.error('Logout error:', error);
@@ -190,6 +192,7 @@ export const AdminDashboard: React.FC = () => {
         const updated = await getAlert(alertId);
         setSelectedAlert(updated);
       }
+      adminToasts.alertUpdated();
     } catch (error) {
       console.error('Failed to update alert status:', error);
       alert('Failed to update alert status');
@@ -211,7 +214,7 @@ export const AdminDashboard: React.FC = () => {
       });
       await handleUpdateAlertStatus(alert.alert_id, 'BANNED');
       await loadDashboardData();
-      alert('User/IP banned successfully');
+      adminToasts.userBanned();
     } catch (error: any) {
       console.error('Failed to ban:', error);
       alert(error.message || 'Failed to ban user/IP');
@@ -230,6 +233,7 @@ export const AdminDashboard: React.FC = () => {
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
+      adminToasts.dataExported(format);
     } catch (error) {
       console.error('Failed to export:', error);
       alert('Failed to export alerts');

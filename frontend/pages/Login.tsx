@@ -6,7 +6,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../services/authContext';
 import { Mail, Lock, AlertCircle, Loader2 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { authToasts, showErrorToast } from '../lib/toastService';
 import { cn } from '../lib/utils';
 
 export const Login: React.FC = () => {
@@ -64,11 +64,11 @@ export const Login: React.FC = () => {
     
     try {
       await login({ email, password });
-      toast.success(t('auth.loginSuccess'));
+      authToasts.loginSuccess();
       navigate('/dashboard');
     } catch (error: any) {
       const errorMessage = error.message || t('auth.errors.loginFailed');
-      toast.error(errorMessage);
+      showErrorToast(errorMessage);
       
       // Handle specific error cases
       if (errorMessage.includes('locked')) {

@@ -12,6 +12,7 @@ export interface ResaleListing {
   original_price?: number;
   status: 'active' | 'sold' | 'cancelled';
   created_at: string;
+  event_name?: string;  // Event name from backend
 }
 
 export interface CreateResaleListingRequest {

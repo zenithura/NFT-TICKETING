@@ -6,9 +6,10 @@
 -- ============================================================================
 
 -- Create marketplace table if it doesn't exist
+-- FIXED: ticket_id changed from INTEGER to BIGINT to match tickets.ticket_id
 CREATE TABLE IF NOT EXISTS marketplace (
     id SERIAL PRIMARY KEY,
-    ticket_id INTEGER NOT NULL,
+    ticket_id BIGINT NOT NULL,  -- FIXED: Changed from INTEGER to BIGINT to match tickets.ticket_id
     seller_address VARCHAR(255) NOT NULL,
     price NUMERIC(18, 8) NOT NULL CHECK (price >= 0),
     original_price NUMERIC(18, 8) CHECK (original_price >= 0),

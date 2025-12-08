@@ -94,7 +94,7 @@ export const Scanner: React.FC = () => {
           {scanning ? (
             <>
               {/* Camera Simulation */}
-              <img 
+              <img loading="lazy" 
                 src="https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=800&q=80" 
                 className="absolute inset-0 w-full h-full object-cover opacity-50" 
                 alt="Camera Feed"

@@ -4,6 +4,7 @@
 import React, { Suspense, lazy } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Toaster } from 'react-hot-toast';
 import { Web3Provider } from './services/web3Context';
 import { AuthProvider } from './services/authContext';
 import { ThemeProvider } from './services/themeContext';
@@ -11,6 +12,7 @@ import { Navbar } from './components/ui/Navbar';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AdminProtectedRoute } from './components/AdminProtectedRoute';
 import { ChatBot } from './components/ChatBot';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 // Purpose: Lazy load page components to improve initial bundle size and code splitting.
 // Side effects: Components loaded on-demand when routes are accessed.
@@ -31,10 +33,10 @@ const HeroBackground = lazy(() => import('./components/3d/HeroBackground').then(
 // Returns: JSX with centered loading indicator.
 // Side effects: None - presentational component.
 const PageLoader = () => {
-  const { t } = useTranslation();
+  // Don't use translation here to avoid blocking on i18n
   return (
     <div className="flex items-center justify-center min-h-screen bg-background">
-      <div className="animate-pulse text-foreground-secondary">{t('common.loading')}</div>
+      <div className="animate-pulse text-foreground-secondary">Loading...</div>
     </div>
   );
 };
@@ -45,6 +47,33 @@ const PageLoader = () => {
 const BackgroundLoader = () => (
   <div className="fixed inset-0 -z-10 bg-background" />
 );
+
+// Purpose: Defer HeroBackground loading until after initial render to improve FCP.
+// Returns: JSX with deferred HeroBackground component.
+// Side effects: Loads HeroBackground after a delay to not block initial paint.
+const DeferredHeroBackground: React.FC = () => {
+  const [shouldLoad, setShouldLoad] = React.useState(false);
+
+  React.useEffect(() => {
+    // Defer loading until after initial paint and a short delay
+    // This allows the main content to render first
+    const timer = setTimeout(() => {
+      setShouldLoad(true);
+    }, 100); // Load after 100ms - allows initial content to paint
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (!shouldLoad) {
+    return <BackgroundLoader />;
+  }
+
+  return (
+    <Suspense fallback={<BackgroundLoader />}>
+      <HeroBackground />
+    </Suspense>
+  );
+};
 
 // Purpose: Footer component with translated copyright text.
 // Returns: JSX with footer content.
@@ -64,13 +93,11 @@ const Footer: React.FC = () => {
 // Side effects: Sets up React Router, provides Web3 and Auth contexts to children, renders page components.
 const App: React.FC = () => {
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <Web3Provider>
-        <Router>
-          <Suspense fallback={<BackgroundLoader />}>
-            <HeroBackground />
-          </Suspense>
+    <ErrorBoundary>
+      <ThemeProvider>
+        <AuthProvider>
+          <Web3Provider>
+          <Router>
           <div className="flex flex-col min-h-screen font-sans text-foreground bg-background">
             <Routes>
               {/* Public Authentication Routes */}
@@ -126,7 +153,13 @@ const App: React.FC = () => {
                   <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8 bg-background">
                     <Suspense fallback={<PageLoader />}>
                       <Routes>
-                        <Route path="/" element={<Marketplace />} />
+                        <Route path="/" element={
+                          <>
+                            {/* Defer HeroBackground - load after initial render */}
+                            <DeferredHeroBackground />
+                            <Marketplace />
+                          </>
+                        } />
                         <Route path="/event/:id" element={<EventDetails />} />
                         <Route path="/dashboard" element={
                           <ProtectedRoute>
@@ -148,10 +181,24 @@ const App: React.FC = () => {
               } />
             </Routes>
           </div>
-        </Router>
-        </Web3Provider>
-      </AuthProvider>
-    </ThemeProvider>
+          </Router>
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 3500,
+              style: {
+                borderRadius: '12px',
+                background: 'var(--color-background-elevated)',
+                color: 'var(--color-foreground)',
+                border: '1px solid var(--color-border)',
+                padding: '12px 16px',
+              },
+            }}
+          />
+          </Web3Provider>
+        </AuthProvider>
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 };
 

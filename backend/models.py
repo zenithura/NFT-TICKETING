@@ -94,7 +94,10 @@ class TicketCreate(BaseModel):
 
 class TicketResponse(TicketCreate):
     id: int
+    event_id: int  # Explicitly include event_id (inherited from TicketCreate but make sure it's required)
+    nft_token_id: Optional[int] = None  # Explicitly include nft_token_id
     created_at: Optional[datetime] = None
+    event_name: Optional[str] = None  # Include event name for easier frontend display
 
 
 # Marketplace models
@@ -110,6 +113,7 @@ class MarketplaceListingResponse(MarketplaceListingCreate):
     id: int
     original_price: Optional[float] = None  # Original purchase price (for markup display)
     created_at: Optional[datetime] = None
+    event_name: Optional[str] = None  # Event name for easier frontend display
 
 
 class MarketplaceListingUpdate(BaseModel):

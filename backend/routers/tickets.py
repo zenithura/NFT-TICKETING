@@ -8,6 +8,7 @@ from database import get_supabase_admin
 from models import TicketCreate, TicketResponse, MintRequest, ValidatorRequest, ValidateRequest
 from web3_client import contracts, send_transaction, w3, account
 from web3 import Web3
+from cache import get as cache_get, set as cache_set, clear as cache_clear
 
 router = APIRouter(prefix="/tickets", tags=["Tickets"])
 
@@ -27,6 +28,9 @@ async def create_ticket(
 ):
     """Create/mint a new ticket."""
     try:
+        # Clear user tickets cache when new ticket is created
+        cache_clear(f"tickets:user:{ticket.owner_address.lower()}")
+        cache_clear("tickets:event:")
         # Verify event exists - try event_id first, then id
         event_response = db.table("events").select("*").eq("event_id", ticket.event_id).execute()
         
@@ -210,7 +214,13 @@ async def get_user_tickets(
     owner_address: str,
     db: Client = Depends(get_supabase_admin)
 ):
-    """Get all tickets owned by a specific user."""
+    """Get all tickets owned by a specific user with caching."""
+    cache_key = f"tickets:user:{owner_address.lower()}"
+    # Temporarily disable cache to ensure fresh data with event_name
+    # cached_result = cache_get(cache_key)
+    # if cached_result is not None:
+    #     return cached_result
+    
     try:
         # Try to find wallet first (for complete schema)
         wallet_response = db.table("wallets").select("wallet_id").eq("address", owner_address).execute()
@@ -218,15 +228,62 @@ async def get_user_tickets(
         if wallet_response.data:
             # Use owner_wallet_id (complete schema)
             wallet_id = wallet_response.data[0]["wallet_id"]
+            # Select all columns - Supabase will return what exists
             response = db.table("tickets").select("*").eq("owner_wallet_id", wallet_id).execute()
         else:
             # Try owner_address directly (simple schema)
+            # Select all columns - Supabase will return what exists
             response = db.table("tickets").select("*").eq("owner_address", owner_address).execute()
+        
+        # Batch fetch all event_ids from tickets to verify they exist
+        ticket_event_ids = []
+        for ticket in response.data:
+            event_id = ticket.get("event_id")
+            if event_id is not None and event_id != 0:
+                ticket_event_ids.append(event_id)
+        
+        # Verify events exist and fetch event names - batch check
+        existing_event_ids = set()
+        event_names_map = {}  # Map event_id to event name
+        if ticket_event_ids:
+            unique_event_ids = list(set(ticket_event_ids))
+            for event_id in unique_event_ids:
+                try:
+                    event_check = db.table("events").select("event_id, name").eq("event_id", event_id).limit(1).execute()
+                    if event_check.data:
+                        existing_event_ids.add(event_id)
+                        event_names_map[event_id] = event_check.data[0].get("name", "Unknown Event")
+                    else:
+                        # Try with id column as fallback
+                        event_check = db.table("events").select("id, name").eq("id", event_id).limit(1).execute()
+                        if event_check.data:
+                            existing_event_ids.add(event_id)
+                            event_names_map[event_id] = event_check.data[0].get("name", "Unknown Event")
+                except Exception as e:
+                    import logging
+                    logging.warning(f"Error checking event {event_id}: {e}")
         
         # Map database response to TicketResponse model
         tickets = []
         for ticket in response.data:
+            # Get ticket_id - handle both ticket_id and id columns
             ticket_id = ticket.get("ticket_id") or ticket.get("id")
+            if not ticket_id:
+                import logging
+                logging.warning(f"Ticket missing ID. Ticket data: {ticket}")
+                continue
+            
+            # Get event_id - this is critical!
+            event_id = ticket.get("event_id")
+            if event_id is None:
+                # Log warning if event_id is missing but don't skip - use 0 as fallback
+                import logging
+                logging.warning(f"Ticket {ticket_id} is missing event_id. Available columns: {list(ticket.keys())}")
+                event_id = 0  # Use 0 as fallback instead of skipping
+            elif event_id != 0 and event_id not in existing_event_ids:
+                # Log warning if event doesn't exist
+                import logging
+                logging.warning(f"Ticket {ticket_id} has event_id {event_id} but event does not exist in database!")
             
             # Get owner_address - either directly or from wallets table
             ticket_owner_address = ticket.get("owner_address")
@@ -257,16 +314,46 @@ async def get_user_tickets(
                 except (ValueError, TypeError):
                     nft_token_id = None
             
-            tickets.append(TicketResponse(
+            # Create ticket response with all required fields
+            # Ensure event_id is an integer
+            try:
+                event_id_int = int(event_id) if event_id is not None else 0
+            except (ValueError, TypeError):
+                event_id_int = 0
+            
+            # Debug: Log ticket event_id
+            import logging
+            logging.info(f"Ticket {ticket_id} has event_id: {event_id_int} (from DB: {event_id})")
+            
+            # Get event name if available
+            event_name = event_names_map.get(event_id_int)
+            
+            # Debug logging
+            if event_id_int and event_id_int != 0:
+                import logging
+                if event_name:
+                    logging.info(f"Ticket {ticket_id} -> Event {event_id_int}: '{event_name}'")
+                else:
+                    logging.warning(f"Ticket {ticket_id} -> Event {event_id_int}: No event name found in map. Available event_ids in map: {list(event_names_map.keys())}")
+            
+            ticket_response = TicketResponse(
                 id=ticket_id,
-                event_id=ticket.get("event_id"),
+                event_id=event_id_int,  # Now guaranteed to be an integer
                 owner_address=ticket_owner_address or owner_address,
                 status=frontend_status,
                 nft_token_id=nft_token_id,
-                created_at=ticket.get("created_at")
-            ))
+                created_at=ticket.get("created_at"),
+                event_name=event_name  # Include event name for easier frontend display
+            )
+            
+            tickets.append(ticket_response)
         
-        return tickets
+        # Return all tickets - let frontend decide how to handle tickets without events
+        # Some tickets might have event_id = 0 if the event was deleted or not set
+        result = tickets
+        # Cache for 1 minute (tickets can change when purchased/transferred)
+        cache_set(cache_key, result, ttl=60)
+        return result
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -341,6 +428,30 @@ async def get_ticket(
         ticket = response.data[0]
         ticket_id_actual = ticket.get("ticket_id") or ticket.get("id")
         
+        # Get event_id and fetch event name
+        event_id = ticket.get("event_id")
+        event_name = None
+        if event_id:
+            try:
+                event_response = db.table("events").select("event_id, name").eq("event_id", event_id).limit(1).execute()
+                if not event_response.data:
+                    event_response = db.table("events").select("id, name").eq("id", event_id).limit(1).execute()
+                if event_response.data:
+                    event_name = event_response.data[0].get("name")
+            except Exception:
+                pass
+        
+        # Get owner_address - either directly or from wallets table
+        owner_address = ticket.get("owner_address")
+        if not owner_address and "owner_wallet_id" in ticket:
+            try:
+                wallet_lookup = db.table("wallets").select("address").eq("wallet_id", ticket["owner_wallet_id"]).limit(1).execute()
+                if wallet_lookup.data:
+                    owner_address = wallet_lookup.data[0].get("address")
+            except Exception:
+                # If wallet lookup fails, use a placeholder
+                owner_address = None
+        
         # Map database status to frontend format
         db_status = ticket.get("status", "ACTIVE")
         status_map_back = {
@@ -366,16 +477,19 @@ async def get_ticket(
         return TicketResponse(
             id=ticket_id_actual,
             event_id=ticket.get("event_id"),
-            owner_address=ticket.get("owner_address"),
+            owner_address=owner_address or "unknown",
             status=frontend_status,
             nft_token_id=nft_token_id,
-            created_at=ticket.get("created_at")
+            created_at=ticket.get("created_at"),
+            event_name=event_name  # Include event name for easier frontend display
         )
     
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        import traceback
+        error_detail = f"Failed to get ticket: {str(e)}\n{traceback.format_exc()}"
+        raise HTTPException(status_code=500, detail=error_detail)
 
 
 @router.patch("/{ticket_id}/transfer")

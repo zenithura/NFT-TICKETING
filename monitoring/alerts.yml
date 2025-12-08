@@ -1,0 +1,74 @@
+groups:
+  - name: nft_ticketing_alerts
+    interval: 30s
+    rules:
+      # Event processing lag alert
+      - alert: EventProcessingLagHigh
+        expr: event_processing_lag_seconds > 60
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Event processing lag is high"
+          description: "Event processing lag is {{ $value }}s (threshold: 60s)"
+
+      # API error rate alert
+      - alert: HighErrorRate
+        expr: |
+          (
+            sum(rate(http_request_errors_total[10m])) 
+            / 
+            sum(rate(http_requests_total[10m]))
+          ) * 100 > 2
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "API error rate is too high"
+          description: "Error rate is {{ $value }}% (threshold: 2%)"
+
+      # API response time alert
+      - alert: HighAPIResponseTime
+        expr: |
+          histogram_quantile(0.95, 
+            sum(rate(http_request_duration_seconds_bucket[5m])) by (le)
+          ) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API response time is high"
+          description: "95th percentile response time is {{ $value }}s"
+
+      # Database query errors
+      - alert: DatabaseQueryErrors
+        expr: |
+          sum(rate(database_query_errors_total[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Database query errors detected"
+          description: "Database query error rate: {{ $value }} errors/sec"
+
+      # Suspicious transactions
+      - alert: HighSuspiciousTransactions
+        expr: |
+          increase(suspicious_transactions_total[10m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High number of suspicious transactions"
+          description: "{{ $value }} suspicious transactions in last 10 minutes"
+
+      # Service down
+      - alert: ServiceDown
+        expr: up{job="backend-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Backend API is down"
+          description: "Backend API service is not responding"
+

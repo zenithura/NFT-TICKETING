@@ -28,9 +28,64 @@ export const ResaleListingCard: React.FC<ResaleListingCardProps> = ({
   useEffect(() => {
     const fetchEvent = async () => {
       try {
+        // Priority 1: Use event_name from listing (if available from backend)
+        if (listing.event_name) {
+          // Try to find event in the events list by name
+          const foundEvent = events.find(e => e.title === listing.event_name);
+          if (foundEvent) {
+            setEvent(foundEvent);
+            setIsLoading(false);
+            return;
+          }
+          // If not found in events list, we'll still use the name for display
+          // Create a minimal event object for display
+          setEvent({
+            id: '',
+            title: listing.event_name,
+            description: '',
+            date: '',
+            location: '',
+            imageUrl: '',
+            price: 0,
+            currency: 'ETH',
+            totalTickets: 0,
+            soldTickets: 0,
+            organizer: '',
+            category: 'All'
+          });
+          setIsLoading(false);
+          return;
+        }
+        
+        // Priority 2: Fetch ticket and get event_name from ticket
         const ticket = await getTicket(listing.ticket_id);
-        const foundEvent = events.find(e => e.id === ticket.event_id.toString());
-        setEvent(foundEvent || null);
+        if ((ticket as any).event_name) {
+          const eventName = (ticket as any).event_name;
+          const foundEvent = events.find(e => e.title === eventName);
+          if (foundEvent) {
+            setEvent(foundEvent);
+          } else {
+            // Create minimal event for display
+            setEvent({
+              id: ticket.event_id?.toString() || '',
+              title: eventName,
+              description: '',
+              date: '',
+              location: '',
+              imageUrl: '',
+              price: 0,
+              currency: 'ETH',
+              totalTickets: 0,
+              soldTickets: 0,
+              organizer: '',
+              category: 'All'
+            });
+          }
+        } else {
+          // Priority 3: Match by event_id
+          const foundEvent = events.find(e => e.id === ticket.event_id?.toString());
+          setEvent(foundEvent || null);
+        }
       } catch (err) {
         console.error(`Failed to get ticket ${listing.ticket_id}:`, err);
         setEvent(null);
@@ -40,7 +95,7 @@ export const ResaleListingCard: React.FC<ResaleListingCardProps> = ({
     };
 
     fetchEvent();
-  }, [listing.ticket_id, events]);
+  }, [listing.ticket_id, listing.event_name, events]);
 
   if (isLoading) {
     return (
@@ -86,7 +141,7 @@ export const ResaleListingCard: React.FC<ResaleListingCardProps> = ({
             )}
           </div>
           <h3 className="text-lg font-bold text-foreground group-hover:text-primary transition-colors">
-            {event?.title || `Ticket #${listing.ticket_id}`}
+            {listing.event_name || event?.title || `Ticket #${listing.ticket_id}`}
           </h3>
         </div>
 

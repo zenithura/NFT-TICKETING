@@ -1,15 +1,15 @@
 // File header: Dashboard page displaying user-specific content based on role.
 // Shows buyer collection, organizer analytics, or admin portal based on user role.
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useWeb3 } from '../services/web3Context';
 import { useAuth } from '../services/authContext';
 import { UserRole, type Event, type Ticket } from '../types';
 import { Ticket as TicketIcon, Plus, TrendingUp, Shield, DollarSign, Calendar, ArrowRight } from 'lucide-react';
-import { getEvents, getOrganizerStats, type EventResponse, type OrganizerStats } from '../services/eventService';
-import { getUserTickets } from '../services/ticketService';
+import { getOrganizerStats, getEvent, type OrganizerStats } from '../services/eventService';
+import { useEvents, useUserTickets } from '../services/swrConfig';
 import { Skeleton } from '../components/ui/skeleton';
 import { cn, formatCurrency } from '../lib/utils';
 import { SellTicketModal } from '../components/SellTicketModal';
@@ -79,61 +79,229 @@ const StatCard = ({ title, value, icon: Icon, subtext, trend }: any) => (
   </div>
 );
 
-const BuyerDashboard = () => {
+const BuyerDashboard = React.memo(() => {
   const { t } = useTranslation();
   const { address } = useWeb3();
-  const [isLoading, setIsLoading] = useState(true);
-  const [tickets, setTickets] = useState<Ticket[]>([]);
-  const [events, setEvents] = useState<Event[]>([]);
-  const [error, setError] = useState<string | null>(null);
   const [selectedTicketForSale, setSelectedTicketForSale] = useState<Ticket | null>(null);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!address) {
-        setIsLoading(false);
-        return;
+  
+  // Use SWR for automatic caching
+  const { data: userTickets, error: ticketsError, isLoading: isLoadingTickets, mutate: mutateTickets } = useUserTickets(address);
+  const { data: apiEvents, error: eventsError, isLoading: isLoadingEvents } = useEvents();
+  
+  const isLoading = isLoadingTickets || isLoadingEvents;
+  const error = ticketsError?.message || eventsError?.message || null;
+  
+  // Memoize mapped events - ensure IDs match ticket event_id values
+  const events = useMemo<Event[]>(() => {
+    if (!apiEvents) return [];
+    
+    console.log('Mapping events from API:', apiEvents);
+    
+    return apiEvents.map((e) => {
+      // The API returns 'id' which should be event_id from database
+      // Handle both 'id' and 'event_id' fields for compatibility
+      let eventId = (e as any).event_id;
+      if (eventId === undefined || eventId === null) {
+        eventId = e.id;
       }
-
-      setIsLoading(true);
-      setError(null);
-      try {
-        // Fetch user tickets and events in parallel
-        const [userTickets, allEvents] = await Promise.all([
-          getUserTickets(address),
-          getEvents(),
-        ]);
-
-        // Map API events to frontend Event interface
-        const mappedEvents: Event[] = allEvents.map((e: EventResponse) => ({
-          id: e.id.toString(),
-          title: e.name,
-          description: e.description,
-          date: e.date,
-          location: e.location,
-          imageUrl: e.image_url || 'https://picsum.photos/800/400?random=' + e.id,
-          price: e.price,
-          currency: (e.currency as 'ETH' | 'MATIC') || 'ETH',
-          totalTickets: e.total_tickets,
-          soldTickets: e.sold_tickets || 0,
-          organizer: e.organizer_address || 'unknown',
-          category: e.category || 'All',
-        }));
-
-        setTickets(userTickets);
-        setEvents(mappedEvents);
-      } catch (err: any) {
-        console.error('Failed to fetch data:', err);
-        setError(err.message || 'Failed to load data');
-        setTickets([]);
-        setEvents([]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [address]);
+      
+      // Ensure eventId is a number, then convert to string for consistency
+      const eventIdNum = Number(eventId);
+      const eventIdStr = !isNaN(eventIdNum) ? eventIdNum.toString() : String(eventId || '');
+      
+      console.log(`Mapping event: name="${e.name}", id=${e.id}, event_id=${(e as any).event_id}, finalId=${eventIdStr}`);
+      
+      return {
+        id: eventIdStr,
+        title: e.name,
+        description: e.description,
+        date: e.date,
+        location: e.location,
+        imageUrl: e.image_url || 'https://picsum.photos/800/400?random=' + eventIdNum,
+        price: e.price,
+        currency: (e.currency as 'ETH' | 'MATIC') || 'ETH',
+        totalTickets: e.total_tickets,
+        soldTickets: e.sold_tickets || 0,
+        organizer: e.organizer_address || 'unknown',
+        category: e.category || 'All',
+      };
+    });
+  }, [apiEvents]);
+  
+  // Show all tickets, even if they don't have matching events
+  // This allows users to see their tickets even if events were deleted
+  const tickets = React.useMemo(() => {
+    const allTickets = userTickets || [];
+    
+    // Filter out only completely invalid tickets (no ID)
+    const validTickets = allTickets.filter(ticket => 
+      ticket && ticket.id
+    );
+    
+    // Debug: Log eventName for each ticket - EXPAND FULL OBJECT
+    console.log('🔍 Tickets with eventName (FULL):', validTickets.map(t => ({
+      id: t.id,
+      eventId: t.eventId,
+      eventIdType: typeof t.eventId,
+      eventName: t.eventName,
+      eventNameType: typeof t.eventName,
+      hasEventName: !!t.eventName,
+      fullTicket: t  // Show full ticket object
+    })));
+    
+    return validTickets;
+  }, [userTickets]);
+  
+  // Fetch missing events individually if they're not in the list
+  const [missingEvents, setMissingEvents] = React.useState<Map<string, Event>>(new Map());
+  
+  React.useEffect(() => {
+    if (!tickets || tickets.length === 0) return;
+    
+    // Find ticket eventIds that don't have matching events
+    const ticketEventIds = tickets
+      .map(t => t.eventId)
+      .filter(eventId => eventId && eventId !== '0' && eventId !== 0 && eventId !== undefined && eventId !== null)
+      .filter((eventId, index, self) => self.indexOf(eventId) === index); // Remove duplicates
+    
+    // Check which eventIds are missing from the events list
+    const missingEventIds = ticketEventIds.filter(eventId => {
+      const eventIdNum = Number(eventId);
+      if (isNaN(eventIdNum)) return false;
+      
+      // Check if event exists in the main events list
+      const existsInEvents = events.some(e => {
+        const eIdNum = Number(e.id);
+        return !isNaN(eIdNum) && eIdNum === eventIdNum;
+      });
+      
+      // Check if we've already fetched it
+      const existsInMissing = missingEvents.has(eventId.toString());
+      
+      return !existsInEvents && !existsInMissing;
+    });
+    
+    // Fetch missing events - use Promise.all for parallel fetching
+    if (missingEventIds.length > 0) {
+      console.log('🔍 Fetching missing events for tickets:', missingEventIds);
+      console.log('   Current events in list:', events.map(e => e.id));
+      console.log('   Ticket eventIds needed:', ticketEventIds);
+      
+      // Fetch all missing events in parallel
+      Promise.all(
+        missingEventIds.map(async (eventId) => {
+          try {
+            const eventIdNum = Number(eventId);
+            if (isNaN(eventIdNum)) {
+              console.warn(`⚠️ Invalid eventId: ${eventId}`);
+              return null;
+            }
+            
+            console.log(`   Fetching event ${eventIdNum}...`);
+            const eventResponse = await getEvent(eventIdNum);
+            const mappedEvent: Event = {
+              id: eventResponse.id.toString(),
+              title: eventResponse.name,
+              description: eventResponse.description,
+              date: eventResponse.date,
+              location: eventResponse.location,
+              imageUrl: eventResponse.image_url || 'https://picsum.photos/800/400?random=' + eventResponse.id,
+              price: eventResponse.price,
+              currency: (eventResponse.currency as 'ETH' | 'MATIC') || 'ETH',
+              totalTickets: eventResponse.total_tickets,
+              soldTickets: eventResponse.sold_tickets || 0,
+              organizer: eventResponse.organizer_address || 'unknown',
+              category: eventResponse.category || 'All',
+            };
+            
+            console.log(`✅ Fetched missing event: "${mappedEvent.title}" (id: ${mappedEvent.id})`);
+            return { eventId: eventId.toString(), event: mappedEvent };
+          } catch (err) {
+            console.warn(`❌ Failed to fetch event ${eventId}:`, err);
+            // If event doesn't exist, we'll show "Unknown Event" - this is expected for deleted events
+            return null;
+          }
+        })
+      ).then(results => {
+        // Update state with all fetched events at once
+        setMissingEvents(prev => {
+          const newMap = new Map(prev);
+          results.forEach(result => {
+            if (result && result.event) {
+              newMap.set(result.eventId, result.event);
+            }
+          });
+          return newMap;
+        });
+      });
+    } else if (ticketEventIds.length > 0) {
+      console.log('✅ All ticket eventIds have matching events:', ticketEventIds);
+    }
+  }, [tickets, events, missingEvents]);
+  
+  // Merge missing events into events array
+  const allEvents = React.useMemo(() => {
+    const eventsMap = new Map<string, Event>();
+    events.forEach(e => eventsMap.set(e.id, e));
+    missingEvents.forEach((e, id) => {
+      eventsMap.set(id, e);
+      console.log(`📌 Added missing event to allEvents: "${e.title}" (id: ${e.id})`);
+    });
+    const all = Array.from(eventsMap.values());
+    console.log(`📊 Total events in allEvents: ${all.length} (${events.length} from API + ${missingEvents.size} fetched)`);
+    return all;
+  }, [events, missingEvents]);
+  
+  // Debug: Log tickets and events for troubleshooting
+  React.useEffect(() => {
+    console.log('=== COMPREHENSIVE TICKET/EVENT DEBUG ===');
+    console.log('1. Raw API Events:', JSON.stringify(apiEvents, null, 2));
+    console.log('2. Mapped Events:', events.map(e => ({ id: e.id, idType: typeof e.id, title: e.title, idAsNumber: Number(e.id) })));
+    console.log('3. Raw User Tickets:', JSON.stringify(userTickets, null, 2));
+    console.log('4. Processed Tickets:', tickets.map(t => ({ id: t.id, eventId: t.eventId, eventIdType: typeof t.eventId, eventName: t.eventName })));
+    console.log('5. All Events (with missing):', allEvents.map(e => ({ id: e.id, title: e.title })));
+    
+    if (tickets.length > 0) {
+      console.log('\n=== TICKET EVENT MATCHING ANALYSIS ===');
+      tickets.forEach(ticket => {
+        const ticketEventId = ticket.eventId;
+        const ticketEventIdNum = Number(ticketEventId);
+        
+        console.log(`\n📋 Ticket ${ticket.id}:`);
+        console.log(`   - eventId: "${ticketEventId}" (type: ${typeof ticketEventId}, as number: ${ticketEventIdNum})`);
+        
+        // Check in regular events
+        const matchedInEvents = events.find(e => {
+          if (!e || !e.id) return false;
+          const eventIdNum = Number(e.id);
+          return !isNaN(eventIdNum) && !isNaN(ticketEventIdNum) && eventIdNum === ticketEventIdNum;
+        });
+        
+        // Check in allEvents (includes missing events)
+        const matchedInAll = allEvents.find(e => {
+          if (!e || !e.id) return false;
+          const eventIdNum = Number(e.id);
+          return !isNaN(eventIdNum) && !isNaN(ticketEventIdNum) && eventIdNum === ticketEventIdNum;
+        });
+        
+        if (matchedInAll) {
+          console.log(`   ✅ MATCHED: "${matchedInAll.title}" (id: ${matchedInAll.id})`);
+        } else {
+          console.log(`   ❌ NO MATCH FOUND`);
+          console.log(`   Available event IDs:`, allEvents.map(e => `${e.id} (${typeof e.id})`).join(', '));
+          console.log(`   Looking for: ${ticketEventIdNum} (from "${ticketEventId}")`);
+        }
+      });
+    }
+  }, [tickets, events, userTickets, apiEvents, allEvents]);
+  
+  // Memoize refresh callback
+  const handleListSuccess = useCallback(() => {
+    setSelectedTicketForSale(null);
+    if (address) {
+      mutateTickets(); // Refresh tickets cache
+    }
+  }, [address, mutateTickets]);
 
   if (isLoading) {
     return (
@@ -183,12 +351,63 @@ const BuyerDashboard = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {tickets.map((ticket) => {
-            const event = events.find(e => e.id === ticket.eventId);
+          {tickets
+            .filter(ticket => ticket && ticket.id) // Filter out invalid tickets
+            .map((ticket) => {
+            // Match event by ID - tickets have event_id (6, 4) from database
+            // Events API returns id field which is event_id from database
+            let matchedEvent: Event | undefined = undefined;
+            
+            if (ticket.eventId && ticket.eventId !== '0' && ticket.eventId !== 0) {
+              // Convert ticket eventId to number for comparison
+              const ticketEventIdNum = Number(ticket.eventId);
+              const ticketEventIdStr = String(ticket.eventId).trim();
+              
+              if (!isNaN(ticketEventIdNum) && allEvents.length > 0) {
+                // Find event by numeric ID match - use allEvents which includes missing events
+                matchedEvent = allEvents.find(e => {
+                  if (!e || !e.id) return false;
+                  
+                  // Strategy 1: Direct numeric comparison (most reliable)
+                  const eventIdNum = Number(e.id);
+                  if (!isNaN(eventIdNum) && !isNaN(ticketEventIdNum) && eventIdNum === ticketEventIdNum) {
+                    return true;
+                  }
+                  
+                  // Strategy 2: String comparison (fallback)
+                  const eventIdStr = String(e.id).trim();
+                  if (eventIdStr === ticketEventIdStr) {
+                    return true;
+                  }
+                  
+                  return false;
+                });
+              }
+              
+              // Debug: Log matching attempt (only in dev)
+              if ((import.meta as any).env?.DEV) {
+                if (!matchedEvent) {
+                  console.warn(`⚠️ No event found for ticket ${ticket.id} with eventId ${ticket.eventId}`);
+                  console.log(`   Ticket eventId: ${ticket.eventId} (type: ${typeof ticket.eventId}, as number: ${ticketEventIdNum})`);
+                  console.log(`   Total events available: ${allEvents.length}`);
+                  console.log('   Available event IDs:', allEvents.map(e => ({ 
+                    id: e.id, 
+                    idType: typeof e.id,
+                    idAsNumber: Number(e.id),
+                    title: e.title 
+                  })));
+                } else {
+                  console.log(`✅ Ticket ${ticket.id} matched to: "${matchedEvent.title}" (event ID: ${matchedEvent.id})`);
+                }
+              }
+            }
+            
+            // Show tickets even without eventId (event might have been deleted)
+            
             return (
               <div key={ticket.id} className="group bg-background-elevated border border-border rounded-xl overflow-hidden card-hover">
                 <div className="h-40 relative overflow-hidden bg-background-hover">
-                  {event && <img src={event.imageUrl} className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-700" alt={event.title} />}
+                  {matchedEvent && <img loading="lazy" src={matchedEvent.imageUrl} className="w-full h-full object-cover opacity-80 group-hover:scale-105 transition-transform duration-700" alt={matchedEvent.title} />}
                   <div className="absolute top-3 right-3">
                     <span className={cn(
                       "px-2 py-1 rounded text-xs font-bold border backdrop-blur-sm",
@@ -199,8 +418,12 @@ const BuyerDashboard = () => {
                   </div>
                 </div>
                 <div className="p-5">
-                  <h3 className="font-bold text-lg text-foreground mb-1">{event?.title || 'Unknown Event'}</h3>
-                  <p className="text-xs font-mono text-primary mb-4">#{ticket.tokenId}</p>
+                  <h3 className="font-bold text-lg text-foreground mb-1">
+                    {ticket.eventName || matchedEvent?.title || (ticket.eventId && ticket.eventId !== '0' && ticket.eventId !== 0 ? `Event #${ticket.eventId}` : 'Unknown Event')}
+                  </h3>
+                  <p className="text-xs font-mono text-primary mb-4">
+                    #{ticket.tokenId || ticket.id || 'N/A'}
+                  </p>
 
                   <div className="flex gap-3">
                     <button className="flex-1 bg-foreground text-background py-2 rounded text-sm font-medium hover:opacity-90 transition-opacity">
@@ -216,82 +439,75 @@ const BuyerDashboard = () => {
                 </div>
               </div>
             );
-          })}
+          })
+          .filter(Boolean) // Remove null entries
+          }
         </div>
       )}
       </div>
       {selectedTicketForSale && (
         <SellTicketModal
-          ticketId={selectedTicketForSale.id}
-          eventId={selectedTicketForSale.eventId}
-          originalPrice={selectedTicketForSale.purchasePrice || 0}
+          ticketId={parseInt(selectedTicketForSale.id, 10)}
+          eventId={selectedTicketForSale.eventId ? parseInt(selectedTicketForSale.eventId.toString(), 10) : 0}
+          originalPrice={selectedTicketForSale.pricePaid || 0}
           isOpen={!!selectedTicketForSale}
           onClose={() => setSelectedTicketForSale(null)}
-          onListSuccess={() => {
-            setSelectedTicketForSale(null);
-            // Refresh tickets
-            if (address) {
-              getUserTickets(address).then(setTickets).catch(console.error);
-            }
-          }}
+          onListSuccess={handleListSuccess}
         />
       )}
     </>
   );
-};
+});
 
-const OrganizerDashboard = () => {
+const OrganizerDashboard = React.memo(() => {
   const { t } = useTranslation();
   const { address } = useWeb3();
-  const [isLoading, setIsLoading] = useState(true);
-  const [events, setEvents] = useState<Event[]>([]);
   const [stats, setStats] = useState<OrganizerStats | null>(null);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!address) {
-        setIsLoading(false);
-        return;
-      }
-
-      setIsLoading(true);
-      try {
-        // Fetch events and stats in parallel
-        const [apiEvents, organizerStats] = await Promise.all([
-          getEvents(),
-          getOrganizerStats(address),
-        ]);
-
-        // Map API response to frontend Event interface
-        const mappedEvents: Event[] = apiEvents.map((e: EventResponse) => ({
-          id: e.id.toString(),
-          title: e.name,
-          description: e.description,
-          date: e.date,
-          location: e.location,
-          imageUrl: e.image_url || 'https://picsum.photos/800/400?random=' + e.id,
-          price: e.price,
-          currency: (e.currency as 'ETH' | 'MATIC') || 'ETH',
-          totalTickets: e.total_tickets,
-          soldTickets: e.sold_tickets || 0,
-          organizer: e.organizer_address || 'unknown',
-          category: e.category || 'All',
-        }));
-        
-        // Filter to show only organizer's events
-        const organizerEvents = mappedEvents.filter(e => e.organizer.toLowerCase() === address.toLowerCase());
-        setEvents(organizerEvents);
-        setStats(organizerStats);
-      } catch (err) {
-        console.error('Failed to fetch data:', err);
-        setEvents([]);
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
+  
+  // Use SWR for events
+  const { data: apiEvents, error: eventsError, isLoading: isLoadingEvents } = useEvents();
+  
+  const isLoading = isLoadingEvents || isLoadingStats;
+  
+  // Memoize mapped and filtered events
+  const events = useMemo<Event[]>(() => {
+    if (!apiEvents || !address) return [];
+    
+    const mappedEvents: Event[] = apiEvents.map((e) => ({
+      id: e.id.toString(),
+      title: e.name,
+      description: e.description,
+      date: e.date,
+      location: e.location,
+      imageUrl: e.image_url || 'https://picsum.photos/800/400?random=' + e.id,
+      price: e.price,
+      currency: (e.currency as 'ETH' | 'MATIC') || 'ETH',
+      totalTickets: e.total_tickets,
+      soldTickets: e.sold_tickets || 0,
+      organizer: e.organizer_address || 'unknown',
+      category: e.category || 'All',
+    }));
+    
+    // Filter to show only organizer's events
+    return mappedEvents.filter(e => e.organizer.toLowerCase() === address.toLowerCase());
+  }, [apiEvents, address]);
+  
+  // Fetch stats separately (not cached with SWR since it's user-specific)
+  React.useEffect(() => {
+    if (!address) {
+      setIsLoadingStats(false);
+      return;
+    }
+    
+    setIsLoadingStats(true);
+    getOrganizerStats(address)
+      .then(setStats)
+      .catch(err => {
+        console.error('Failed to fetch stats:', err);
         setStats(null);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchData();
+      })
+      .finally(() => setIsLoadingStats(false));
   }, [address]);
 
   const salesData = [
@@ -419,7 +635,7 @@ const OrganizerDashboard = () => {
                   className="flex items-center gap-3 p-3 rounded-lg hover:bg-background-hover transition-colors cursor-pointer group"
                 >
                   <div className="w-10 h-10 rounded bg-background-hover overflow-hidden">
-                    <img src={evt.imageUrl} className="w-full h-full object-cover" alt={evt.title} />
+                    <img loading="lazy" src={evt.imageUrl} className="w-full h-full object-cover" alt={evt.title} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground truncate">{evt.title}</p>
@@ -434,7 +650,7 @@ const OrganizerDashboard = () => {
       </div>
     </div>
   );
-};
+});
 
 const AdminView = () => {
   const { t } = useTranslation();

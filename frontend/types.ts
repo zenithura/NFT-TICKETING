@@ -30,6 +30,7 @@ export interface Ticket {
   status: 'VALID' | 'USED' | 'RESALE_LISTED';
   pricePaid: number;
   qrCodeData: string;
+  eventName?: string;  // Event name from backend (if available)
 }
 
 export interface AnalyticsData {

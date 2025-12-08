@@ -1,16 +1,25 @@
 """Main FastAPI application."""
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 import os
 from dotenv import load_dotenv
 
 from routers import auth, events, tickets, marketplace, admin, admin_auth, wallet
 from security_middleware import security_middleware
+from middleware_metrics import MetricsMiddleware
 
 from contextlib import asynccontextmanager
 from web3_client import load_contracts
 
+# Monitoring imports
+from sentry_config import init_sentry
+from monitoring import get_metrics
+
 load_dotenv()
+
+# Initialize Sentry
+init_sentry()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -26,7 +35,11 @@ app = FastAPI(
 )
 
 # Configure CORS
-CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
+# Default origins include localhost and common local network IPs
+default_origins = "http://localhost:5173,http://localhost:3000,http://10.230.33.197:3000"
+CORS_ORIGINS = os.getenv("CORS_ORIGINS", default_origins).split(",")
+# Strip whitespace from origins
+CORS_ORIGINS = [origin.strip() for origin in CORS_ORIGINS]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ORIGINS,
@@ -34,6 +47,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add response compression (gzip) - reduces payload size by 70-90%
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+
+# Add metrics middleware for Prometheus
+app.add_middleware(MetricsMiddleware)
 
 # Add security middleware (must be before routers)
 app.middleware("http")(security_middleware)
@@ -63,6 +82,12 @@ async def root():
 async def health_check():
     """Health check endpoint."""
     return {"status": "healthy"}
+
+
+@app.get("/metrics")
+async def metrics():
+    """Prometheus metrics endpoint."""
+    return Response(content=get_metrics(), media_type="text/plain")
 
 
 if __name__ == "__main__":

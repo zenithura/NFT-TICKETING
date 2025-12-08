@@ -3,7 +3,8 @@
 
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import './i18n'; // Initialize i18n before App
+import './i18n'; // Initialize i18n synchronously - translations are small and needed immediately
+import './lib/sentry'; // Initialize Sentry for error tracking
 import App from './App';
 
 const rootElement = document.getElementById('root');

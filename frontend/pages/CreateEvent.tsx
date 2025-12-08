@@ -2,8 +2,8 @@
 // Provides form for event details and ticket configuration with blockchain deployment.
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Upload, Loader2, AlertTriangle } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Upload, Loader2, AlertTriangle, Lock } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import toast, { Toaster } from 'react-hot-toast';
 import { useWeb3 } from '../services/web3Context';
@@ -11,12 +11,35 @@ import { useAuth } from '../services/authContext';
 import { UserRole } from '../types';
 import { createEvent, type CreateEventData } from '../services/eventService';
 
+// Login required message component
+const LoginRequiredMessage: React.FC = () => {
+  const { t } = useTranslation();
+  return (
+    <div className="max-w-2xl mx-auto animate-slide-up">
+      <div className="bg-background-elevated p-8 rounded-xl border border-border text-center">
+        <Lock className="w-16 h-16 text-foreground-tertiary mx-auto mb-4" />
+        <h2 className="text-2xl font-bold text-foreground mb-2">{t('createEvent.loginRequired') || 'Login Required'}</h2>
+        <p className="text-foreground-secondary mb-6">
+          {t('createEvent.loginRequiredDesc') || 'Please log in as an organizer to create events.'}
+        </p>
+        <Link
+          to="/login"
+          className="inline-block bg-primary hover:bg-primary-hover text-white px-6 py-3 rounded-lg font-bold transition-all"
+        >
+          {t('common.login') || 'Login'}
+        </Link>
+      </div>
+    </div>
+  );
+};
+
 export const CreateEvent: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { userRole, isConnected } = useWeb3();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [apiError, setApiError] = useState<string | null>(null);
   
   // Form state
   const [formData, setFormData] = useState<CreateEventData>({
@@ -31,11 +54,7 @@ export const CreateEvent: React.FC = () => {
     currency: 'ETH',
   });
 
-  useEffect(() => {
-    if (isConnected && userRole !== UserRole.ORGANIZER && userRole !== UserRole.ADMIN) {
-      navigate('/dashboard');
-    }
-  }, [userRole, isConnected, navigate]);
+  // Removed redirect logic - page will show login message instead
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -81,6 +100,7 @@ export const CreateEvent: React.FC = () => {
     }
 
     setIsSubmitting(true);
+    setApiError(null);
 
     try {
       // Format date to ISO string
@@ -99,16 +119,24 @@ export const CreateEvent: React.FC = () => {
       setTimeout(() => navigate('/dashboard'), 1000);
     } catch (error: any) {
       console.error('Error creating event:', error);
-      toast.error(error.message || 'Failed to create event. Please try again.');
+      const errorMessage = error?.message || error?.toString() || 'Failed to create event. Please try again.';
+      setApiError(errorMessage);
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (userRole !== UserRole.ORGANIZER && userRole !== UserRole.ADMIN) return null;
+  // Show login message if not authenticated or not organizer/admin
+  const canCreateEvents = isAuthenticated && (userRole === UserRole.ORGANIZER || userRole === UserRole.ADMIN);
+  const isSubmitDisabled = !canCreateEvents || isSubmitting;
+
+  if (!canCreateEvents) {
+    return <LoginRequiredMessage />;
+  }
 
   return (
-    <div className="max-w-2xl mx-auto animate-slide-up">
+    <div className="max-w-2xl mx-auto animate-slide-up" data-cy="create-event-page">
       <Toaster position="bottom-right" />
 
       <div className="mb-8">
@@ -116,7 +144,14 @@ export const CreateEvent: React.FC = () => {
         <p className="text-foreground-secondary">{t('createEvent.subtitle')}</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-8">
+      {apiError && (
+        <div className="mb-6 bg-error/10 border border-error/20 rounded-lg p-4 text-error">
+          <AlertTriangle className="inline w-5 h-5 mr-2" />
+          {apiError}
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="space-y-8" data-cy="create-event-form">
         {/* Section 1 */}
         <div className="bg-background-elevated p-6 rounded-xl border border-border space-y-6">
           <h2 className="text-lg font-semibold text-foreground border-b border-border pb-2">{t('createEvent.basicDetails')}</h2>
@@ -128,6 +163,7 @@ export const CreateEvent: React.FC = () => {
                 required
                 type="text"
                 name="name"
+                data-cy="event-name-input"
                 value={formData.name}
                 onChange={handleChange}
                 className="w-full bg-background border border-border rounded-lg px-3 py-2 text-foreground focus:border-primary focus:ring-0 transition-colors"
@@ -141,6 +177,7 @@ export const CreateEvent: React.FC = () => {
                 required
                 rows={3}
                 name="description"
+                data-cy="event-description-input"
                 value={formData.description}
                 onChange={handleChange}
                 className="w-full bg-background border border-border rounded-lg px-3 py-2 text-foreground focus:border-primary focus:ring-0 transition-colors"
@@ -213,9 +250,16 @@ export const CreateEvent: React.FC = () => {
               <input
                 required
                 type="number"
-                name="total_tickets"
+                name="totalSupply"
+                data-cy="event-total-supply-input"
                 value={formData.total_tickets}
-                onChange={handleChange}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setFormData(prev => ({
+                    ...prev,
+                    total_tickets: parseFloat(value) || 0
+                  }));
+                }}
                 min="1"
                 className="w-full bg-background border border-border rounded-lg px-3 py-2 text-foreground focus:border-primary"
                 placeholder={t('createEvent.totalSupplyPlaceholder')}
@@ -226,9 +270,16 @@ export const CreateEvent: React.FC = () => {
               <input
                 required
                 type="number"
-                name="price"
+                name="ticketPrice"
+                data-cy="event-ticket-price-input"
                 value={formData.price}
-                onChange={handleChange}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  setFormData(prev => ({
+                    ...prev,
+                    price: parseFloat(value) || 0
+                  }));
+                }}
                 step="0.01"
                 min="0"
                 className="w-full bg-background border border-border rounded-lg px-3 py-2 text-foreground focus:border-primary"
@@ -259,8 +310,9 @@ export const CreateEvent: React.FC = () => {
         <div className="flex justify-end">
           <button
             type="submit"
-            disabled={isSubmitting}
-            className="bg-primary hover:bg-primary-hover text-white px-8 py-3 rounded-lg font-bold transition-all disabled:opacity-50 flex items-center gap-2"
+            data-cy="submit-event-form"
+            disabled={isSubmitDisabled}
+            className="bg-primary hover:bg-primary-hover text-white px-8 py-3 rounded-lg font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
             {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : t('createEvent.deployContract')}
           </button>

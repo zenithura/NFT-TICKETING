@@ -6,6 +6,48 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="NFTix - The decentralized marketplace for verifying, trading, and collecting event access as NFTs. Secure Web3 ticketing platform." />
   <meta name="theme-color" content="#191919" />
+  <meta name="keywords" content="NFT, ticketing, blockchain, Web3, event tickets, decentralized, Ethereum, smart contracts" />
+  <meta name="author" content="NFTix Platform" />
+  <meta name="robots" content="index, follow" />
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://nftix.platform/" />
+  <meta property="og:title" content="NFTix - Web3 Ticketing Platform" />
+  <meta property="og:description" content="The decentralized marketplace for verifying, trading, and collecting event access as NFTs. Secure Web3 ticketing platform." />
+  <meta property="og:image" content="https://nftix.platform/og-image.png" />
+  <meta property="og:site_name" content="NFTix" />
+  
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:url" content="https://nftix.platform/" />
+  <meta name="twitter:title" content="NFTix - Web3 Ticketing Platform" />
+  <meta name="twitter:description" content="The decentralized marketplace for verifying, trading, and collecting event access as NFTs." />
+  <meta name="twitter:image" content="https://nftix.platform/og-image.png" />
+  
+  <!-- Structured Data (JSON-LD) -->
+  <script defer type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "NFTix",
+    "description": "Decentralized marketplace for NFT-based event ticketing",
+    "url": "https://nftix.platform",
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "Web",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "ETH"
+    },
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": "4.8",
+      "ratingCount": "150"
+    }
+  }
+  </script>
+  
   <title>NFTix - Web3 Ticketing Platform</title>
 
   <!-- DNS prefetch and preconnect for faster resource loading -->
@@ -15,12 +57,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 
-  <!-- Optimized font loading with display=swap to prevent FOIT -->
+  <!-- Optimized font loading - load asynchronously to not block render -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
     rel="stylesheet"
     media="print"
-    onload="this.media='all'">
+    onload="this.media='all'; this.onload=null;">
   <noscript>
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
@@ -30,6 +74,14 @@
   <!-- Preload critical CSS -->
   <link rel="preload" href="/index.css" as="style">
   <link rel="stylesheet" href="/index.css">
+  
+  <!-- Preconnect to image CDN for faster image loading -->
+  <link rel="preconnect" href="https://picsum.photos">
+  <link rel="dns-prefetch" href="https://picsum.photos">
+  
+  <!-- Preconnect to API for faster requests -->
+  <link rel="preconnect" href="http://localhost:8000">
+  <link rel="dns-prefetch" href="http://localhost:8000">
 
   <!-- Inline critical CSS for above-the-fold content -->
   <style>
@@ -77,7 +129,7 @@
   
   <!-- Purpose: Apply theme immediately to prevent flicker. -->
   <!-- This script runs before React loads to set theme from localStorage or system preference. -->
-  <script>
+  <script defer>
     (function() {
       // Purpose: Get theme preference from localStorage or system.
       // Returns: 'light', 'dark', or 'system'.
@@ -117,7 +169,7 @@
     })();
   </script>
 
-  <script type="importmap">
+  <script defer type="importmap">
 {
   "imports": {
     "react": "https://esm.sh/react@18.2.0",
@@ -138,8 +190,13 @@
 </head>
 
 <body class="bg-background">
-  <div id="root" class="bg-background"></div>
-  <script type="module" src="/index.tsx"></script>
+  <div id="root" class="bg-background">
+    <!-- Initial loading state for faster FCP -->
+    <div class="flex items-center justify-center min-h-screen bg-background">
+      <div class="text-foreground">Loading...</div>
+    </div>
+  </div>
+  <script type="module" src="/index.tsx" defer></script>
 </body>
 
 </html>

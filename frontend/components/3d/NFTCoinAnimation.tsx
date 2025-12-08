@@ -1,9 +1,40 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
+import { isWebGLSupported, isCypressEnvironment, isHeadlessBrowser } from '../../lib/webglUtils';
 
-export const NFTCoinAnimation: React.FC = () => {
+// Early check: Detect test environment before any WebGL operations
+const isTestEnvironment = typeof window !== 'undefined' && (
+  !!(window as any).Cypress ||
+  (typeof navigator !== 'undefined' && (
+    navigator.userAgent.toLowerCase().includes('headless') ||
+    navigator.userAgent.toLowerCase().includes('webdriver') ||
+    (navigator as any).webdriver === true
+  ))
+);
+
+// Singleton pattern to prevent multiple WebGL contexts
+let globalCoinRenderer: THREE.WebGLRenderer | null = null;
+let globalCoinScene: THREE.Scene | null = null;
+let globalCoinCamera: THREE.PerspectiveCamera | null = null;
+let globalCoinGroup: THREE.Group | null = null;
+let globalAnimationId: number | null = null;
+let coinInstanceCount = 0;
+let coinAnimationRunning = false;
+
+// Fallback component when WebGL is not available
+const CoinFallback: React.FC = () => (
+  <div className="w-[300px] h-[300px] flex items-center justify-center bg-background-elevated rounded-lg border border-border" data-cy="coin-fallback">
+    <div className="text-center text-foreground-secondary">
+      <div className="text-4xl mb-2">🎫</div>
+      <div className="text-sm">NFT</div>
+    </div>
+  </div>
+);
+
+export const NFTCoinAnimation: React.FC = React.memo(() => {
   const containerRef = useRef<HTMLDivElement>(null);
   const coinGroupRef = useRef<THREE.Group | null>(null);
+  const [webglSupported, setWebglSupported] = useState<boolean | null>(null);
   
   // Enhanced Interaction State with momentum physics
   const isDragging = useRef(false);
@@ -14,30 +45,90 @@ export const NFTCoinAnimation: React.FC = () => {
   const lastDragTime = useRef(Date.now());
 
   useEffect(() => {
+    // Early exit: Check Cypress/test environment first (before any Three.js operations)
+    if (isTestEnvironment || isCypressEnvironment() || isHeadlessBrowser()) {
+      setWebglSupported(false);
+      return;
+    }
+
+    // Check WebGL support before initializing
+    if (!isWebGLSupported()) {
+      setWebglSupported(false);
+      return;
+    }
+    
+    setWebglSupported(true);
+    
     if (!containerRef.current) return;
-
-    // --- Scene Setup ---
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
-    camera.position.z = 8;
-
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    renderer.setSize(300, 300);
-    renderer.setClearColor(0x000000, 0);
     
-    // Super bright tone mapping for extra shine
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 3.0; 
-    
-    containerRef.current.appendChild(renderer.domElement);
+    coinInstanceCount++;
+    const isMobile = window.innerWidth < 768;
 
-    // --- Coin Group ---
-    const coinGroup = new THREE.Group();
-    // Initial slight tilt
-    coinGroup.rotation.x = 0.2; 
-    coinGroup.rotation.y = -0.5;
-    scene.add(coinGroup);
-    coinGroupRef.current = coinGroup;
+    try {
+      // Double-check we're not in Cypress (safety check)
+      if (isCypressEnvironment() || isHeadlessBrowser() || isTestEnvironment) {
+        setWebglSupported(false);
+        return;
+      }
+
+      // Initialize global scene, camera, renderer (only once)
+      if (!globalCoinScene) {
+        globalCoinScene = new THREE.Scene();
+      }
+      
+      if (!globalCoinCamera) {
+        globalCoinCamera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
+        globalCoinCamera.position.z = 8;
+      }
+
+      if (!globalCoinRenderer) {
+        // Test WebGL context before creating renderer
+        const testCanvas = document.createElement('canvas');
+        const testGl = testCanvas.getContext('webgl') || testCanvas.getContext('experimental-webgl');
+        
+        if (!testGl) {
+          throw new Error('WebGL context not available');
+        }
+
+        globalCoinRenderer = new THREE.WebGLRenderer({ 
+          antialias: !isMobile,
+          alpha: true,
+          powerPreference: 'high-performance',
+          preserveDrawingBuffer: false,
+          failIfMajorPerformanceCaveat: false, // Don't fail in test environments
+        });
+        
+        if (!globalCoinRenderer || !globalCoinRenderer.domElement) {
+          throw new Error('Failed to create WebGL renderer canvas');
+        }
+        
+        globalCoinRenderer.setSize(300, 300);
+        globalCoinRenderer.setClearColor(0x000000, 0);
+        globalCoinRenderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1 : 2));
+        globalCoinRenderer.toneMapping = THREE.ACESFilmicToneMapping;
+        globalCoinRenderer.toneMappingExposure = 3.0;
+        containerRef.current.appendChild(globalCoinRenderer.domElement);
+      } else {
+        // Reuse existing renderer
+        containerRef.current.appendChild(globalCoinRenderer.domElement);
+      }
+    } catch (e: any) {
+      // Silently fail in Cypress - log only in development
+      if (!isCypressEnvironment() && !isHeadlessBrowser()) {
+        console.warn('WebGL initialization failed for coin animation, using fallback:', e);
+      }
+      setWebglSupported(false);
+      return;
+    }
+
+    // --- Coin Group --- (only create once)
+    if (!globalCoinGroup) {
+      globalCoinGroup = new THREE.Group();
+      globalCoinGroup.rotation.x = 0.2; 
+      globalCoinGroup.rotation.y = -0.5;
+      globalCoinScene.add(globalCoinGroup);
+    }
+    coinGroupRef.current = globalCoinGroup;
 
     // --- Materials (High Shine Bitcoin Style) ---
     const bitcoinOrange = 0xF7931A; 
@@ -64,44 +155,45 @@ export const NFTCoinAnimation: React.FC = () => {
         emissiveIntensity: 0.3
     });
 
-    // --- Geometry ---
-    // Coin Base
-    const geometry = new THREE.CylinderGeometry(2, 2, 0.2, 64, 1);
-    const coin = new THREE.Mesh(geometry, [sideMaterial, goldMaterial, goldMaterial]);
-    coin.rotation.x = Math.PI / 2;
-    coinGroup.add(coin);
+    // --- Geometry --- (only create once)
+    if (globalCoinGroup.children.length === 0) {
+      // Coin Base
+      const geometry = new THREE.CylinderGeometry(2, 2, 0.2, 64, 1);
+      const coin = new THREE.Mesh(geometry, [sideMaterial, goldMaterial, goldMaterial]);
+      coin.rotation.x = Math.PI / 2;
+      globalCoinGroup.add(coin);
 
-    // 3D Ticket Shape
-    const ticketShape = new THREE.Shape();
-    const w = 0.8, h = 0.5, r = 0.2;
-    ticketShape.moveTo(-w, h);
-    ticketShape.lineTo(0, h);
-    ticketShape.lineTo(w, h);
-    ticketShape.lineTo(w, r);
-    ticketShape.absarc(w, 0, r, Math.PI/2, -Math.PI/2, true);
-    ticketShape.lineTo(w, -h);
-    ticketShape.lineTo(-w, -h);
-    ticketShape.lineTo(-w, -r);
-    ticketShape.absarc(-w, 0, r, -Math.PI/2, Math.PI/2, true);
-    ticketShape.lineTo(-w, h);
+      // 3D Ticket Shape
+      const ticketShape = new THREE.Shape();
+      const w = 0.8, h = 0.5, r = 0.2;
+      ticketShape.moveTo(-w, h);
+      ticketShape.lineTo(0, h);
+      ticketShape.lineTo(w, h);
+      ticketShape.lineTo(w, r);
+      ticketShape.absarc(w, 0, r, Math.PI/2, -Math.PI/2, true);
+      ticketShape.lineTo(w, -h);
+      ticketShape.lineTo(-w, -h);
+      ticketShape.lineTo(-w, -r);
+      ticketShape.absarc(-w, 0, r, -Math.PI/2, Math.PI/2, true);
+      ticketShape.lineTo(-w, h);
 
-    const ticketGeom = new THREE.ExtrudeGeometry(ticketShape, {
-      steps: 1, depth: 0.1, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.05, bevelSegments: 3
-    });
-    ticketGeom.center();
+      const ticketGeom = new THREE.ExtrudeGeometry(ticketShape, {
+        steps: 1, depth: 0.1, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.05, bevelSegments: 3
+      });
+      ticketGeom.center();
 
-    const ticketMat = new THREE.MeshStandardMaterial({
-      color: 0xFFFFFF, roughness: 0.2, metalness: 0.8, emissive: 0xFFFFFF, emissiveIntensity: 0.2
-    });
+      const ticketMat = new THREE.MeshStandardMaterial({
+        color: 0xFFFFFF, roughness: 0.2, metalness: 0.8, emissive: 0xFFFFFF, emissiveIntensity: 0.2
+      });
 
-    const frontTicket = new THREE.Mesh(ticketGeom, ticketMat);
-    frontTicket.position.z = 0.12;
-    coinGroup.add(frontTicket);
+      const frontTicket = new THREE.Mesh(ticketGeom, ticketMat);
+      frontTicket.position.z = 0.12;
+      globalCoinGroup.add(frontTicket);
 
-    const backTicket = frontTicket.clone();
-    backTicket.rotation.y = Math.PI;
-    backTicket.position.z = -0.12;
-    coinGroup.add(backTicket);
+      const backTicket = frontTicket.clone();
+      backTicket.rotation.y = Math.PI;
+      backTicket.position.z = -0.12;
+      globalCoinGroup.add(backTicket);
 
     // 3D Text "NFT"
     const createLetter = (l: string) => {
@@ -117,93 +209,140 @@ export const NFTCoinAnimation: React.FC = () => {
     };
     const textSettings = { steps: 1, depth: 0.05, bevelEnabled: false };
     
-    const n = new THREE.Mesh(new THREE.ExtrudeGeometry(createLetter('N'), textSettings), textMaterial);
-    n.position.set(-0.5, -0.3, 0.22);
-    coinGroup.add(n);
+      const n = new THREE.Mesh(new THREE.ExtrudeGeometry(createLetter('N'), textSettings), textMaterial);
+      n.position.set(-0.5, -0.3, 0.22);
+      globalCoinGroup.add(n);
 
-    const f = new THREE.Mesh(new THREE.ExtrudeGeometry(createLetter('F'), textSettings), textMaterial);
-    f.position.set(-0.15, -0.3, 0.22);
-    coinGroup.add(f);
+      const f = new THREE.Mesh(new THREE.ExtrudeGeometry(createLetter('F'), textSettings), textMaterial);
+      f.position.set(-0.15, -0.3, 0.22);
+      globalCoinGroup.add(f);
 
-    const t = new THREE.Mesh(new THREE.ExtrudeGeometry(createLetter('T'), textSettings), textMaterial);
-    t.position.set(0.3, -0.3, 0.22);
-    coinGroup.add(t);
+      const t = new THREE.Mesh(new THREE.ExtrudeGeometry(createLetter('T'), textSettings), textMaterial);
+      t.position.set(0.3, -0.3, 0.22);
+      globalCoinGroup.add(t);
 
-    // Back text
-    const backText = new THREE.Group();
-    backText.add(n.clone(), f.clone(), t.clone());
-    backText.rotation.y = Math.PI;
-    backText.children.forEach(c => c.position.z = 0.22); // fix Z after flip
-    coinGroup.add(backText);
+      // Back text
+      const backText = new THREE.Group();
+      backText.add(n.clone(), f.clone(), t.clone());
+      backText.rotation.y = Math.PI;
+      backText.children.forEach(c => c.position.z = 0.22); // fix Z after flip
+      globalCoinGroup.add(backText);
+    }
 
-    // --- Lighting (Intense for sparkles) ---
-    const ambient = new THREE.AmbientLight(0xffffff, 0.5);
-    scene.add(ambient);
+    // --- Lighting (Intense for sparkles) --- (only add once)
+    if (globalCoinScene.children.filter(c => c.type === 'AmbientLight').length === 0) {
+      const ambient = new THREE.AmbientLight(0xffffff, 0.5);
+      globalCoinScene.add(ambient);
 
-    const mainLight = new THREE.PointLight(0xFFFFFF, 10, 50);
-    mainLight.position.set(5, 5, 10);
-    scene.add(mainLight);
+      const mainLight = new THREE.PointLight(0xFFFFFF, 10, 50);
+      mainLight.position.set(5, 5, 10);
+      globalCoinScene.add(mainLight);
 
-    const warmLight = new THREE.PointLight(0xF7931A, 8, 50);
-    warmLight.position.set(-5, -5, 10);
-    scene.add(warmLight);
+      const warmLight = new THREE.PointLight(0xF7931A, 8, 50);
+      warmLight.position.set(-5, -5, 10);
+      globalCoinScene.add(warmLight);
 
-    const rimLight = new THREE.PointLight(0xFFD700, 10, 50);
-    rimLight.position.set(0, 5, -5);
-    scene.add(rimLight);
+      const rimLight = new THREE.PointLight(0xFFD700, 10, 50);
+      rimLight.position.set(0, 5, -5);
+      globalCoinScene.add(rimLight);
+    }
 
     // --- Enhanced Animation Loop with Physics-Based Motion ---
-    const animate = () => {
-      requestAnimationFrame(animate);
-      
-      if (coinGroupRef.current) {
-        if (!isDragging.current) {
-          // 1. Apply Spin Boost (from click) with smoother, longer decay
-          if (Math.abs(spinBoost.current) > 0.0005) {
-             coinGroupRef.current.rotation.y += spinBoost.current;
-             // Exponential decay: 0.985 gives ~3x longer spin than 0.95
-             // This creates a smooth, natural deceleration like a real spinning coin
-             spinBoost.current *= 0.985;
-          } else {
-             spinBoost.current = 0; // Clean stop to prevent micro-jitters
-          }
+    // Only start animation if not already running
+    try {
+      if (!coinAnimationRunning && globalCoinRenderer && globalCoinScene && globalCoinCamera) {
+        coinAnimationRunning = true;
+        const animate = () => {
+          if (!coinAnimationRunning) return;
           
-          // 2. Apply drag momentum with realistic physics decay
-          if (Math.abs(dragVelocity.current.x) > 0.0005 || Math.abs(dragVelocity.current.y) > 0.0005) {
-            coinGroupRef.current.rotation.y += dragVelocity.current.x;
-            coinGroupRef.current.rotation.x += dragVelocity.current.y;
-            // Friction-based decay: feels like the coin is spinning in air
-            dragVelocity.current.x *= 0.96;
-            dragVelocity.current.y *= 0.96;
-          } else {
-            dragVelocity.current = { x: 0, y: 0 };
-          }
-          
-          // 3. Apply Base Auto Spin (subtle continuous rotation for idle state)
-          coinGroupRef.current.rotation.y += 0.005;
+          try {
+            globalAnimationId = requestAnimationFrame(animate);
+            
+            if (globalCoinGroup) {
+              if (!isDragging.current) {
+                // 1. Apply Spin Boost (from click) with smoother, longer decay
+                if (Math.abs(spinBoost.current) > 0.0005) {
+                   globalCoinGroup.rotation.y += spinBoost.current;
+                   // Exponential decay: 0.985 gives ~3x longer spin than 0.95
+                   // This creates a smooth, natural deceleration like a real spinning coin
+                   spinBoost.current *= 0.985;
+                } else {
+                   spinBoost.current = 0; // Clean stop to prevent micro-jitters
+                }
+                
+                // 2. Apply drag momentum with realistic physics decay
+                if (Math.abs(dragVelocity.current.x) > 0.0005 || Math.abs(dragVelocity.current.y) > 0.0005) {
+                  globalCoinGroup.rotation.y += dragVelocity.current.x;
+                  globalCoinGroup.rotation.x += dragVelocity.current.y;
+                  // Friction-based decay: feels like the coin is spinning in air
+                  dragVelocity.current.x *= 0.96;
+                  dragVelocity.current.y *= 0.96;
+                } else {
+                  dragVelocity.current = { x: 0, y: 0 };
+                }
+                
+                // 3. Apply Base Auto Spin (subtle continuous rotation for idle state)
+                globalCoinGroup.rotation.y += 0.005;
 
-          // 4. Smooth restoration of X axis with easing (float back to neutral position)
-          const targetX = 0.2;
-          const diff = targetX - coinGroupRef.current.rotation.x;
-          // Only restore when no active spinning/momentum to avoid conflicts
-          if (Math.abs(spinBoost.current) < 0.001 && Math.abs(dragVelocity.current.y) < 0.001) {
-            // Subtle spring-like restoration
-            coinGroupRef.current.rotation.x += diff * 0.015;
+                // 4. Smooth restoration of X axis with easing (float back to neutral position)
+                const targetX = 0.2;
+                const diff = targetX - globalCoinGroup.rotation.x;
+                // Only restore when no active spinning/momentum to avoid conflicts
+                if (Math.abs(spinBoost.current) < 0.001 && Math.abs(dragVelocity.current.y) < 0.001) {
+                  // Subtle spring-like restoration
+                  globalCoinGroup.rotation.x += diff * 0.015;
+                }
+              }
+            }
+
+            if (globalCoinRenderer && globalCoinScene && globalCoinCamera) {
+              globalCoinRenderer.render(globalCoinScene, globalCoinCamera);
+            }
+          } catch (e: any) {
+            // Silently handle errors in Cypress
+            if (!isCypressEnvironment() && !isHeadlessBrowser()) {
+              console.warn('Error in animation loop:', e);
+            }
+            coinAnimationRunning = false;
+            setWebglSupported(false);
           }
-        }
+        };
+
+        animate();
       }
-
-      renderer.render(scene, camera);
-    };
-
-    animate();
+    } catch (e: any) {
+      // Silently handle errors in Cypress
+      if (!isCypressEnvironment() && !isHeadlessBrowser()) {
+        console.warn('Failed to start animation loop:', e);
+      }
+      setWebglSupported(false);
+    }
 
     return () => {
-      if (containerRef.current && renderer.domElement) {
-        containerRef.current.removeChild(renderer.domElement);
+      coinInstanceCount--;
+      if (coinInstanceCount <= 0) {
+        // Only cleanup when last instance unmounts
+        coinAnimationRunning = false;
+        if (globalAnimationId !== null) {
+          cancelAnimationFrame(globalAnimationId);
+          globalAnimationId = null;
+        }
+        if (containerRef.current && globalCoinRenderer?.domElement) {
+          try {
+            containerRef.current.removeChild(globalCoinRenderer.domElement);
+          } catch (e) {
+            // Element may have been removed already
+          }
+        }
+        // Don't dispose renderer/scene - keep for reuse
+      } else if (containerRef.current && globalCoinRenderer?.domElement) {
+        // Remove from this container but keep renderer alive
+        try {
+          containerRef.current.removeChild(globalCoinRenderer.domElement);
+        } catch (e) {
+          // Element may have been removed already
+        }
       }
-      renderer.dispose();
-      geometry.dispose();
     };
   }, []);
 
@@ -238,8 +377,10 @@ export const NFTCoinAnimation: React.FC = () => {
       const rotationY = deltaX * moveSpeed;
       const rotationX = deltaY * moveSpeed;
       
-      coinGroupRef.current.rotation.y += rotationY;
-      coinGroupRef.current.rotation.x += rotationX;
+      if (globalCoinGroup) {
+        globalCoinGroup.rotation.y += rotationY;
+        globalCoinGroup.rotation.x += rotationX;
+      }
 
       // Calculate velocity for momentum (pixels per millisecond scaled for good feel)
       // This preserves the "throw" motion when user releases
@@ -272,12 +413,22 @@ export const NFTCoinAnimation: React.FC = () => {
         spinBoost.current = 0.5 * randomFactor; // Increased from 0.5 to 0.8
         
         // Optional: Add slight upward tilt on click for dynamic "pop" effect
-        if (coinGroupRef.current) {
-          coinGroupRef.current.rotation.x -= 0.1;
+        if (globalCoinGroup) {
+          globalCoinGroup.rotation.x -= 0.1;
         }
     }
     // If it was a drag, momentum is already stored in dragVelocity and will continue
   };
+
+  // Return fallback if WebGL is not supported
+  if (webglSupported === false) {
+    return <CoinFallback />;
+  }
+
+  // Return loading state while checking WebGL support
+  if (webglSupported === null) {
+    return <CoinFallback />;
+  }
 
   return (
     <div 
@@ -297,4 +448,4 @@ export const NFTCoinAnimation: React.FC = () => {
       style={{ touchAction: 'none' }} // Prevent scrolling on touch devices
     />
   );
-};
+});

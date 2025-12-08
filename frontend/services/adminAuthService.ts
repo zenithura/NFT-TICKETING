@@ -3,7 +3,8 @@
  * Handles admin login, session management, and authentication state
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+// Use relative URL when proxying, or full URL if VITE_API_URL is set
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 export interface AdminLoginResponse {
   success: boolean;
@@ -33,6 +34,10 @@ export const adminLogin = async (username: string, password: string): Promise<Ad
     throw new Error(data.detail || data.message || 'Login failed');
   }
 
+  // Log cookie info for debugging
+  console.log('Login response headers:', response.headers);
+  console.log('Login successful, cookie should be set');
+
   return data;
 };
 
@@ -44,15 +49,21 @@ export const checkAdminSession = async (): Promise<boolean> => {
     const response = await fetch(`${API_BASE_URL}/admin/session`, {
       method: 'GET',
       credentials: 'include', // Important for cookies
+      headers: {
+        'Content-Type': 'application/json',
+      },
     });
 
     if (!response.ok) {
+      console.error('Admin session check failed:', response.status, response.statusText);
       return false;
     }
 
     const data = await response.json();
+    console.log('Admin session check response:', data);
     return data.authenticated === true;
   } catch (error) {
+    console.error('Admin session check error:', error);
     return false;
   }
 };
