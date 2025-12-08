@@ -8,6 +8,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Lock, Eye, EyeOff, AlertCircle, Loader2 } from 'lucide-react';
 import { adminLogin, checkAdminSession } from '../services/adminAuthService';
+import { adminToasts } from '../lib/toastService';
 
 export const AdminLogin: React.FC = () => {
   const { t } = useTranslation();
@@ -57,11 +58,35 @@ export const AdminLogin: React.FC = () => {
     setLoading(true);
 
     try {
-      await adminLogin(trimmedUsername, trimmedPassword);
+      const loginResponse = await adminLogin(trimmedUsername, trimmedPassword);
+      console.log('Login response:', loginResponse);
+      
+      // Wait a bit longer for cookie to be set and propagated
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      // Double-check session before redirect - retry up to 3 times
+      let sessionValid = false;
+      for (let i = 0; i < 3; i++) {
+        sessionValid = await checkAdminSession();
+        if (sessionValid) break;
+        // Wait a bit longer between retries
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
+      if (!sessionValid) {
+        console.error('Session validation failed after login');
+        setError('Session could not be established. The cookie may not be set due to cross-origin restrictions. Please ensure both frontend and backend are on the same origin, or use a proxy.');
+        return;
+      }
+      
+      // Show success toast
+      adminToasts.loginSuccess();
+      
       // Redirect to dashboard on success
       const from = (location.state as any)?.from?.pathname || '/admin/dashboard';
       navigate(from, { replace: true });
     } catch (error: any) {
+      console.error('Login error:', error);
       setError(error.message || 'Invalid username or password');
     } finally {
       setLoading(false);

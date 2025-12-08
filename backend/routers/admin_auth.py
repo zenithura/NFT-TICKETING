@@ -252,7 +252,7 @@ async def admin_login(
         value=token,
         httponly=True,
         secure=is_production,  # HTTPS only in production
-        samesite="strict",
+        samesite="lax" if not is_production else "strict",  # Use "lax" for cross-origin in dev
         max_age=ADMIN_TOKEN_EXPIRE_MINUTES * 60,
         path="/",
     )
@@ -305,7 +305,7 @@ async def admin_logout(response: Response):
         key="admin_token",
         httponly=True,
         secure=is_production,
-        samesite="strict",
+        samesite="lax" if not is_production else "strict",  # Use "lax" for cross-origin in dev
         path="/",
     )
     

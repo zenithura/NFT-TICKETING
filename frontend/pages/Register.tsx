@@ -6,7 +6,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../services/authContext';
 import { Mail, Lock, User, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { authToasts, showErrorToast } from '../lib/toastService';
 import { cn } from '../lib/utils';
 
 export const Register: React.FC = () => {
@@ -142,11 +142,11 @@ export const Register: React.FC = () => {
         last_name: formData.lastName || undefined,
         role: formData.role, // Include selected role
       });
-      toast.success(t('auth.registerSuccess'));
+      authToasts.registerSuccess();
       navigate('/dashboard');
     } catch (error: any) {
       const errorMessage = error.message || t('auth.errors.registerFailed');
-      toast.error(errorMessage);
+      showErrorToast(errorMessage);
       
       if (errorMessage.includes('already registered')) {
         setErrors({ email: errorMessage });

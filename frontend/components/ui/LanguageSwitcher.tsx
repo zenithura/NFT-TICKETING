@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { Globe, ChevronDown } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { calculateDropdownPosition } from '../../lib/viewportUtils';
+import { languageToasts } from '../../lib/toastService';
 
 export const LanguageSwitcher: React.FC = () => {
   const { i18n } = useTranslation();
@@ -33,10 +34,15 @@ export const LanguageSwitcher: React.FC = () => {
   const currentLanguage = languages.find(lang => lang.code === i18n.language) || languages[0];
 
   const changeLanguage = (lng: string) => {
+    const newLanguage = languages.find(lang => lang.code === lng);
     i18n.changeLanguage(lng);
     setIsOpen(false);
     // Update HTML lang attribute
     document.documentElement.lang = lng;
+    // Show success toast
+    if (newLanguage) {
+      languageToasts.changed(newLanguage.name);
+    }
   };
 
   // Purpose: Calculate dropdown position when opened or window resized.
@@ -52,21 +58,28 @@ export const LanguageSwitcher: React.FC = () => {
 
       // Purpose: Recalculate position on window resize or scroll.
       // Side effects: Updates position when viewport changes.
+      // Throttle with requestAnimationFrame to prevent scroll jank
+      let rafId: number | null = null;
       const handleResize = () => {
-        if (triggerRef.current && dropdownRef.current) {
-          const newTriggerRect = triggerRef.current.getBoundingClientRect();
-          const newDropdownHeight = dropdownRef.current.offsetHeight || 200;
-          const newPos = calculateDropdownPosition(newTriggerRect, dropdownWidth, newDropdownHeight, 8);
-          setPosition(newPos);
-        }
+        if (rafId) return;
+        rafId = requestAnimationFrame(() => {
+          if (triggerRef.current && dropdownRef.current) {
+            const newTriggerRect = triggerRef.current.getBoundingClientRect();
+            const newDropdownHeight = dropdownRef.current.offsetHeight || 200;
+            const newPos = calculateDropdownPosition(newTriggerRect, dropdownWidth, newDropdownHeight, 8);
+            setPosition(newPos);
+          }
+          rafId = null;
+        });
       };
 
       window.addEventListener('resize', handleResize);
-      window.addEventListener('scroll', handleResize, true);
+      window.addEventListener('scroll', handleResize, { passive: true, capture: true });
 
       return () => {
         window.removeEventListener('resize', handleResize);
         window.removeEventListener('scroll', handleResize, true);
+        if (rafId) cancelAnimationFrame(rafId);
       };
     } else {
       setPosition(null);

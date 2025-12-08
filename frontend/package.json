@@ -6,9 +6,21 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "build:perf": "PERF_MODE=true vite build",
+    "preview": "vite preview",
+    "e2e": "cypress open",
+    "e2e:headless": "cypress run",
+    "test": "cypress run",
+    "test:ui": "cypress open",
+    "perf:baseline": "node ../scripts/perf_baseline.js",
+    "perf:coverage": "node scripts/puppeteer_coverage.js",
+    "perf:lighthouse": "lhci autorun --collect.url=http://localhost:5173 --collect.url=http://localhost:5173/#/dashboard --collect.url=http://localhost:5173/#/create-event",
+    "perf:backend": "node ../scripts/backend_perf_test.js",
+    "perf:scan": "node ../scripts/perf_scan_and_fix.js",
+    "optimize-images": "node scripts/optimize-images.js"
   },
   "dependencies": {
+    "@sentry/react": "^7.97.0",
     "clsx": "2.1.0",
     "i18next": "^25.7.1",
     "i18next-browser-languagedetector": "^8.2.0",
@@ -19,15 +31,20 @@
     "react-i18next": "^16.3.5",
     "react-router-dom": "6.22.3",
     "recharts": "2.12.2",
+    "swr": "^2.3.7",
     "tailwind-merge": "2.2.1",
     "three": "0.162.0"
   },
   "devDependencies": {
+    "@lhci/cli": "^0.15.1",
     "@tailwindcss/postcss": "^4.1.17",
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
     "autoprefixer": "^10.4.22",
+    "cypress": "^13.6.0",
     "postcss": "^8.5.6",
+    "puppeteer": "^24.32.1",
+    "rollup-plugin-visualizer": "^6.0.5",
     "tailwindcss": "^4.1.17",
     "terser": "^5.44.1",
     "typescript": "~5.8.2",

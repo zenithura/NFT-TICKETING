@@ -4,6 +4,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { UserRole } from '../types';
 import { getUser } from './authService';
+import { walletToasts } from '../lib/toastService';
 
 // Purpose: Declare window.ethereum type for TypeScript.
 // Side effects: Extends Window interface.
@@ -45,7 +46,8 @@ const STORAGE_KEY_ADDRESS = 'wallet_address';
 const STORAGE_KEY_PROVIDER = 'wallet_provider';
 
 // Purpose: API base URL from environment or default.
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+// Use relative URL when proxying, or full URL if VITE_API_URL is set
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 // Purpose: Send wallet connection to backend API (optional - doesn't fail if endpoint doesn't exist).
 // Params: address (string) - Wallet address, provider (string) - Connection provider type.
@@ -88,12 +90,23 @@ const syncWithBackend = async (address: string, provider: 'metamask' | 'manual')
   }
 };
 
-// Purpose: Get ETH balance for an address using Web3 provider.
+// Balance cache to reduce RPC calls
+const balanceCache: Map<string, { balance: string; timestamp: number }> = new Map();
+const BALANCE_CACHE_TTL = 30000; // 30 seconds
+
+// Purpose: Get ETH balance for an address using Web3 provider with caching.
 // Params: address (string) - Wallet address.
 // Returns: Promise that resolves with balance string.
-// Side effects: Fetches balance from blockchain via Web3 provider.
+// Side effects: Fetches balance from blockchain via Web3 provider (cached for 30s).
 const getBalance = async (address: string): Promise<string> => {
   try {
+    // Check cache first
+    const cached = balanceCache.get(address.toLowerCase());
+    const now = Date.now();
+    if (cached && (now - cached.timestamp) < BALANCE_CACHE_TTL) {
+      return cached.balance;
+    }
+    
     // Try to get balance from Web3 provider if available
     if (typeof window !== 'undefined' && window.ethereum) {
       const provider = window.ethereum;
@@ -103,7 +116,15 @@ const getBalance = async (address: string): Promise<string> => {
       });
       // Convert from Wei to ETH (1 ETH = 10^18 Wei)
       const balanceInEth = parseInt(balance, 16) / Math.pow(10, 18);
-      return balanceInEth.toFixed(4);
+      const balanceStr = balanceInEth.toFixed(4);
+      
+      // Cache the result
+      balanceCache.set(address.toLowerCase(), {
+        balance: balanceStr,
+        timestamp: now
+      });
+      
+      return balanceStr;
     }
     // Fallback: return 0 if no provider available
     return '0.00';
@@ -156,6 +177,8 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
     newAddress: string | null,
     newProvider: 'metamask' | 'manual' | null
   ) => {
+    const wasConnected = !!address;
+    
     if (newAddress) {
       setAddress(newAddress);
       setIsConnected(true);
@@ -176,6 +199,11 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
       // Fetch balance
       const balanceValue = await getBalance(newAddress);
       setBalance(balanceValue);
+      
+      // Show success toast only if connecting (not restoring from storage)
+      if (!wasConnected) {
+        walletToasts.connected();
+      }
     } else {
       setAddress(null);
       setIsConnected(false);
@@ -183,8 +211,13 @@ export const Web3Provider = ({ children }: { children: ReactNode }) => {
       setBalance('0.00');
       localStorage.removeItem(STORAGE_KEY_ADDRESS);
       localStorage.removeItem(STORAGE_KEY_PROVIDER);
+      
+      // Show success toast only if was connected
+      if (wasConnected) {
+        walletToasts.disconnected();
+      }
     }
-  }, []);
+  }, [address]);
 
   // Purpose: Connect wallet using MetaMask extension.
   // Returns: Promise that resolves when connection succeeds or rejects on error.

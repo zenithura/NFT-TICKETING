@@ -231,12 +231,77 @@ body {
 
 .card-hover {
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  will-change: transform; /* Optimize for scroll performance */
 }
 
 .card-hover:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
   border-color: var(--color-border-hover);
+}
+
+/* Optimize scroll performance */
+html {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Japanese Matte Palette Gradients */
+.gradient-japanese-matte {
+  background: linear-gradient(135deg, 
+    #F5F1E8 0%,  /* Washi paper beige */
+    #E8DCC6 25%,  /* Soft sand */
+    #D4C4B0 50%,  /* Warm taupe */
+    #C9B8A3 75%,  /* Muted clay */
+    #B8A690 100%  /* Earthy brown */
+  );
+}
+
+.gradient-japanese-matte-dark {
+  background: linear-gradient(135deg,
+    #2A2520 0%,  /* Deep charcoal */
+    #1F1B17 25%, /* Rich brown-black */
+    #1A1612 50%, /* Dark earth */
+    #151210 75%, /* Near black */
+    #0F0D0B 100% /* Deep shadow */
+  );
+}
+
+.gradient-primary-matte {
+  background: linear-gradient(135deg,
+    #FEF3E2 0%,  /* Soft cream */
+    #FDE4C4 50%, /* Warm peach */
+    #FCD5A6 100% /* Light orange */
+  );
+}
+
+.gradient-primary-matte-dark {
+  background: linear-gradient(135deg,
+    #3D2E1F 0%,  /* Deep bronze */
+    #2A1F15 50%, /* Rich brown */
+    #1A140F 100% /* Dark earth */
+  );
+}
+
+/* Apply gradients based on theme */
+[data-theme="light"] .gradient-bg {
+  background: linear-gradient(135deg, 
+    #F5F1E8 0%,  /* Washi paper beige */
+    #E8DCC6 25%,  /* Soft sand */
+    #D4C4B0 50%,  /* Warm taupe */
+    #C9B8A3 75%,  /* Muted clay */
+    #B8A690 100%  /* Earthy brown */
+  );
+}
+
+[data-theme="dark"] .gradient-bg {
+  background: linear-gradient(135deg,
+    #2A2520 0%,  /* Deep charcoal */
+    #1F1B17 25%, /* Rich brown-black */
+    #1A1612 50%, /* Dark earth */
+    #151210 75%, /* Near black */
+    #0F0D0B 100% /* Deep shadow */
+  );
 }
 
 /* Purpose: Theme-aware text gradient. */

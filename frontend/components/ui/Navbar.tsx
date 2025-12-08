@@ -298,20 +298,27 @@ export const Navbar: React.FC = () => {
       const pos = calculateDropdownPosition(triggerRect, menuWidth, menuHeight, 8);
       setWalletMenuPosition(pos);
 
+      // Throttle scroll/resize handlers to prevent scroll jank
+      let rafId: number | null = null;
       const handleResize = () => {
-        if (walletTriggerRef.current) {
-          const newTriggerRect = walletTriggerRef.current.getBoundingClientRect();
-          const newMenuHeight = walletMenuRef.current?.offsetHeight || 100;
-          const newPos = calculateDropdownPosition(newTriggerRect, menuWidth, newMenuHeight, 8);
-          setWalletMenuPosition(newPos);
-        }
+        if (rafId) return;
+        rafId = requestAnimationFrame(() => {
+          if (walletTriggerRef.current) {
+            const newTriggerRect = walletTriggerRef.current.getBoundingClientRect();
+            const newMenuHeight = walletMenuRef.current?.offsetHeight || 100;
+            const newPos = calculateDropdownPosition(newTriggerRect, menuWidth, newMenuHeight, 8);
+            setWalletMenuPosition(newPos);
+          }
+          rafId = null;
+        });
       };
 
       window.addEventListener('resize', handleResize);
-      window.addEventListener('scroll', handleResize, true);
+      window.addEventListener('scroll', handleResize, { passive: true, capture: true });
       return () => {
         window.removeEventListener('resize', handleResize);
         window.removeEventListener('scroll', handleResize, true);
+        if (rafId) cancelAnimationFrame(rafId);
       };
     } else {
       setWalletMenuPosition(null);
@@ -327,20 +334,27 @@ export const Navbar: React.FC = () => {
       const pos = calculateDropdownPosition(triggerRect, menuWidth, menuHeight, 8);
       setUserMenuPosition(pos);
 
+      // Throttle scroll/resize handlers to prevent scroll jank
+      let rafId: number | null = null;
       const handleResize = () => {
-        if (userTriggerRef.current) {
-          const newTriggerRect = userTriggerRef.current.getBoundingClientRect();
-          const newMenuHeight = userMenuRef.current?.offsetHeight || 150;
-          const newPos = calculateDropdownPosition(newTriggerRect, menuWidth, newMenuHeight, 8);
-          setUserMenuPosition(newPos);
-        }
+        if (rafId) return;
+        rafId = requestAnimationFrame(() => {
+          if (userTriggerRef.current) {
+            const newTriggerRect = userTriggerRef.current.getBoundingClientRect();
+            const newMenuHeight = userMenuRef.current?.offsetHeight || 150;
+            const newPos = calculateDropdownPosition(newTriggerRect, menuWidth, newMenuHeight, 8);
+            setUserMenuPosition(newPos);
+          }
+          rafId = null;
+        });
       };
 
       window.addEventListener('resize', handleResize);
-      window.addEventListener('scroll', handleResize, true);
+      window.addEventListener('scroll', handleResize, { passive: true, capture: true });
       return () => {
         window.removeEventListener('resize', handleResize);
         window.removeEventListener('scroll', handleResize, true);
+        if (rafId) cancelAnimationFrame(rafId);
       };
     } else {
       setUserMenuPosition(null);
@@ -562,6 +576,7 @@ export const Navbar: React.FC = () => {
             ) : (
               <button
                 onClick={() => setIsWalletModalOpen(true)}
+                data-cy="connect-wallet-btn"
                 className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 hover:-translate-y-0.5 shadow-lg shadow-primary/20 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
                 aria-label={t('nav.connectWallet')}
               >
@@ -749,6 +764,7 @@ export const Navbar: React.FC = () => {
                     setIsWalletModalOpen(true);
                     setIsMenuOpen(false);
                   }}
+                  data-cy="connect-wallet-btn-mobile"
                   className="w-full text-left px-4 py-3 text-sm text-primary hover:bg-primary/10 rounded-lg transition-colors duration-150 flex items-center gap-2 focus:outline-none focus:bg-primary/10"
                 >
                   <Wallet size={16} />

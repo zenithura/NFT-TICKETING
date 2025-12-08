@@ -19,15 +19,18 @@ export const AdminProtectedRoute: React.FC<AdminProtectedRouteProps> = ({ childr
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        // Add a small delay to ensure cookies are available after redirect
+        await new Promise(resolve => setTimeout(resolve, 50));
         const authenticated = await checkAdminSession();
         setIsAuthenticated(authenticated);
       } catch (error) {
+        console.error('Admin session check error:', error);
         setIsAuthenticated(false);
       }
     };
 
     checkAuth();
-  }, []);
+  }, [location.pathname]); // Re-check when route changes
 
   if (isAuthenticated === null) {
     return (

@@ -1,7 +1,7 @@
 // File header: Event details page displaying event information and ticket purchase interface.
 // Shows event description, pricing, availability, and allows users to mint NFT tickets.
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Calendar, MapPin, ShieldCheck, ArrowLeft, Loader2 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -63,8 +63,13 @@ export const EventDetails: React.FC = () => {
         setEvent(mappedEvent);
       } catch (err: any) {
         console.error('Failed to fetch event:', err);
-        setError(err.message || 'Failed to load event');
+        const errorMessage = err?.message || 'Failed to load event';
+        setError(errorMessage);
         setEvent(null);
+        // Don't show error toast for 404s - handled in UI
+        if (err?.message && !err.message.includes('not found')) {
+          // Could show toast notification here if needed
+        }
       } finally {
         setIsLoading(false);
       }
@@ -73,7 +78,7 @@ export const EventDetails: React.FC = () => {
     fetchEvent();
   }, [id]);
 
-  const handlePurchase = async () => {
+  const handlePurchase = useCallback(async () => {
     if (!isConnected || !address) {
       toast.error(t('eventDetails.connectWalletToContinue'));
       try {
@@ -118,7 +123,7 @@ export const EventDetails: React.FC = () => {
     } finally {
       setIsBuying(false);
     }
-  };
+  }, [isConnected, address, event, ticketCount, balance, connectMetaMask, navigate, t]);
 
   if (isLoading) {
     return <EventDetailsSkeleton />;
@@ -153,7 +158,7 @@ export const EventDetails: React.FC = () => {
         <div className="lg:col-span-2 space-y-8">
           {/* Hero Image */}
           <div className="relative aspect-video rounded-2xl overflow-hidden border border-border">
-            <img src={event.imageUrl} alt={event.title} className="w-full h-full object-cover" />
+            <img loading="lazy" src={event.imageUrl} alt={event.title} className="w-full h-full object-cover" />
             <div className="absolute top-4 left-4">
               <span className="px-3 py-1 rounded-full bg-background/60 backdrop-blur text-xs font-medium border border-border">
                 {event.category}

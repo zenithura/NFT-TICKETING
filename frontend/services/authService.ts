@@ -6,7 +6,8 @@
  * Manages JWT tokens, user state, and API communication.
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+// Use relative URL when proxying, or full URL if VITE_API_URL is set
+const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || '/api';
 
 // Purpose: Interface for authentication response from API.
 // Side effects: None - type definition only.
@@ -112,15 +113,17 @@ export const isAuthenticated = (): boolean => {
   return !!getAccessToken();
 };
 
-// Purpose: Make authenticated API request with automatic token refresh.
+// Purpose: Make authenticated API request with automatic token refresh, timeout, and retry logic.
 // Params: url (string) — API endpoint; options (RequestInit) — fetch options.
 // Returns: Promise with Response object.
 // Side effects: Adds Authorization header, refreshes token if expired.
 export const authenticatedFetch = async (
   url: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  retries = 1
 ): Promise<Response> => {
   const token = getAccessToken();
+  const timeout = 10000; // 10 second timeout
   
   const headers = new Headers(options.headers);
   headers.set('Content-Type', 'application/json');
@@ -129,53 +132,88 @@ export const authenticatedFetch = async (
     headers.set('Authorization', `Bearer ${token}`);
   }
   
-  let response = await fetch(`${API_BASE_URL}${url}`, {
-    ...options,
-    headers,
-  });
+  // Create abort controller for timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
   
-  // Purpose: If token expired, try to refresh it.
-  // Side effects: Calls refresh token endpoint, retries original request.
-  if (response.status === 401) {
-    const refreshToken = getRefreshToken();
-    if (refreshToken) {
-      try {
-        const refreshResponse = await fetch(`${API_BASE_URL}/auth/refresh-token`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refresh_token: refreshToken }),
-        });
-        
-        if (refreshResponse.ok) {
-          const data: AuthResponse = await refreshResponse.json();
-          if (data.access_token) {
-            setAccessToken(data.access_token);
-            if (data.refresh_token) {
-              setRefreshToken(data.refresh_token);
+  try {
+    let response = await fetch(`${API_BASE_URL}${url}`, {
+      ...options,
+      headers,
+      signal: controller.signal,
+    });
+    
+    clearTimeout(timeoutId);
+    
+    // Purpose: If token expired, try to refresh it.
+    // Side effects: Calls refresh token endpoint, retries original request.
+    if (response.status === 401) {
+      const refreshToken = getRefreshToken();
+      if (refreshToken && retries > 0) {
+        try {
+          const refreshController = new AbortController();
+          const refreshTimeout = setTimeout(() => refreshController.abort(), timeout);
+          
+          const refreshResponse = await fetch(`${API_BASE_URL}/auth/refresh-token`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refresh_token: refreshToken }),
+            signal: refreshController.signal,
+          });
+          
+          clearTimeout(refreshTimeout);
+          
+          if (refreshResponse.ok) {
+            const data: AuthResponse = await refreshResponse.json();
+            if (data.access_token) {
+              setAccessToken(data.access_token);
+              if (data.refresh_token) {
+                setRefreshToken(data.refresh_token);
+              }
+              
+              // Retry original request with new token (only once)
+              const retryController = new AbortController();
+              const retryTimeout = setTimeout(() => retryController.abort(), timeout);
+              
+              try {
+                headers.set('Authorization', `Bearer ${data.access_token}`);
+                response = await fetch(`${API_BASE_URL}${url}`, {
+                  ...options,
+                  headers,
+                  signal: retryController.signal,
+                });
+                clearTimeout(retryTimeout);
+              } catch (retryError) {
+                clearTimeout(retryTimeout);
+                throw retryError;
+              }
             }
-            
-            // Retry original request with new token
-            headers.set('Authorization', `Bearer ${data.access_token}`);
-            response = await fetch(`${API_BASE_URL}${url}`, {
-              ...options,
-              headers,
-            });
+          } else {
+            // Refresh failed, clear auth
+            clearAuth();
+            throw new Error('Session expired. Please login again.');
           }
-        } else {
-          // Refresh failed, clear auth
+        } catch (error) {
+          if (error instanceof Error && error.name === 'AbortError') {
+            throw new Error('Request timeout. Please try again.');
+          }
           clearAuth();
-          throw new Error('Session expired. Please login again.');
+          throw error;
         }
-      } catch (error) {
+      } else {
         clearAuth();
-        throw error;
+        throw new Error('Authentication required. Please login again.');
       }
-    } else {
-      clearAuth();
     }
+    
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('Request timeout. Please check your connection and try again.');
+    }
+    throw error;
   }
-  
-  return response;
 };
 
 // Purpose: Register new user account.

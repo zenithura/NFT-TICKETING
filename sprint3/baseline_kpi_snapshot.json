@@ -1,0 +1,113 @@
+{
+  "snapshot_date": "2025-11-28T00:00:00Z",
+  "measurement_period": {
+    "start": "2025-11-01T00:00:00Z",
+    "end": "2025-11-28T00:00:00Z",
+    "duration_days": 28
+  },
+  "primary_kpis": {
+    "conversion_rate": {
+      "value": 8.5,
+      "unit": "percent",
+      "trend": "stable",
+      "target": ">10%",
+      "status": "below_target"
+    },
+    "time_to_finality": {
+      "value": 32.5,
+      "unit": "seconds",
+      "trend": "improving",
+      "target": "<30s",
+      "status": "near_target",
+      "min": 12.3,
+      "max": 87.2,
+      "median": 28.1,
+      "p95": 65.4
+    },
+    "fraud_detection_rate": {
+      "value": 94.2,
+      "unit": "percent",
+      "trend": "improving",
+      "target": ">=95%",
+      "status": "near_target",
+      "blocked_count": 1175,
+      "total_attempts": 1247
+    },
+    "revenue_per_hour": {
+      "value": 11240.0,
+      "unit": "dollars",
+      "trend": "increasing",
+      "target": "optimize",
+      "status": "tracking"
+    }
+  },
+  "system_metrics": {
+    "event_processing_lag": {
+      "avg_lag_seconds": 15.3,
+      "max_lag_seconds": 45.2,
+      "count": 15420,
+      "target": "<60s",
+      "status": "healthy"
+    },
+    "api_error_rate": {
+      "error_rate": 0.018,
+      "error_count": 2294,
+      "total_requests": 127450,
+      "target": "<0.02",
+      "status": "healthy"
+    },
+    "api_latency": {
+      "avg_latency_ms": 42.3,
+      "p50_latency_ms": 35.1,
+      "p95_latency_ms": 75.4,
+      "p99_latency_ms": 118.2,
+      "target": "p95 < 100ms",
+      "status": "healthy"
+    },
+    "suspicious_transaction_count": {
+      "suspicious_count": 1247,
+      "total_count": 127450,
+      "suspicious_rate": 0.0098,
+      "target": "<2%",
+      "status": "healthy"
+    }
+  },
+  "model_performance": {
+    "fraud_model_v1.2.3": {
+      "auc_roc": 0.947,
+      "auc_pr": 0.823,
+      "f1_score": 0.81,
+      "false_positive_rate": 0.018,
+      "training_date": "2025-11-20T00:00:00Z"
+    }
+  },
+  "trends": {
+    "week_1": {
+      "conversion_rate": 8.2,
+      "fraud_detection_rate": 91.8,
+      "api_error_rate": 0.022
+    },
+    "week_2": {
+      "conversion_rate": 8.4,
+      "fraud_detection_rate": 93.1,
+      "api_error_rate": 0.020
+    },
+    "week_3": {
+      "conversion_rate": 8.6,
+      "fraud_detection_rate": 94.7,
+      "api_error_rate": 0.019
+    },
+    "week_4": {
+      "conversion_rate": 8.5,
+      "fraud_detection_rate": 95.2,
+      "api_error_rate": 0.018
+    }
+  },
+  "notes": [
+    "Fraud detection rate improving week-over-week",
+    "API error rate within target (<2%)",
+    "Conversion rate stable but below target",
+    "Time to finality improving, approaching target"
+  ]
+}
+

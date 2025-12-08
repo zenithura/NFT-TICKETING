@@ -1,0 +1,29 @@
+name: Deploy Monitoring Stack
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * *' # Daily
+
+jobs:
+  deploy-monitoring:
+    name: Deploy Prometheus & Grafana
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Deploy monitoring stack
+        run: |
+          docker-compose -f docker-compose.monitoring.yml up -d
+      
+      - name: Verify Prometheus
+        run: |
+          sleep 10
+          curl -f http://localhost:9090/-/healthy || exit 1
+      
+      - name: Verify Grafana
+        run: |
+          sleep 10
+          curl -f http://localhost:3001/api/health || exit 1
+

@@ -1,0 +1,115 @@
+{
+  "dashboard": {
+    "title": "NFT Ticketing Platform - Overview",
+    "tags": ["nft-ticketing", "overview"],
+    "timezone": "browser",
+    "schemaVersion": 27,
+    "version": 1,
+    "refresh": "10s",
+    "panels": [
+      {
+        "id": 1,
+        "title": "API Request Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "sum(rate(http_requests_total[5m]))",
+            "legendFormat": "Requests/sec"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0}
+      },
+      {
+        "id": 2,
+        "title": "Error Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "(sum(rate(http_request_errors_total[5m])) / sum(rate(http_requests_total[5m]))) * 100",
+            "legendFormat": "Error Rate %"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+        "thresholds": [
+          {"value": 2, "color": "red"}
+        ]
+      },
+      {
+        "id": 3,
+        "title": "API Response Time (95th percentile)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
+            "legendFormat": "Response Time (s)"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8}
+      },
+      {
+        "id": 4,
+        "title": "Event Processing Lag",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "event_processing_lag_seconds",
+            "legendFormat": "Lag (s)"
+          }
+        ],
+        "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+        "thresholds": [
+          {"value": 60, "color": "red"}
+        ]
+      },
+      {
+        "id": 5,
+        "title": "Active Users",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "active_users_total",
+            "legendFormat": "Active Users"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 0, "y": 16}
+      },
+      {
+        "id": 6,
+        "title": "Events Created",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "events_created_total",
+            "legendFormat": "Total Events"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 6, "y": 16}
+      },
+      {
+        "id": 7,
+        "title": "Tickets Sold",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "tickets_sold_total",
+            "legendFormat": "Total Tickets"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 12, "y": 16}
+      },
+      {
+        "id": 8,
+        "title": "Suspicious Transactions",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "suspicious_transactions_total",
+            "legendFormat": "Suspicious"
+          }
+        ],
+        "gridPos": {"h": 4, "w": 6, "x": 18, "y": 16}
+      }
+    ]
+  }
+}
+

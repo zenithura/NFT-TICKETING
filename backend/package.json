@@ -1,0 +1,14 @@
+{
+  "name": "backend-tests",
+  "version": "1.0.0",
+  "description": "Backend test scripts",
+  "scripts": {
+    "test": "python pytest_wrapper.py tests/ -v",
+    "test:unit": "python pytest_wrapper.py tests/ -v -m unit",
+    "test:integration": "python pytest_wrapper.py tests/ -v -m integration",
+    "test:e2e": "python pytest_wrapper.py tests/ -v -m e2e",
+    "test:cov": "python pytest_wrapper.py tests/ --cov=. --cov-report=html --cov-report=term",
+    "test:all": "python pytest_wrapper.py tests/ -v --cov=. --cov-report=html"
+  }
+}
+

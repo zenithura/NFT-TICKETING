@@ -4,10 +4,10 @@ from typing import List
 from supabase import Client
 
 from database import get_supabase_admin
-from database import get_supabase_admin
 from models import MarketplaceListingCreate, MarketplaceListingResponse, MarketplaceListingUpdate, ListRequest, BuyRequest, UpdatePriceRequest, EscrowRequest
 from web3_client import contracts, send_transaction, w3
 from web3 import Web3
+from cache import get as cache_get, set as cache_set, clear as cache_clear
 
 router = APIRouter(prefix="/marketplace", tags=["Marketplace"])
 
@@ -19,14 +19,20 @@ async def create_listing(
 ):
     """Create a new marketplace listing with 50% max markup validation."""
     try:
+        # Convert ticket_id to int if needed
+        ticket_id = int(listing.ticket_id) if listing.ticket_id else None
+        if not ticket_id:
+            raise HTTPException(status_code=400, detail="Invalid ticket_id")
+        
         # Verify ticket exists and belongs to seller
-        # Try both ticket_id and id fields
-        ticket_response = db.table("tickets").select("*").eq("ticket_id", listing.ticket_id).execute()
+        # Try ticket_id column first (complete schema)
+        ticket_response = db.table("tickets").select("*").eq("ticket_id", ticket_id).execute()
         if not ticket_response.data:
-            ticket_response = db.table("tickets").select("*").eq("id", listing.ticket_id).execute()
+            # Try id column (simple schema)
+            ticket_response = db.table("tickets").select("*").eq("id", ticket_id).execute()
         
         if not ticket_response.data:
-            raise HTTPException(status_code=404, detail="Ticket not found")
+            raise HTTPException(status_code=404, detail=f"Ticket {ticket_id} not found")
         
         ticket = ticket_response.data[0]
         
@@ -78,17 +84,33 @@ async def create_listing(
         
         # Create listing with original_price
         listing_data = listing.model_dump()
+        # Ensure ticket_id is the correct type (BIGINT in database) - use the ticket_id variable we defined
+        listing_data["ticket_id"] = ticket_id
         if original_price is not None:
             listing_data["original_price"] = original_price
+        
+        # Ensure status is set
+        if "status" not in listing_data:
+            listing_data["status"] = "active"
+        
+        # Debug: Log what we're inserting
+        import logging
+        logging.info(f"Creating marketplace listing: {listing_data}")
         
         # Update ticket status to resale_listed (map to database enum)
         # Database uses ACTIVE, but we can track resale status separately
         # For now, keep ticket status as ACTIVE and track resale in marketplace table
         
-        response = db.table("marketplace").insert(listing_data).execute()
+        try:
+            response = db.table("marketplace").insert(listing_data).execute()
+        except Exception as insert_error:
+            import traceback
+            error_msg = f"Failed to insert into marketplace: {str(insert_error)}\n{traceback.format_exc()}\nListing data: {listing_data}"
+            logging.error(error_msg)
+            raise HTTPException(status_code=500, detail=f"Failed to create listing: {str(insert_error)}")
         
         if not response.data:
-            raise HTTPException(status_code=500, detail="Failed to create listing")
+            raise HTTPException(status_code=500, detail="Failed to create listing: No data returned from insert")
         
         listing_response = dict(response.data[0])
         # Ensure original_price is included in response
@@ -108,20 +130,83 @@ async def list_marketplace(
     status: str = "active",
     db: Client = Depends(get_supabase_admin)
 ):
-    """List all marketplace listings."""
+    """List all marketplace listings with optimized queries."""
+    cache_key = f"marketplace:list:{status}"
+    cached_result = cache_get(cache_key)
+    if cached_result is not None:
+        return cached_result
+    
     try:
         response = db.table("marketplace").select("*").eq("status", status).execute()
+        
+        if not response.data:
+            return []
+        
         listings = []
+        
+        # Batch fetch ticket event_ids and event names to avoid N+1 queries
+        ticket_ids = [listing.get("ticket_id") for listing in response.data if listing.get("ticket_id")]
+        unique_ticket_ids = list(set(ticket_ids))
+        
+        # Create ticket_id -> event_id and event_name mappings
+        ticket_event_map = {}
+        event_names_map = {}  # Map event_id to event name
+        if unique_ticket_ids:
+            # Fetch tickets in batches (Supabase limit)
+            for ticket_id in unique_ticket_ids[:100]:  # Limit to 100 at a time
+                try:
+                    # Try ticket_id first
+                    ticket_response = db.table("tickets").select("ticket_id, id, event_id").eq("ticket_id", ticket_id).limit(1).execute()
+                    if not ticket_response.data:
+                        # Fallback to id column
+                        ticket_response = db.table("tickets").select("ticket_id, id, event_id").eq("id", ticket_id).limit(1).execute()
+                    
+                    if ticket_response.data:
+                        ticket = ticket_response.data[0]
+                        ticket_key = ticket.get("ticket_id") or ticket.get("id")
+                        event_id = ticket.get("event_id")
+                        ticket_event_map[ticket_key] = event_id
+                        
+                        # Fetch event name if we haven't already
+                        if event_id and event_id not in event_names_map:
+                            try:
+                                event_response = db.table("events").select("event_id, name").eq("event_id", event_id).limit(1).execute()
+                                if not event_response.data:
+                                    event_response = db.table("events").select("id, name").eq("id", event_id).limit(1).execute()
+                                if event_response.data:
+                                    event_names_map[event_id] = event_response.data[0].get("name")
+                            except Exception:
+                                pass
+                except Exception:
+                    # Skip if ticket lookup fails
+                    continue
+        
         for listing in response.data:
             listing_dict = dict(listing)
             # Ensure original_price is included (may be None for old listings)
             if "original_price" not in listing_dict:
                 listing_dict["original_price"] = None
+            # Add event_id for frontend optimization (not in response model, but useful)
+            ticket_id = listing.get("ticket_id")
+            if ticket_id and ticket_id in ticket_event_map:
+                event_id = ticket_event_map[ticket_id]
+                listing_dict["_event_id"] = event_id  # Internal field
+                # Add event_name if available
+                if event_id and event_id in event_names_map:
+                    listing_dict["event_name"] = event_names_map[event_id]
             listings.append(MarketplaceListingResponse(**listing_dict))
-        return listings
+        
+        result = listings
+        # Cache for 1 minute (listings change more frequently)
+        cache_set(cache_key, result, ttl=60)
+        return result
     
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        import traceback
+        error_detail = f"Failed to list marketplace: {str(e)}\n{traceback.format_exc()}"
+        raise HTTPException(status_code=500, detail=error_detail)
 
 
 @router.get("/{listing_id}", response_model=MarketplaceListingResponse)

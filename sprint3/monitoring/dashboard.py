@@ -14,10 +14,15 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 import dash_bootstrap_components as dbc
+import requests
+import json
 
 # Purpose: Initialize Dash web application with Bootstrap styling.
 # Side effects: Creates Flask app instance, configures Dash.
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+
+# Monitoring API URL
+MONITORING_API_URL = "http://localhost:5002/api/v1/metrics"
 
 # Purpose: Load sample transaction data from CSV or generate mock data if file missing.
 # Returns: DataFrame with transaction data including timestamps and fraud labels.
@@ -50,11 +55,38 @@ def calculate_kpis(df):
     """Calculate real-time KPIs."""
     recent_df = df[df['timestamp'] > datetime.now() - timedelta(hours=1)]
     
+    # Try to fetch from monitoring API
+    try:
+        response = requests.get(f"{MONITORING_API_URL}/system", timeout=2)
+        if response.status_code == 200:
+            system_metrics = response.json()
+            
+            # Also get primary KPIs
+            kpi_response = requests.get(f"{MONITORING_API_URL}/kpis", timeout=2)
+            primary_kpis = kpi_response.json() if kpi_response.status_code == 200 else {}
+            
+            api_latency = system_metrics.get('api_latency', {}).get('p95_latency_ms', 45.0)
+            conversion_rate = primary_kpis.get('conversion_rate', {}).get('value', 0)
+            revenue_per_hour = primary_kpis.get('revenue_per_hour', {}).get('value', 0)
+            fraud_rate = primary_kpis.get('fraud_detection_rate', {}).get('value', 0)
+            
+            return {
+                'transactions_per_hour': len(recent_df),
+                'fraud_rate': fraud_rate,
+                'api_latency': api_latency,
+                'revenue_per_hour': revenue_per_hour,
+                'conversion_rate': conversion_rate
+            }
+    except Exception as e:
+        print(f"Could not fetch from monitoring API: {e}")
+    
+    # Fallback to mock data
     kpis = {
         'transactions_per_hour': len(recent_df),
         'fraud_rate': recent_df['is_fraud'].mean() * 100 if len(recent_df) > 0 else 0,
         'api_latency': np.random.uniform(40, 55),  # Mock latency
-        'revenue_per_hour': recent_df['price_paid'].sum() if 'price_paid' in recent_df.columns else 0
+        'revenue_per_hour': recent_df['price_paid'].sum() if 'price_paid' in recent_df.columns else 0,
+        'conversion_rate': 0
     }
     return kpis
 
@@ -155,6 +187,38 @@ app.layout = dbc.Container([
                 ])
             ])
         ])
+    ], className="mb-3"),
+    
+    # Alerts Section
+    dbc.Row([
+        dbc.Col([
+            dbc.Card([
+                dbc.CardBody([
+                    html.H5("🚨 Active Alerts", className="card-title"),
+                    html.Div(id='alerts-table')
+                ])
+            ])
+        ])
+    ], className="mb-3"),
+    
+    # System KPIs Section
+    dbc.Row([
+        dbc.Col([
+            dbc.Card([
+                dbc.CardBody([
+                    html.H5("📈 System KPIs", className="card-title"),
+                    html.Div(id='system-kpis')
+                ])
+            ])
+        ], width=6),
+        dbc.Col([
+            dbc.Card([
+                dbc.CardBody([
+                    html.H5("🔍 SIEM Findings", className="card-title"),
+                    html.Div(id='siem-findings')
+                ])
+            ])
+        ], width=6)
     ], className="mb-3"),
     
     # Auto-refresh interval
@@ -349,6 +413,91 @@ def update_fraud_table(n):
     table_body = [html.Tbody(rows)]
     
     return dbc.Table(table_header + table_body, bordered=True, hover=True, size='sm')
+
+@app.callback(
+    Output('alerts-table', 'children'),
+    [Input('interval-component', 'n_intervals')]
+)
+def update_alerts_table(n):
+    """Update alerts table."""
+    try:
+        # Try to fetch alerts from monitoring API
+        response = requests.get("http://localhost:5002/api/v1/alerts", timeout=2)
+        if response.status_code == 200:
+            alerts = response.json()
+            if alerts:
+                table_header = [
+                    html.Thead(html.Tr([
+                        html.Th("Time"),
+                        html.Th("Alert"),
+                        html.Th("Severity"),
+                        html.Th("Message")
+                    ]))
+                ]
+                rows = []
+                for alert in alerts[:10]:  # Last 10 alerts
+                    severity_color = {
+                        'CRITICAL': 'danger',
+                        'HIGH': 'danger',
+                        'MEDIUM': 'warning',
+                        'LOW': 'info'
+                    }.get(alert.get('severity', 'LOW'), 'secondary')
+                    
+                    rows.append(html.Tr([
+                        html.Td(alert.get('created_at', '')[:19] if alert.get('created_at') else ''),
+                        html.Td(alert.get('name', '')),
+                        html.Td(
+                            html.Span(alert.get('severity', 'LOW'), 
+                                    className=f"badge bg-{severity_color}")
+                        ),
+                        html.Td(alert.get('message', ''))
+                    ]))
+                
+                table_body = [html.Tbody(rows)]
+                return dbc.Table(table_header + table_body, bordered=True, hover=True, size='sm')
+            else:
+                return html.P("No active alerts", className="text-success")
+        else:
+            return html.P("Unable to fetch alerts", className="text-muted")
+    except Exception as e:
+        return html.P(f"Error: {str(e)}", className="text-danger")
+
+@app.callback(
+    Output('system-kpis', 'children'),
+    [Input('interval-component', 'n_intervals')]
+)
+def update_system_kpis(n):
+    """Update system KPIs."""
+    try:
+        response = requests.get(f"{MONITORING_API_URL}/system", timeout=2)
+        if response.status_code == 200:
+            metrics = response.json()
+            
+            kpi_items = []
+            for metric_name, metric_data in metrics.items():
+                if isinstance(metric_data, dict) and 'kpi_name' in metric_data:
+                    kpi_items.append(html.Div([
+                        html.Strong(f"{metric_name.replace('_', ' ').title()}: "),
+                        html.Span(str(metric_data.get('value', metric_data.get('avg_lag_seconds', 'N/A'))))
+                    ], className="mb-2"))
+            
+            return html.Div(kpi_items) if kpi_items else html.P("No metrics available", className="text-muted")
+        else:
+            return html.P("Unable to fetch system KPIs", className="text-muted")
+    except Exception as e:
+        return html.P(f"Error: {str(e)}", className="text-danger")
+
+@app.callback(
+    Output('siem-findings', 'children'),
+    [Input('interval-component', 'n_intervals')]
+)
+def update_siem_findings(n):
+    """Update SIEM findings."""
+    try:
+        # This would connect to SIEM API when available
+        return html.P("SIEM integration coming soon", className="text-muted")
+    except Exception as e:
+        return html.P(f"Error: {str(e)}", className="text-danger")
 
 if __name__ == '__main__':
     print("=" * 60)

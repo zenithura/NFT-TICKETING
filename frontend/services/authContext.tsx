@@ -20,6 +20,7 @@ import {
   getUser as getStoredUser,
   clearAuth,
 } from './authService';
+import { authToasts } from '../lib/toastService';
 
 // Purpose: Interface for authentication context value.
 // Side effects: None - type definition only.
@@ -43,36 +44,40 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // Side effects: Manages authentication state, loads user on mount.
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false); // Start as false to not block render
 
   // Purpose: Load user from storage and verify token on mount.
   // Side effects: Reads from localStorage, calls API to verify token.
+  // Non-blocking: Sets user immediately from storage, verifies in background
   useEffect(() => {
     const loadUser = async () => {
       try {
         if (isAuthenticated()) {
           const storedUser = getStoredUser();
           if (storedUser) {
+            // Set user immediately from storage (non-blocking)
             setUser(storedUser);
-            // Verify token is still valid
-            try {
-              await getCurrentUser();
-            } catch {
+            // Verify token in background (non-blocking)
+            getCurrentUser().catch(() => {
               clearAuth();
               setUser(null);
-            }
+            });
           }
         }
       } catch (error) {
         console.error('Error loading user:', error);
         clearAuth();
         setUser(null);
-      } finally {
-        setIsLoading(false);
       }
+      // Don't set isLoading - render immediately
     };
 
-    loadUser();
+    // Use requestIdleCallback or setTimeout to defer slightly
+    if (typeof requestIdleCallback !== 'undefined') {
+      requestIdleCallback(loadUser, { timeout: 100 });
+    } else {
+      setTimeout(loadUser, 0);
+    }
   }, []);
 
   // Purpose: Login user and update state.
@@ -111,6 +116,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const logout = async (): Promise<void> => {
     try {
       await logoutAPI();
+      authToasts.logoutSuccess();
     } catch (error) {
       console.error('Logout error:', error);
     } finally {

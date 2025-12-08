@@ -7,7 +7,8 @@
  */
 
 // Purpose: API base URL from environment or default.
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+// Use relative URL when proxying, or full URL if VITE_API_URL is set
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 
 // Purpose: Message interface for chat messages.
 export interface ChatMessage {

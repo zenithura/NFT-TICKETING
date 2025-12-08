@@ -1,0 +1,168 @@
+name: Performance Tests
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  frontend-perf:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build for performance analysis
+        run: npm run build:perf
+        env:
+          PERF_MODE: true
+
+      - name: Run bundle analysis
+        run: |
+          if [ -f dist_performance/bundle.html ]; then
+            echo "✅ Bundle analysis generated"
+          else
+            echo "⚠️ Bundle analysis not found"
+            exit 1
+          fi
+
+      - name: Start dev server
+        run: |
+          npm run dev &
+          sleep 10
+        env:
+          CI: true
+
+      - name: Run Puppeteer coverage
+        run: npm run perf:coverage
+        continue-on-error: true
+
+      - name: Run Lighthouse CI
+        run: |
+          npm install -g @lhci/cli@latest
+          lhci autorun \
+            --collect.url=http://localhost:5173 \
+            --collect.url=http://localhost:5173/#/ \
+            --collect.url=http://localhost:5173/#/dashboard \
+            --collect.url=http://localhost:5173/#/create-event \
+            --upload.target=temporary-public-storage \
+            --collect.numberOfRuns=1 \
+            --assert.assertions='{"first-contentful-paint": ["warn", {"maxNumericValue": 3000}], "largest-contentful-paint": ["error", {"maxNumericValue": 4000}], "cumulative-layout-shift": ["warn", {"maxNumericValue": 0.1}], "total-blocking-time": ["warn", {"maxNumericValue": 500}], "speed-index": ["warn", {"maxNumericValue": 4000}]}'
+        continue-on-error: true
+
+      - name: Check bundle size thresholds
+        run: |
+          JS_TOTAL=$(find dist -name "*.js" -exec stat -f%z {} + 2>/dev/null | awk '{s+=$1} END {print s}' || find dist -name "*.js" -exec stat -c%s {} + 2>/dev/null | awk '{s+=$1} END {print s}')
+          JS_TOTAL_MB=$(echo "scale=2; $JS_TOTAL / 1024 / 1024" | bc)
+          echo "📦 Total JS size: ${JS_TOTAL_MB}MB"
+          
+          if (( $(echo "$JS_TOTAL_MB > 3.0" | bc -l) )); then
+            echo "❌ JS bundle exceeds 3MB threshold: ${JS_TOTAL_MB}MB"
+            exit 1
+          else
+            echo "✅ JS bundle size OK: ${JS_TOTAL_MB}MB"
+          fi
+
+      - name: Upload performance artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: performance-reports
+          path: |
+            frontend/dist_performance/**
+            frontend/perf/**
+            .lighthouseci/**
+          retention-days: 30
+
+      - name: Comment PR with performance report
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            
+            let comment = '## 🚀 Performance Test Results\n\n';
+            
+            // Check if bundle analysis exists
+            if (fs.existsSync('frontend/dist_performance/bundle.html')) {
+              comment += '✅ Bundle analysis generated\n';
+            }
+            
+            // Check coverage
+            if (fs.existsSync('frontend/perf/coverage_report.json')) {
+              const coverage = JSON.parse(fs.readFileSync('frontend/perf/coverage_report.json', 'utf8'));
+              comment += `\n📊 Coverage Analysis:\n`;
+              coverage.forEach(page => {
+                comment += `- **${page.page}**: JS unused: ${page.js.unusedPercent}%, CSS unused: ${page.css.unusedPercent}%\n`;
+              });
+            }
+            
+            comment += '\n📦 Artifacts uploaded for review.';
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  backend-perf:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Start backend server
+        run: |
+          python -m uvicorn main:app --host 0.0.0.0 --port 8000 &
+          sleep 5
+        env:
+          ENVIRONMENT: test
+
+      - name: Run backend performance tests
+        run: node ../scripts/backend_perf_test.js
+        continue-on-error: true
+
+      - name: Upload backend perf artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-performance-reports
+          path: |
+            perf/backend_report.json
+          retention-days: 30
+
