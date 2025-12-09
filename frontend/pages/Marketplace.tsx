@@ -12,6 +12,7 @@ import { NFTCoinAnimation } from '../components/3d/NFTCoinAnimation';
 import { TicketCardSkeleton } from '../components/ui/TicketCardSkeleton';
 import { ResaleListingCard } from '../components/ResaleListingCard';
 import { cn } from '../lib/utils';
+import { getPlaceholderImage, getWebPUrl } from '../lib/imageUtils';
 
 // Defer 3D animation loading to improve LCP
 const DeferredCoinAnimation: React.FC = () => {
@@ -229,7 +230,12 @@ export const Marketplace: React.FC = React.memo(() => {
               key={event.id}
               className="group bg-background-elevated rounded-xl border border-border overflow-hidden card-hover"
             >
-              <div className="event-image-container" style={{ aspectRatio: '16/9' }}>
+              <div 
+                className="event-image-container" 
+                style={{ aspectRatio: '16/9', minHeight: '200px' }}
+                data-lcp-candidate={index === 0 ? 'true' : undefined}
+                data-aspect-ratio="16/9"
+              >
                 {/* Preload critical LCP image */}
                 {index === 0 && (
                   <link rel="preload" as="image" href={event.imageUrl} fetchpriority="high" />
@@ -246,7 +252,8 @@ export const Marketplace: React.FC = React.memo(() => {
                   style={{ 
                     aspectRatio: '16/9',
                     objectFit: 'cover',
-                    backgroundColor: 'var(--color-background-hover)'
+                    backgroundColor: 'var(--color-background-hover)',
+                    minHeight: '200px'
                   }}
                   onError={(e) => {
                     // Fallback to a simple gradient placeholder if image fails
