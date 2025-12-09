@@ -94,11 +94,23 @@
       background-color: var(--bg-primary);
       color: var(--color-foreground);
       transition: background-color 0.2s ease, color 0.2s ease;
+      /* Note: Gradient is defined in index.css to ensure it persists on refresh */
+      /* This inline style is just for initial render before CSS loads */
     }
     
+    /* Ensure gradient applies correctly on refresh */
+    html[data-theme="dark"] html,
+    html:not([data-theme]) {
+      /* Gradient will be applied by index.css which loads after this inline style */
+    }
+    
+    /* CRITICAL: #root must use flexbox with min-height 100vh for sticky footer */
     #root {
       min-height: 100vh;
-      background-color: var(--bg-primary);
+      display: flex;
+      flex-direction: column;
+      background-color: transparent;
+      background: inherit;
     }
 
     /* Loading state styles */
@@ -177,9 +189,9 @@
 </head>
 
 <body class="bg-background">
-  <div id="root" class="bg-background">
+  <div id="root" style="background: transparent;">
     <!-- Initial loading state for faster FCP -->
-    <div class="flex items-center justify-center min-h-screen bg-background">
+    <div class="flex items-center justify-center min-h-screen" style="background: transparent;">
       <div class="text-foreground">Loading...</div>
     </div>
   </div>

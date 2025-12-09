@@ -25,6 +25,11 @@
     "marketplace": "Bazar",
     "dashboard": "İdarə Paneli",
     "myTickets": "Biletlərim",
+    "browseEvents": "Tədbirlərə Bax",
+    "reselling": "Yenidən Satış",
+    "features": "Xüsusiyyətlər",
+    "about": "Haqqında",
+    "contact": "Əlaqə",
     "createEvent": "Tədbir Yarat",
     "resalePortal": "İkinci Əl Portal",
     "adminPanel": "Admin Paneli",
@@ -39,7 +44,9 @@
     "openMenu": "Menyunu aç",
     "closeMenu": "Menyunu bağla",
     "mobileMenu": "Mobil menyu",
-    "userMenu": "İstifadəçi menyusu"
+    "userMenu": "İstifadəçi menyusu",
+    "coreNavigation": "Əsas Naviqasiya",
+    "tools": "Alətlər"
   },
   "marketplace": {
     "title": "Anları Topla, Yalnız Bilet Yox.",

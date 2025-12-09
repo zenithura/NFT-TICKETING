@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" class="bg-background" dir="ltr">
+<html lang="en" dir="ltr">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -46,11 +46,33 @@
       background-color: var(--bg-primary);
       color: var(--color-foreground);
       transition: background-color 0.2s ease, color 0.2s ease;
+      /* Sophisticated muted gradient background */
+      background: 
+        radial-gradient(ellipse at top left, rgba(147, 165, 207, 0.15) 0%, transparent 50%),
+        radial-gradient(ellipse at top right, rgba(180, 167, 214, 0.12) 0%, transparent 50%),
+        radial-gradient(ellipse at bottom left, rgba(214, 202, 221, 0.1) 0%, transparent 50%),
+        radial-gradient(ellipse at bottom right, rgba(192, 181, 211, 0.08) 0%, transparent 50%),
+        linear-gradient(135deg, #f8f7f4 0%, #f0ede8 25%, #e8e5de 50%, #e0dcd4 75%, #d8d3ca 100%);
+      background-attachment: fixed;
+      background-size: 100% 100%;
+    }
+    
+    html[data-theme="dark"],
+    html:not([data-theme]) {
+      background: 
+        radial-gradient(ellipse at top left, rgba(59, 73, 97, 0.25) 0%, transparent 50%),
+        radial-gradient(ellipse at top right, rgba(70, 57, 94, 0.22) 0%, transparent 50%),
+        radial-gradient(ellipse at bottom left, rgba(84, 72, 101, 0.2) 0%, transparent 50%),
+        radial-gradient(ellipse at bottom right, rgba(62, 51, 81, 0.18) 0%, transparent 50%),
+        linear-gradient(135deg, #1a1816 0%, #1d1a18 25%, #1f1c1a 50%, #211e1c 75%, #24201e 100%);
+      background-attachment: fixed;
+      background-size: 100% 100%;
     }
     
     #root {
       min-height: 100vh;
-      background-color: var(--bg-primary);
+      background-color: transparent;
+      background: inherit;
     }
 
     .initial-loader {
@@ -97,9 +119,9 @@
   </script>
 </head>
 
-<body class="bg-background">
-  <div id="root" class="bg-background">
-    <div class="flex items-center justify-center min-h-screen bg-background">
+<body style="background: transparent;">
+  <div id="root" style="background: transparent;">
+    <div class="flex items-center justify-center min-h-screen" style="background: transparent;">
       <div class="text-foreground">Loading...</div>
     </div>
   </div>

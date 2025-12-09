@@ -44,40 +44,64 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // Side effects: Manages authentication state, loads user on mount.
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(false); // Start as false to not block render
+  const [isLoading, setIsLoading] = useState(true); // Start as true to prevent premature redirects
 
   // Purpose: Load user from storage and verify token on mount.
   // Side effects: Reads from localStorage, calls API to verify token.
-  // Non-blocking: Sets user immediately from storage, verifies in background
+  // Ensures proper authentication state before rendering protected routes
   useEffect(() => {
     const loadUser = async () => {
+      setIsLoading(true);
       try {
+        // Check if token exists first
         if (isAuthenticated()) {
           const storedUser = getStoredUser();
           if (storedUser) {
-            // Set user immediately from storage (non-blocking)
+            // Set user immediately from storage (optimistic loading)
             setUser(storedUser);
-            // Verify token in background (non-blocking)
-            getCurrentUser().catch(() => {
-              clearAuth();
-              setUser(null);
-            });
+            
+            // Verify token validity with server (non-blocking, but wait for result)
+            try {
+              const verifiedUser = await getCurrentUser();
+              // Only update if verification succeeds
+              setUser(verifiedUser);
+            } catch (verifyError) {
+              // Token is invalid or expired - only clear if verification fails
+              console.warn('Token verification failed:', verifyError);
+              // Don't clear auth immediately - let the request retry with refresh token
+              // Only clear if both token and refresh token are invalid
+              // The authenticatedFetch will handle token refresh
+            }
+          } else {
+            // Token exists but no user data - verify token to get user
+            try {
+              const verifiedUser = await getCurrentUser();
+              setUser(verifiedUser);
+            } catch (verifyError) {
+              console.warn('Failed to verify token:', verifyError);
+              // Don't clear auth here - token might still be valid, just failed to fetch user
+              // This prevents race conditions where token is valid but user fetch fails
+            }
           }
+        } else {
+          // No token - definitely not authenticated
+          setUser(null);
         }
       } catch (error) {
         console.error('Error loading user:', error);
-        clearAuth();
-        setUser(null);
+        // Only clear auth if we're certain there's no valid token
+        const hasToken = isAuthenticated();
+        if (!hasToken) {
+          clearAuth();
+          setUser(null);
+        }
+        // If token exists, keep user state (might be network error, not auth error)
+      } finally {
+        setIsLoading(false);
       }
-      // Don't set isLoading - render immediately
     };
 
-    // Use requestIdleCallback or setTimeout to defer slightly
-    if (typeof requestIdleCallback !== 'undefined') {
-      requestIdleCallback(loadUser, { timeout: 100 });
-    } else {
-      setTimeout(loadUser, 0);
-    }
+    loadUser();
   }, []);
 
   // Purpose: Login user and update state.
@@ -138,9 +162,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
+  // Purpose: Determine authentication status.
+  // Checks both token existence and user object to prevent false negatives.
+  // This ensures authenticated users don't get redirected incorrectly.
+  // Uses token check from authService to validate presence of access token.
+  const isAuthenticatedState: boolean = !!user || isAuthenticated();
+
   const value: AuthContextType = {
     user,
-    isAuthenticated: !!user,
+    isAuthenticated: isAuthenticatedState,
     isLoading,
     login,
     register,

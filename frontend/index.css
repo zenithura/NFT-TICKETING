@@ -22,6 +22,8 @@
   --color-primary: #F7931A;
   --color-primary-hover: #D97706;
   --color-primary-light: #FDBA74;
+  --color-primary-rgb: 247, 147, 26;
+  --color-border-rgb: 222, 226, 230;
 
   --color-success: #10B981;
   --color-success-light: #6EE7B7;
@@ -61,6 +63,8 @@
   --color-primary: #F7931A;
   --color-primary-hover: #D97706;
   --color-primary-light: #FDBA74;
+  --color-primary-rgb: 247, 147, 26;
+  --color-border-rgb: 47, 47, 47;
 
   --color-success: #10B981;
   --color-success-light: #6EE7B7;
@@ -180,21 +184,78 @@
 }
 
 /* Purpose: Theme-aware root element styles. */
+/* Use !important to ensure gradient persists after refresh and overrides inline styles */
 html {
-  background-color: var(--bg-primary);
+  background-color: var(--bg-primary) !important;
   color-scheme: light dark;
+  /* Sophisticated muted gradient background - must persist on refresh */
+  background: 
+    radial-gradient(ellipse at top left, rgba(147, 165, 207, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse at top right, rgba(180, 167, 214, 0.12) 0%, transparent 50%),
+    radial-gradient(ellipse at bottom left, rgba(214, 202, 221, 0.1) 0%, transparent 50%),
+    radial-gradient(ellipse at bottom right, rgba(192, 181, 211, 0.08) 0%, transparent 50%),
+    linear-gradient(135deg, #f8f7f4 0%, #f0ede8 25%, #e8e5de 50%, #e0dcd4 75%, #d8d3ca 100%) !important;
+  background-attachment: fixed !important;
+  background-size: 100% 100% !important;
+  background-repeat: no-repeat !important;
+}
+
+html[data-theme="dark"] {
+  background: 
+    radial-gradient(ellipse at top left, rgba(59, 73, 97, 0.25) 0%, transparent 50%),
+    radial-gradient(ellipse at top right, rgba(70, 57, 94, 0.22) 0%, transparent 50%),
+    radial-gradient(ellipse at bottom left, rgba(84, 72, 101, 0.2) 0%, transparent 50%),
+    radial-gradient(ellipse at bottom right, rgba(62, 51, 81, 0.18) 0%, transparent 50%),
+    linear-gradient(135deg, #1a1816 0%, #1d1a18 25%, #1f1c1a 50%, #211e1c 75%, #24201e 100%) !important;
+  background-attachment: fixed !important;
+  background-size: 100% 100% !important;
+  background-repeat: no-repeat !important;
 }
 
 body {
-  background-color: var(--bg-primary) !important;
+  background-color: transparent !important;
+  background: inherit !important;
   color: var(--color-foreground);
   font-feature-settings: "rlig" 1, "calt" 1;
   min-height: 100vh;
+  position: relative;
+  /* Ensure body inherits gradient from html on every refresh */
 }
 
+/* Add subtle overlay to maintain content readability */
+body::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: 
+    radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.05) 0%, transparent 50%),
+    radial-gradient(circle at 80% 50%, rgba(255, 255, 255, 0.03) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.6;
+}
+
+[data-theme="dark"] body::before {
+  background: 
+    radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.02) 0%, transparent 50%),
+    radial-gradient(circle at 80% 50%, rgba(255, 255, 255, 0.01) 0%, transparent 50%);
+  opacity: 0.4;
+}
+
+/* Purpose: Root element must use flexbox with min-height 100vh for sticky footer. */
+/* CRITICAL: This ensures footer always sticks to bottom regardless of content height. */
 #root {
-  background-color: var(--bg-primary);
+  background-color: transparent !important;
+  background: inherit !important;
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 1;
+  /* Ensure #root inherits gradient from html on every refresh */
 }
 
 /* Prevent CLS from 3D canvas */
@@ -345,11 +406,20 @@ input:focus {
 
 /* Ensure background colors persist through state changes */
 .bg-background {
-  background-color: var(--bg-primary) !important;
+  background-color: transparent !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  background: rgba(255, 255, 255, 0.7) !important;
+}
+
+[data-theme="dark"] .bg-background {
+  background: rgba(25, 25, 25, 0.8) !important;
 }
 
 .bg-background-elevated {
   background-color: var(--bg-elevated) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 .bg-background-hover {
@@ -487,6 +557,39 @@ nav {
   z-index: 50;
 }
 
+/* Purpose: Ensure footer sticks to bottom of page using flexbox. */
+/* CRITICAL: Footer must have flex-shrink: 0 to prevent compression and width: 100% for full width. */
+/* The parent container must use flex flex-col min-h-screen for this to work correctly. */
+footer {
+  flex-shrink: 0;
+  flex-grow: 0;
+  width: 100%;
+  margin-top: auto; /* Push to bottom when content is short */
+}
+
+/* Purpose: Ensure main content area expands to fill available space. */
+/* This guarantees footer is pushed to bottom even when content is short. */
+/* CRITICAL: Main must use flexbox with flex-grow: 1 to participate in sticky footer layout. */
+main {
+  flex-grow: 1;
+  flex-shrink: 0;
+  flex-basis: auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* Prevent overflow issues in flex containers */
+  overflow-x: hidden;
+  overflow-y: auto; /* Allow scrolling when content exceeds viewport */
+}
+
+/* Purpose: Ensure all page-level containers participate in flex layout. */
+/* Any page component wrapper should use flex-grow to fill available space. */
+.page-container {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
 /* Purpose: Ensure navbar buttons remain visible and clickable. */
 /* CRITICAL: Buttons must always be clickable, even when dropdowns are open */
 nav button:not([role="menuitem"]),
@@ -514,11 +617,7 @@ nav > div > div {
   position: relative;
 }
 
-/* Purpose: Ensure main container doesn't clip floating elements. */
-main {
-  overflow-x: hidden;
-  overflow-y: auto;
-}
+/* Note: Main overflow rules are defined above in the main {} block */
 
 /* Purpose: Prevent clipping in flex containers. */
 .flex,

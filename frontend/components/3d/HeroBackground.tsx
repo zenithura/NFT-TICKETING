@@ -24,7 +24,7 @@ let mouseY = 0;
 
 // Fallback component when WebGL is not available
 const WebGLFallback: React.FC = () => (
-  <div className="fixed inset-0 -z-10 pointer-events-none bg-background" style={{ minHeight: '100vh' }} />
+  <div className="fixed inset-0 -z-10 pointer-events-none" style={{ minHeight: '100vh', background: 'transparent' }} />
 );
 
 export const HeroBackground: React.FC = React.memo(() => {
@@ -43,8 +43,9 @@ export const HeroBackground: React.FC = React.memo(() => {
       return;
     }
 
-    // Check WebGL support before initializing
-    if (!isWebGLSupported()) {
+    // Check WebGL support before initializing (cached, won't create multiple contexts)
+    const webglSupported = isWebGLSupported();
+    if (!webglSupported) {
       setWebglSupported(false);
       return;
     }
@@ -131,13 +132,8 @@ export const HeroBackground: React.FC = React.memo(() => {
       }
 
       if (!globalRenderer) {
-        // Test WebGL context before creating renderer
-        const testCanvas = document.createElement('canvas');
-        const testGl = testCanvas.getContext('webgl') || testCanvas.getContext('experimental-webgl');
-        
-        if (!testGl) {
-          throw new Error('WebGL context not available');
-        }
+        // Don't create another test context - isWebGLSupported() already checked
+        // WebGL support was verified earlier in the component
 
         globalRenderer = new THREE.WebGLRenderer({ 
           antialias: !isMobile,
@@ -327,8 +323,8 @@ export const HeroBackground: React.FC = React.memo(() => {
   return (
     <div
       ref={containerRef}
-      className="fixed inset-0 -z-10 pointer-events-none bg-background"
-      style={{ minHeight: '100vh' }}
+      className="fixed inset-0 -z-10 pointer-events-none"
+      style={{ background: 'transparent', minHeight: '100vh' }}
     />
   );
 

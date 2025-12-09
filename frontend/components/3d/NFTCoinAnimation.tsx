@@ -13,6 +13,7 @@ const isTestEnvironment = typeof window !== 'undefined' && (
 );
 
 // Singleton pattern to prevent multiple WebGL contexts
+// These are reset on page load/refresh via window.beforeunload handler
 let globalCoinRenderer: THREE.WebGLRenderer | null = null;
 let globalCoinScene: THREE.Scene | null = null;
 let globalCoinCamera: THREE.PerspectiveCamera | null = null;
@@ -20,6 +21,56 @@ let globalCoinGroup: THREE.Group | null = null;
 let globalAnimationId: number | null = null;
 let coinInstanceCount = 0;
 let coinAnimationRunning = false;
+
+// Reset all globals on page unload to ensure clean state on refresh
+if (typeof window !== 'undefined') {
+  const resetGlobals = () => {
+    if (globalAnimationId !== null) {
+      cancelAnimationFrame(globalAnimationId);
+      globalAnimationId = null;
+    }
+    coinAnimationRunning = false;
+    coinInstanceCount = 0;
+    
+    // Dispose WebGL resources
+    if (globalCoinRenderer) {
+      try {
+        globalCoinRenderer.dispose();
+        const canvas = globalCoinRenderer.domElement;
+        if (canvas && canvas.parentNode) {
+          canvas.parentNode.removeChild(canvas);
+        }
+      } catch (e) {
+        // Ignore disposal errors
+      }
+      globalCoinRenderer = null;
+    }
+    
+    // Dispose geometries and materials if needed
+    if (globalCoinGroup) {
+      globalCoinGroup.clear();
+      globalCoinGroup = null;
+    }
+    
+    globalCoinScene = null;
+    globalCoinCamera = null;
+  };
+  
+  // Reset on page unload/refresh
+  window.addEventListener('beforeunload', resetGlobals);
+  
+  // Also reset on visibility change (some browsers preserve state)
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      // Page is being hidden, don't reset yet
+    } else {
+      // Page is visible again - ensure animation is running
+      if (globalCoinRenderer && globalCoinScene && globalCoinCamera && !coinAnimationRunning) {
+        // Animation will restart in useEffect
+      }
+    }
+  });
+}
 
 // Fallback component when WebGL is not available
 const CoinFallback: React.FC = () => (
@@ -51,14 +102,48 @@ export const NFTCoinAnimation: React.FC = React.memo(() => {
       return;
     }
 
-    // Check WebGL support before initializing
-    if (!isWebGLSupported()) {
+    // Check WebGL support before initializing (cached, won't create multiple contexts)
+    const webglSupported = isWebGLSupported();
+    if (!webglSupported) {
       setWebglSupported(false);
       return;
     }
     
     setWebglSupported(true);
     
+    // Wait for container to be ready - retry if not immediately available
+    if (!containerRef.current) {
+      // Try again on next frame
+      const checkContainer = () => {
+        if (containerRef.current) {
+          initializeCoin();
+        } else {
+          requestAnimationFrame(checkContainer);
+        }
+      };
+      requestAnimationFrame(checkContainer);
+      return;
+    }
+    
+    initializeCoin();
+    
+    return () => {
+      coinInstanceCount--;
+      if (coinInstanceCount <= 0) {
+        // Only cleanup animation when last instance unmounts
+        coinAnimationRunning = false;
+        if (globalAnimationId !== null) {
+          cancelAnimationFrame(globalAnimationId);
+          globalAnimationId = null;
+        }
+        // Don't remove canvas or dispose renderer - keep for reuse on remount
+        // The beforeunload handler will clean up on page refresh
+      }
+      // Don't remove canvas from container on unmount - it will be reused
+    };
+  }, []); // Empty deps - only run on mount
+  
+  const initializeCoin = React.useCallback(() => {
     if (!containerRef.current) return;
     
     coinInstanceCount++;
@@ -82,13 +167,8 @@ export const NFTCoinAnimation: React.FC = React.memo(() => {
       }
 
       if (!globalCoinRenderer) {
-        // Test WebGL context before creating renderer
-        const testCanvas = document.createElement('canvas');
-        const testGl = testCanvas.getContext('webgl') || testCanvas.getContext('experimental-webgl');
-        
-        if (!testGl) {
-          throw new Error('WebGL context not available');
-        }
+        // Don't create another test context - isWebGLSupported() already checked
+        // WebGL support was verified earlier in the component
 
         globalCoinRenderer = new THREE.WebGLRenderer({ 
           antialias: !isMobile,
@@ -102,15 +182,69 @@ export const NFTCoinAnimation: React.FC = React.memo(() => {
           throw new Error('Failed to create WebGL renderer canvas');
         }
         
+        const canvas = globalCoinRenderer.domElement;
+        
+        // Explicitly set canvas dimensions and styling
+        canvas.style.width = '100%';
+        canvas.style.height = '100%';
+        canvas.style.display = 'block';
+        canvas.style.position = 'absolute';
+        canvas.style.top = '0';
+        canvas.style.left = '0';
+        canvas.style.pointerEvents = 'auto';
+        canvas.style.outline = 'none';
+        canvas.setAttribute('width', '300');
+        canvas.setAttribute('height', '300');
+        
         globalCoinRenderer.setSize(300, 300);
         globalCoinRenderer.setClearColor(0x000000, 0);
         globalCoinRenderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1 : 2));
         globalCoinRenderer.toneMapping = THREE.ACESFilmicToneMapping;
         globalCoinRenderer.toneMappingExposure = 3.0;
-        containerRef.current.appendChild(globalCoinRenderer.domElement);
+        
+        // Ensure container is ready
+        if (!containerRef.current) {
+          throw new Error('Container ref is not available');
+        }
+        
+        // Clear container before appending (always clear to ensure clean state on refresh)
+        if (containerRef.current) {
+          containerRef.current.innerHTML = '';
+          containerRef.current.appendChild(canvas);
+        }
+        
+        // Force initial render to ensure visibility immediately
+        requestAnimationFrame(() => {
+          if (globalCoinScene && globalCoinCamera && globalCoinRenderer) {
+            globalCoinRenderer.render(globalCoinScene, globalCoinCamera);
+          }
+        });
       } else {
-        // Reuse existing renderer
-        containerRef.current.appendChild(globalCoinRenderer.domElement);
+        // Reuse existing renderer - ensure canvas is visible and properly attached
+        const canvas = globalCoinRenderer.domElement;
+        canvas.style.width = '100%';
+        canvas.style.height = '100%';
+        canvas.style.display = 'block';
+        canvas.style.position = 'absolute';
+        canvas.style.top = '0';
+        canvas.style.left = '0';
+        canvas.style.pointerEvents = 'auto';
+        canvas.style.outline = 'none';
+        
+        // Ensure canvas is in the container (might have been removed on refresh)
+        if (containerRef.current) {
+          // Check if canvas is already in container
+          if (!containerRef.current.contains(canvas)) {
+            containerRef.current.innerHTML = '';
+            containerRef.current.appendChild(canvas);
+          }
+          // Force a render to ensure visibility
+          requestAnimationFrame(() => {
+            if (globalCoinScene && globalCoinCamera && globalCoinRenderer) {
+              globalCoinRenderer.render(globalCoinScene, globalCoinCamera);
+            }
+          });
+        }
       }
     } catch (e: any) {
       // Silently fail in Cypress - log only in development
@@ -119,6 +253,30 @@ export const NFTCoinAnimation: React.FC = React.memo(() => {
       }
       setWebglSupported(false);
       return;
+    }
+
+    // --- Lighting (Intense for sparkles) --- (only add once)
+    // Set up lighting BEFORE creating coin so materials render correctly
+    if (globalCoinScene.children.filter(c => c.type === 'AmbientLight').length === 0) {
+      const ambient = new THREE.AmbientLight(0xffffff, 0.8);
+      globalCoinScene.add(ambient);
+
+      const mainLight = new THREE.DirectionalLight(0xFFFFFF, 1.5);
+      mainLight.position.set(5, 5, 10);
+      globalCoinScene.add(mainLight);
+
+      const warmLight = new THREE.PointLight(0xF7931A, 2, 50);
+      warmLight.position.set(-5, -5, 10);
+      globalCoinScene.add(warmLight);
+
+      const rimLight = new THREE.PointLight(0xFFD700, 2, 50);
+      rimLight.position.set(0, 5, -5);
+      globalCoinScene.add(rimLight);
+      
+      // Additional fill light for better visibility
+      const fillLight = new THREE.DirectionalLight(0xFFFFFF, 0.5);
+      fillLight.position.set(-5, 0, 5);
+      globalCoinScene.add(fillLight);
     }
 
     // --- Coin Group --- (only create once)
@@ -229,31 +387,24 @@ export const NFTCoinAnimation: React.FC = React.memo(() => {
       globalCoinGroup.add(backText);
     }
 
-    // --- Lighting (Intense for sparkles) --- (only add once)
-    if (globalCoinScene.children.filter(c => c.type === 'AmbientLight').length === 0) {
-      const ambient = new THREE.AmbientLight(0xffffff, 0.5);
-      globalCoinScene.add(ambient);
-
-      const mainLight = new THREE.PointLight(0xFFFFFF, 10, 50);
-      mainLight.position.set(5, 5, 10);
-      globalCoinScene.add(mainLight);
-
-      const warmLight = new THREE.PointLight(0xF7931A, 8, 50);
-      warmLight.position.set(-5, -5, 10);
-      globalCoinScene.add(warmLight);
-
-      const rimLight = new THREE.PointLight(0xFFD700, 10, 50);
-      rimLight.position.set(0, 5, -5);
-      globalCoinScene.add(rimLight);
-    }
 
     // --- Enhanced Animation Loop with Physics-Based Motion ---
-    // Only start animation if not already running
+    // Always restart animation on mount/refresh to ensure it runs
     try {
-      if (!coinAnimationRunning && globalCoinRenderer && globalCoinScene && globalCoinCamera) {
+      // Stop any existing animation first
+      if (globalAnimationId !== null) {
+        cancelAnimationFrame(globalAnimationId);
+        globalAnimationId = null;
+      }
+      
+      if (globalCoinRenderer && globalCoinScene && globalCoinCamera) {
         coinAnimationRunning = true;
         const animate = () => {
-          if (!coinAnimationRunning) return;
+          // Check if we should continue animating
+          if (!coinAnimationRunning || !globalCoinRenderer || !globalCoinScene || !globalCoinCamera) {
+            coinAnimationRunning = false;
+            return;
+          }
           
           try {
             globalAnimationId = requestAnimationFrame(animate);
@@ -296,6 +447,17 @@ export const NFTCoinAnimation: React.FC = React.memo(() => {
             }
 
             if (globalCoinRenderer && globalCoinScene && globalCoinCamera) {
+              // Update camera aspect ratio if container size changes
+              if (containerRef.current) {
+                const containerWidth = containerRef.current.clientWidth || 300;
+                const containerHeight = containerRef.current.clientHeight || 300;
+                if (globalCoinCamera.aspect !== containerWidth / containerHeight) {
+                  globalCoinCamera.aspect = containerWidth / containerHeight;
+                  globalCoinCamera.updateProjectionMatrix();
+                  globalCoinRenderer.setSize(containerWidth, containerHeight);
+                }
+              }
+              
               globalCoinRenderer.render(globalCoinScene, globalCoinCamera);
             }
           } catch (e: any) {
@@ -317,34 +479,8 @@ export const NFTCoinAnimation: React.FC = React.memo(() => {
       }
       setWebglSupported(false);
     }
-
-    return () => {
-      coinInstanceCount--;
-      if (coinInstanceCount <= 0) {
-        // Only cleanup when last instance unmounts
-        coinAnimationRunning = false;
-        if (globalAnimationId !== null) {
-          cancelAnimationFrame(globalAnimationId);
-          globalAnimationId = null;
-        }
-        if (containerRef.current && globalCoinRenderer?.domElement) {
-          try {
-            containerRef.current.removeChild(globalCoinRenderer.domElement);
-          } catch (e) {
-            // Element may have been removed already
-          }
-        }
-        // Don't dispose renderer/scene - keep for reuse
-      } else if (containerRef.current && globalCoinRenderer?.domElement) {
-        // Remove from this container but keep renderer alive
-        try {
-          containerRef.current.removeChild(globalCoinRenderer.domElement);
-        } catch (e) {
-          // Element may have been removed already
-        }
-      }
-    };
-  }, []);
+    // Note: Cleanup is handled in the first useEffect return function
+  }, []); // Empty deps - initializeCoin is defined inside the first useEffect
 
   // --- Enhanced Event Handlers with Touch Support ---
 
@@ -443,9 +579,17 @@ export const NFTCoinAnimation: React.FC = React.memo(() => {
       onTouchStart={handleMouseDown}
       onTouchMove={handleMouseMove}
       onTouchEnd={handleMouseUp}
-      className="w-[300px] h-[300px] flex items-center justify-center cursor-grab active:cursor-grabbing touch-none"
+      className="w-[300px] h-[300px] relative flex items-center justify-center cursor-grab active:cursor-grabbing touch-none"
       title="Click to spin, Drag to rotate!"
-      style={{ touchAction: 'none' }} // Prevent scrolling on touch devices
-    />
+      style={{ 
+        touchAction: 'none',
+        overflow: 'hidden',
+        position: 'relative',
+        minWidth: '300px',
+        minHeight: '300px'
+      }}
+    >
+      {/* Canvas will be appended here by Three.js renderer */}
+    </div>
   );
 });

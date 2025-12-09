@@ -56,7 +56,7 @@ export const ForgotPassword: React.FC = () => {
 
   if (isSubmitted) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background px-4 py-12">
+      <div className="min-h-screen flex items-center justify-center px-4 py-12" style={{ background: 'transparent' }}>
         <div className="w-full max-w-md">
           <div className="bg-background-elevated rounded-xl border border-border p-6 shadow-lg text-center">
             <div className="mb-4 flex justify-center">
@@ -79,7 +79,7 @@ export const ForgotPassword: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4 py-12">
+    <div className="min-h-screen flex items-center justify-center px-4 py-12" style={{ background: 'transparent' }}>
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">

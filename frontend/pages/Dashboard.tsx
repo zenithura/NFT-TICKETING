@@ -674,7 +674,7 @@ export const Dashboard: React.FC = () => {
 
   if (!isConnected) {
     return (
-      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center p-4">
+      <div className="flex-grow flex flex-col items-center justify-center text-center p-4">
         <div className="bg-background-elevated p-8 rounded-2xl border border-border max-w-md w-full shadow-2xl min-h-[300px] flex flex-col justify-center">
           <Shield className="w-12 h-12 text-foreground-tertiary mx-auto mb-4" />
           <h2 className="text-xl font-bold text-foreground mb-2">{t('dashboard.walletConnectionRequired')}</h2>
@@ -685,13 +685,13 @@ export const Dashboard: React.FC = () => {
   }
 
   return (
-    <div className="animate-slide-up">
+    <div className="animate-slide-up flex flex-col flex-grow" style={{ flexGrow: 1, minHeight: 0 }}>
       {userRole === UserRole.BUYER && <BuyerDashboard />}
       {userRole === UserRole.ORGANIZER && <OrganizerDashboard />}
       {userRole === UserRole.RESELLER && <BuyerDashboard />} {/* Reusing Buyer UI for Reseller MVP */}
       {userRole === UserRole.ADMIN && <AdminView />}
       {userRole === UserRole.SCANNER && (
-        <div className="text-center py-20">
+        <div className="text-center py-20 flex-grow flex flex-col items-center justify-center">
           <h2 className="text-2xl font-bold text-foreground mb-4">{t('dashboard.scannerAccount')}</h2>
           <Link to="/scanner" className="px-6 py-3 bg-success text-background font-bold rounded-lg hover:bg-success-light">
             {t('dashboard.launchScannerTool')}

@@ -175,7 +175,7 @@ export const Marketplace: React.FC = React.memo(() => {
       </div>
 
       {/* Filters Section */}
-      <div>
+      <div id="browse-events">
         <h2 className="text-2xl font-bold text-foreground mb-4">{t('marketplace.browseEvents', 'Browse Events')}</h2>
         <div className="flex items-center gap-2 overflow-x-auto pb-2 scrollbar-hide">
           {[
@@ -308,7 +308,7 @@ export const Marketplace: React.FC = React.memo(() => {
       </div>
 
       {/* Reselling Section */}
-      <div className="mt-16">
+      <div id="reselling" className="mt-16">
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-2xl font-bold text-foreground">{t('marketplace.reselling', 'Resale Market')}</h2>

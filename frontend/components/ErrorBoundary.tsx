@@ -60,7 +60,7 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'transparent' }}>
           <div className="max-w-md w-full bg-background-elevated border border-border rounded-xl p-6 text-center">
             <h2 className="text-2xl font-bold text-foreground mb-4">
               Something went wrong

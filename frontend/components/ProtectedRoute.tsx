@@ -19,12 +19,25 @@ interface ProtectedRouteProps {
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requireRole }) => {
   const { isAuthenticated, user, isLoading } = useAuth();
   const location = useLocation();
+  const [isVerifying, setIsVerifying] = React.useState(true);
+
+  // Purpose: Wait for initial auth check to complete before redirecting.
+  // This prevents false redirects when authentication state is still loading.
+  React.useEffect(() => {
+    if (!isLoading) {
+      // Give a small delay to ensure auth state is fully resolved
+      const timer = setTimeout(() => {
+        setIsVerifying(false);
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading]);
 
   // Purpose: Show loading state while checking authentication.
   // Side effects: None - renders loading UI.
-  if (isLoading) {
+  if (isLoading || isVerifying) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
+      <div className="flex items-center justify-center min-h-screen" style={{ background: 'transparent' }}>
         <div className="animate-pulse text-foreground-secondary">Loading...</div>
       </div>
     );
@@ -32,6 +45,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requir
 
   // Purpose: Redirect to login if not authenticated.
   // Side effects: Navigates to login page with return URL.
+  // Only redirect if we're certain the user is not authenticated.
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
@@ -49,6 +63,8 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requir
     }
   }
 
-  return <>{children}</>;
+  // Ensure protected route children participate in flex layout
+  // Use flex-grow to fill available space and push footer to bottom
+  return <div className="flex flex-col flex-grow" style={{ flexGrow: 1, minHeight: 0 }}>{children}</div>;
 };
 

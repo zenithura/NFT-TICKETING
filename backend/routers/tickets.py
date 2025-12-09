@@ -1,7 +1,9 @@
 """Tickets management router."""
 from fastapi import APIRouter, HTTPException, Depends
-from typing import List
+from typing import List, Optional
 from supabase import Client
+import sys
+from pathlib import Path
 
 from database import get_supabase_admin
 from database import get_supabase_admin
@@ -9,6 +11,22 @@ from models import TicketCreate, TicketResponse, MintRequest, ValidatorRequest, 
 from web3_client import contracts, send_transaction, w3, account
 from web3 import Web3
 from cache import get as cache_get, set as cache_set, clear as cache_clear
+
+# Import ML services for fraud detection
+_ml_integration = None
+def get_ml_integration():
+    """Lazy import ML integration."""
+    global _ml_integration
+    if _ml_integration is None:
+        try:
+            sprint3_path = Path(__file__).parent.parent.parent / "sprint3"
+            if sprint3_path.exists():
+                sys.path.insert(0, str(sprint3_path.parent))
+                from integration.integration_layer import get_integration_layer
+                _ml_integration = get_integration_layer()
+        except Exception:
+            _ml_integration = None  # ML services optional
+    return _ml_integration
 
 router = APIRouter(prefix="/tickets", tags=["Tickets"])
 
@@ -26,8 +44,36 @@ async def create_ticket(
     ticket: TicketCreate,
     db: Client = Depends(get_supabase_admin)
 ):
-    """Create/mint a new ticket."""
+    """Create/mint a new ticket with optional fraud detection."""
     try:
+        # Optional: Run fraud detection if ML services available
+        ml_integration = get_ml_integration()
+        fraud_check = None
+        if ml_integration:
+            try:
+                import uuid
+                transaction_id = str(uuid.uuid4())
+                price_paid = float(ticket.purchase_price) if hasattr(ticket, 'purchase_price') and ticket.purchase_price else 0.0
+                fraud_check = ml_integration.process_transaction(
+                    transaction_id=transaction_id,
+                    wallet_address=ticket.owner_address,
+                    event_id=ticket.event_id,
+                    price_paid=price_paid
+                )
+                # Log fraud check but don't block unless risk is extremely high
+                risk_score = fraud_check.get('model_outputs', {}).get('risk_scoring', {}).get('risk_score', 0.0)
+                if risk_score > 0.85:
+                    raise HTTPException(
+                        status_code=403,
+                        detail=f"Transaction flagged as high risk (score: {risk_score:.2f}). Please contact support."
+                    )
+            except HTTPException:
+                raise
+            except Exception as e:
+                # Don't fail ticket creation if ML check fails
+                import logging
+                logging.warning(f"ML fraud check failed (non-blocking): {e}")
+        
         # Clear user tickets cache when new ticket is created
         cache_clear(f"tickets:user:{ticket.owner_address.lower()}")
         cache_clear("tickets:event:")
