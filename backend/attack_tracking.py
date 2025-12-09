@@ -143,39 +143,80 @@ async def track_attack_and_check_suspension(
                 
                 logger.warning(f"Auto-suspended user {user_id} due to {attack_count} attack attempts")
         
-        # Also track IP-based attacks for unauthenticated users
-        # Count attacks from this IP in last 24 hours
-        twenty_four_hours_ago = datetime.now(timezone.utc) - timedelta(hours=24)
-        ip_attack_count = db.table("security_alerts").select(
-            "alert_id", count="exact"
-        ).eq("ip_address", ip_address).in_("attack_type", ATTACK_TYPES).gte(
-            "created_at", twenty_four_hours_ago.isoformat()
-        ).execute()
-        
-        ip_count = ip_attack_count.count or 0
-        
-        # Auto-ban IP if 10+ attacks in 24 hours (for unauthenticated attacks)
-        if ip_count >= BAN_THRESHOLD and not user_id:
-            # Check if IP is already banned
-            existing_ban = db.table("bans").select("ban_id").eq("ip_address", ip_address).eq("is_active", True).execute()
-            
-            if not existing_ban.data:
-                # Ban IP permanently
-                ban_data = {
-                    "ip_address": ip_address,
-                    "ban_type": "IP",
-                    "ban_reason": f"Auto-banned: {ip_count} attack attempts from IP in 24 hours",
-                    "ban_duration": "PERMANENT",
-                    "is_active": True,
-                    "created_at": datetime.now(timezone.utc).isoformat(),
-                }
-                db.table("bans").insert(ban_data).execute()
+        # For unauthenticated attacks, try to find user by email from alert metadata
+        # This allows blocking by email account even for login attempts
+        if not user_id and attack_type in ['BRUTE_FORCE', 'SQL_INJECTION', 'XSS']:
+            # Try to find user by email from recent alerts with same IP
+            try:
+                recent_alert = db.table("security_alerts").select(
+                    "metadata, user_id"
+                ).eq("ip_address", ip_address).in_("attack_type", ATTACK_TYPES).order(
+                    "created_at", desc=True
+                ).limit(1).execute()
                 
-                logger.warning(f"Auto-banned IP {ip_address} due to {ip_count} attack attempts")
+                if recent_alert.data:
+                    alert_data = recent_alert.data[0]
+                    metadata = alert_data.get("metadata")
+                    
+                    # Try to extract email from metadata
+                    if isinstance(metadata, str):
+                        import json
+                        try:
+                            metadata = json.loads(metadata)
+                        except:
+                            pass
+                    
+                    if isinstance(metadata, dict):
+                        email = metadata.get("email") or metadata.get("username")
+                        if email:
+                            # Look up user by email
+                            user_lookup = db.table("users").select("user_id, role").eq("email", email.lower()).limit(1).execute()
+                            if user_lookup.data:
+                                found_user = user_lookup.data[0]
+                                found_user_id = found_user.get("user_id")
+                                found_role = found_user.get("role", "")
+                                
+                                # Skip if admin
+                                if found_role != "ADMIN":
+                                    # Recursively call with found user_id
+                                    return await track_attack_and_check_suspension(
+                                        db, found_user_id, ip_address, attack_type, alert_id
+                                    )
+            except Exception as lookup_error:
+                logger.error(f"Error looking up user by email: {lookup_error}")
+        
+        # IP-based tracking (fallback for truly unauthenticated attacks)
+        # Only ban IP if we can't find a user account
+        if not user_id:
+            twenty_four_hours_ago = datetime.now(timezone.utc) - timedelta(hours=24)
+            ip_attack_count = db.table("security_alerts").select(
+                "alert_id", count="exact"
+            ).eq("ip_address", ip_address).in_("attack_type", ATTACK_TYPES).gte(
+                "created_at", twenty_four_hours_ago.isoformat()
+            ).execute()
+            
+            ip_count = ip_attack_count.count or 0
+            
+            # Auto-ban IP if 10+ attacks in 24 hours (only if no user found)
+            if ip_count >= BAN_THRESHOLD:
+                existing_ban = db.table("bans").select("ban_id").eq("ip_address", ip_address).eq("is_active", True).execute()
+                
+                if not existing_ban.data:
+                    ban_data = {
+                        "ip_address": ip_address,
+                        "ban_type": "IP",
+                        "ban_reason": f"Auto-banned: {ip_count} attack attempts from IP in 24 hours",
+                        "ban_duration": "PERMANENT",
+                        "is_active": True,
+                        "created_at": datetime.now(timezone.utc).isoformat(),
+                    }
+                    db.table("bans").insert(ban_data).execute()
+                    
+                    logger.warning(f"Auto-banned IP {ip_address} due to {ip_count} attack attempts")
         
         return {
             "action": action_taken,
-            "attack_count": attack_count if user_id else ip_count,
+            "attack_count": attack_count if user_id else 0,
             "user_id": user_id,
             "ip_address": ip_address,
         }

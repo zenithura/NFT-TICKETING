@@ -145,14 +145,27 @@ def record_failed_login(ip_address: str, db: Client, username: str):
             )
             return
         
-        # Try to get user_id from username (for attack tracking)
+        # ALWAYS get user_id from username/email (for attack tracking)
+        # This ensures blocking by email account, not IP
         user_id = None
+        user_role = None
         try:
-            user_lookup = db.table("users").select("user_id").eq("email", username).limit(1).execute()
+            # Try email first
+            user_lookup = db.table("users").select("user_id, role").eq("email", username.lower()).limit(1).execute()
+            if not user_lookup.data:
+                # Try username
+                user_lookup = db.table("users").select("user_id, role").eq("username", username).limit(1).execute()
+            
             if user_lookup.data:
-                user_id = user_lookup.data[0].get("user_id")
-        except Exception:
-            pass
+                user_data = user_lookup.data[0]
+                user_id = user_data.get("user_id")
+                user_role = user_data.get("role", "")
+                
+                # Skip tracking for admin users
+                if user_role == "ADMIN":
+                    return
+        except Exception as lookup_error:
+            logger.error(f"Error looking up user: {lookup_error}")
         
         # Log security alert directly to database
         result = db.table("security_alerts").insert({
