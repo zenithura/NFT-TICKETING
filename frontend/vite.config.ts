@@ -119,19 +119,36 @@ export default defineConfig(({ mode }) => {
             if (id.includes('node_modules/@sentry')) {
               return 'sentry';
             }
-            // Other node_modules (split by package)
+            // Other node_modules - group small packages, split large ones
             if (id.includes('node_modules')) {
               // Extract package name for better splitting
               const match = id.match(/node_modules\/(@?[^/]+)/);
               if (match) {
-                const packageName = match[1];
+                const packageName = match[1].replace('@', '');
                 // Group small packages together
-                if (['clsx', 'tailwind-merge'].includes(packageName)) {
+                if (['clsx', 'tailwind-merge', 'dequal', 'fast-equals', 'tiny-invariant'].includes(packageName)) {
                   return 'utils';
                 }
-                return `vendor-${packageName.replace('@', '')}`;
+                // Group very small packages that create empty chunks
+                const tinyPackages = ['babel', 'dom-helpers', 'hoist-non-react-statics', 
+                                     'html-parse-stringify', 'localforage', 'void-elements',
+                                     'internmap', 'use-sync-external-store', 'prop-types',
+                                     'goober', 'eventemitter3', 'scheduler', 'victory-vendor'];
+                if (tinyPackages.some(pkg => packageName.includes(pkg))) {
+                  return 'vendor-tiny';
+                }
+                // D3 libraries - group together
+                if (packageName.startsWith('d3-')) {
+                  return 'd3';
+                }
+                // Large packages get their own chunk
+                if (packageName === 'lodash') return 'vendor-lodash';
+                if (packageName === 'decimal.js-light') return 'vendor-decimal';
+                if (packageName === 'remix-run') return 'vendor-remix';
+                // Other packages grouped
+                return 'vendor-other';
               }
-              return 'vendor';
+              return 'vendor-other';
             }
           },
           // Optimize chunk file names

@@ -15,6 +15,7 @@ import { ChatBot } from './components/ChatBot';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { PerformanceOptimizer } from './components/PerformanceOptimizer';
 import { ImageOptimizer } from './components/ImageOptimizer';
+import { LCPOptimizer } from './components/LCPOptimizer';
 
 // Purpose: Lazy load page components to improve initial bundle size and code splitting.
 // Side effects: Components loaded on-demand when routes are accessed.
@@ -50,20 +51,34 @@ const BackgroundLoader = () => (
   <div className="fixed inset-0 -z-10 bg-background" />
 );
 
-// Purpose: Defer HeroBackground loading until after initial render to improve FCP.
+// Purpose: Defer HeroBackground loading until after initial render to improve FCP and LCP.
 // Returns: JSX with deferred HeroBackground component.
 // Side effects: Loads HeroBackground after a delay to not block initial paint.
 const DeferredHeroBackground: React.FC = () => {
   const [shouldLoad, setShouldLoad] = React.useState(false);
 
   React.useEffect(() => {
-    // Defer loading until after initial paint and a short delay
-    // This allows the main content to render first
-    const timer = setTimeout(() => {
-      setShouldLoad(true);
-    }, 100); // Load after 100ms - allows initial content to paint
+    // Defer loading until after initial paint and LCP
+    // Use requestIdleCallback for better performance
+    const loadBackground = () => {
+      if ('requestIdleCallback' in window) {
+        (window as any).requestIdleCallback(() => {
+          setShouldLoad(true);
+        }, { timeout: 2000 });
+      } else {
+        // Fallback: load after LCP (typically 1-2 seconds)
+        setTimeout(() => {
+          setShouldLoad(true);
+        }, 2000);
+      }
+    };
 
-    return () => clearTimeout(timer);
+    // Wait for page to be interactive
+    if (document.readyState === 'complete') {
+      loadBackground();
+    } else {
+      window.addEventListener('load', loadBackground, { once: true });
+    }
   }, []);
 
   if (!shouldLoad) {
@@ -98,6 +113,7 @@ const App: React.FC = () => {
     <ErrorBoundary>
       <PerformanceOptimizer />
       <ImageOptimizer />
+      <LCPOptimizer />
       <ThemeProvider>
         <AuthProvider>
           <Web3Provider>

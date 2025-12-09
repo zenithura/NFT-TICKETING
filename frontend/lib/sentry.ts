@@ -47,8 +47,23 @@ export function initSentry() {
   });
 }
 
-// Initialize on import
-if (typeof window !== "undefined") {
-  initSentry();
+// Lazy initialize Sentry to avoid blocking initial load
+// Only initialize in production or when explicitly enabled
+if (typeof window !== "undefined" && (import.meta.env.PROD || import.meta.env.VITE_SENTRY_ENABLE_DEV)) {
+  // Defer Sentry initialization to avoid blocking main thread
+  // Use requestIdleCallback if available, otherwise setTimeout
+  const init = () => {
+    if ('requestIdleCallback' in window) {
+      (window as any).requestIdleCallback(initSentry, { timeout: 2000 });
+    } else {
+      setTimeout(initSentry, 2000); // Defer by 2 seconds
+    }
+  };
+  
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
 }
 
