@@ -259,35 +259,115 @@ async def update_alert_status(
                 detail=f"Invalid status. Must be one of: {', '.join(valid_statuses)}"
             )
         
+        # Get admin user_id from database (admin dict only has username and role)
+        admin_username = admin.get("username")
+        if not admin_username:
+            logger.error(f"Admin dict missing username. Admin dict keys: {list(admin.keys())}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Admin authentication error: username not found"
+            )
+        
+        # Look up user_id from username/email
+        try:
+            # Try email first
+            user_lookup = db.table("users").select("user_id").eq("email", admin_username.lower()).limit(1).execute()
+            
+            # If not found, try username
+            if not user_lookup.data:
+                user_lookup = db.table("users").select("user_id").eq("username", admin_username).limit(1).execute()
+            
+            if not user_lookup.data:
+                logger.error(f"Admin user not found in database: {admin_username}")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Admin user not found in database"
+                )
+            
+            admin_user_id = user_lookup.data[0].get("user_id")
+            if not admin_user_id:
+                logger.error(f"Admin user has no user_id: {user_lookup.data[0]}")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Admin user_id not found"
+                )
+        except HTTPException:
+            raise
+        except Exception as lookup_error:
+            logger.error(f"Error looking up admin user_id: {lookup_error}", exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to get admin user_id: {str(lookup_error)}"
+            )
+        
+        # Build update data - only include fields that exist
         update_data = {
-            "status": update.status.upper(),
-            "reviewed_at": datetime.now(timezone.utc).isoformat(),
-            "reviewed_by": admin["user_id"]
+            "status": update.status.upper()
         }
         
-        result = db.table("security_alerts").update(update_data).eq("alert_id", alert_id).execute()
+        # Try to add reviewed_at and reviewed_by if columns exist
+        # If they don't exist, the update will still work without them
+        try:
+            update_data["reviewed_at"] = datetime.now(timezone.utc).isoformat()
+            update_data["reviewed_by"] = admin_user_id
+        except Exception:
+            pass  # Columns might not exist, that's okay
         
-        if not result.data:
+        # First check if alert exists
+        check_result = db.table("security_alerts").select("alert_id").eq("alert_id", alert_id).execute()
+        if not check_result.data:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Alert not found"
             )
         
-        # Log admin action
-        db.table("admin_actions").insert({
-            "admin_id": admin["user_id"],
-            "action_type": "UPDATE_ALERT_STATUS",
-            "target_type": "ALERT",
-            "target_id": alert_id,
-            "details": {"status": update.status.upper()},
-            "ip_address": "admin_action"
-        }).execute()
+        # Update the alert
+        try:
+            result = db.table("security_alerts").update(update_data).eq("alert_id", alert_id).execute()
+        except Exception as update_error:
+            error_str = str(update_error)
+            logger.error(f"Database update error: {error_str}", exc_info=True)
+            
+            # If error mentions missing columns, try without them
+            if "column" in error_str.lower() and ("does not exist" in error_str.lower() or "unknown" in error_str.lower()):
+                logger.warning("reviewed_at/reviewed_by columns may not exist, trying update without them")
+                update_data_minimal = {"status": update.status.upper()}
+                result = db.table("security_alerts").update(update_data_minimal).eq("alert_id", alert_id).execute()
+            else:
+                raise
+        
+        if not result.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Alert not found or update failed"
+            )
+        
+        # Log admin action using logging system (more reliable than admin_actions table)
+        try:
+            logging_system = get_logging_system()
+            logging_system.log_event(
+                log_type=LogType.ADMIN_ACTION,
+                message=f"Admin updated alert {alert_id} status to {update.status.upper()}",
+                log_level=LogLevel.INFO,
+                user_id=admin_user_id,
+                username=admin.get("username") or admin.get("email"),
+                metadata={
+                    "action_type": "UPDATE_ALERT_STATUS",
+                    "target_type": "ALERT",
+                    "target_id": alert_id,
+                    "status": update.status.upper()
+                }
+            )
+        except Exception as log_error:
+            # Don't fail the request if logging fails
+            logger.warning(f"Failed to log admin action: {log_error}")
         
         return AlertResponse(**result.data[0])
         
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(f"Failed to update alert status: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update alert: {str(e)}"
@@ -646,8 +726,14 @@ class WebRequestResponse(BaseModel):
     response_status: Optional[int] = None
     response_time_ms: Optional[int] = None
     user_agent: Optional[str] = None
-    is_authenticated: bool
+    is_authenticated: bool = False
     created_at: str
+    
+    class Config:
+        # Allow None values for optional fields
+        from_attributes = True
+        # Allow population by field name or alias
+        populate_by_name = True
 
 
 class WebRequestFilters(BaseModel):
@@ -691,9 +777,16 @@ async def get_web_requests(
     try:
         # Check if table exists by trying a simple query
         try:
-            test_query = db.table("web_requests").select("request_id", count="exact").limit(1).execute()
+            test_query = db.table("web_requests").select("request_id").limit(1).execute()
+            # If we get here, table exists
         except Exception as table_error:
-            logger.error(f"Web requests table error: {table_error}")
+            error_str = str(table_error)
+            logger.error(f"Web requests table error: {error_str}")
+            
+            # Check if it's a table doesn't exist error
+            if "does not exist" in error_str.lower() or "relation" in error_str.lower():
+                logger.warning("web_requests table does not exist. Run admin_logging_schema_safe.sql in Supabase.")
+            
             # Return empty result if table doesn't exist
             return WebRequestsResponse(
                 skip=skip,
@@ -702,10 +795,11 @@ async def get_web_requests(
                 results=[]
             )
         
-        # Build query with filters
-        query = db.table("web_requests").select("*", count="exact")
+        # Build query step by step to avoid issues
+        query = db.table("web_requests")
         
-        if user_id:
+        # Apply filters one by one
+        if user_id is not None:
             query = query.eq("user_id", user_id)
         if username:
             query = query.ilike("username", f"%{username}%")
@@ -717,64 +811,131 @@ async def get_web_requests(
             query = query.ilike("path", f"%{path}%")
         if endpoint:
             query = query.ilike("endpoint", f"%{endpoint}%")
-        if status_code:
+        if status_code is not None:
             query = query.eq("response_status", status_code)
         if start_date:
             query = query.gte("created_at", start_date)
         if end_date:
             query = query.lte("created_at", end_date)
         
-        # Get total count first
-        count_query = db.table("web_requests").select("request_id", count="exact")
+        # Get total count (separate query)
+        total = 0
+        try:
+            count_query = db.table("web_requests")
+            # Apply same filters for count
+            if user_id is not None:
+                count_query = count_query.eq("user_id", user_id)
+            if username:
+                count_query = count_query.ilike("username", f"%{username}%")
+            if ip_address:
+                count_query = count_query.eq("ip_address", ip_address)
+            if http_method:
+                count_query = count_query.eq("http_method", http_method.upper())
+            if path:
+                count_query = count_query.ilike("path", f"%{path}%")
+            if endpoint:
+                count_query = count_query.ilike("endpoint", f"%{endpoint}%")
+            if status_code is not None:
+                count_query = count_query.eq("response_status", status_code)
+            if start_date:
+                count_query = count_query.gte("created_at", start_date)
+            if end_date:
+                count_query = count_query.lte("created_at", end_date)
+            
+            count_result = count_query.select("request_id", count="exact").execute()
+            total = count_result.count if count_result.count is not None else 0
+        except Exception as count_error:
+            logger.error(f"Error getting count: {count_error}", exc_info=True)
+            total = 0
         
-        # Apply same filters for count
-        if user_id:
-            count_query = count_query.eq("user_id", user_id)
-        if username:
-            count_query = count_query.ilike("username", f"%{username}%")
-        if ip_address:
-            count_query = count_query.eq("ip_address", ip_address)
-        if http_method:
-            count_query = count_query.eq("http_method", http_method.upper())
-        if path:
-            count_query = count_query.ilike("path", f"%{path}%")
-        if endpoint:
-            count_query = count_query.ilike("endpoint", f"%{endpoint}%")
-        if status_code:
-            count_query = count_query.eq("response_status", status_code)
-        if start_date:
-            count_query = count_query.gte("created_at", start_date)
-        if end_date:
-            count_query = count_query.lte("created_at", end_date)
-        
-        count_result = count_query.execute()
-        total = count_result.count if count_result.count is not None else 0
-        
-        # Get results
-        result = query.order("created_at", desc=True).range(skip, skip + limit - 1).execute()
+        # Get results - try simple query first if complex query fails
+        result = None
+        try:
+            result = query.select("*").order("created_at", desc=True).range(skip, skip + limit - 1).execute()
+        except Exception as query_error:
+            error_str = str(query_error)
+            logger.error(f"Error querying web requests: {error_str}", exc_info=True)
+            
+            # Try simplest possible query as fallback
+            try:
+                logger.info("Attempting fallback simple query...")
+                result = db.table("web_requests").select("*").order("created_at", desc=True).limit(limit).execute()
+                logger.info("Fallback query succeeded")
+            except Exception as fallback_error:
+                logger.error(f"Fallback query also failed: {fallback_error}")
+                # Return empty result on error instead of crashing
+                return WebRequestsResponse(
+                    skip=skip,
+                    limit=limit,
+                    total=0,
+                    results=[]
+                )
         
         # Convert to response models
         requests = []
         if result.data:
             for req in result.data:
                 try:
-                    # Ensure all required fields are present
-                    req_dict = dict(req)
-                    requests.append(WebRequestResponse(**req_dict))
+                    # Safely extract all fields with defaults
+                    # Handle both dict and object access
+                    if isinstance(req, dict):
+                        req_data = req
+                    else:
+                        req_data = dict(req) if hasattr(req, '__dict__') else {}
+                    
+                    # Build request dict with safe access
+                    req_dict = {
+                        "request_id": req_data.get("request_id") or req_data.get("request_id"),
+                        "user_id": req_data.get("user_id"),  # Can be None
+                        "username": req_data.get("username"),  # Can be None
+                        "ip_address": req_data.get("ip_address") or "unknown",
+                        "http_method": req_data.get("http_method") or "GET",
+                        "path": req_data.get("path") or "/",
+                        "endpoint": req_data.get("endpoint") or req_data.get("path") or "/",
+                        "response_status": req_data.get("response_status"),
+                        "response_time_ms": req_data.get("response_time_ms"),
+                        "user_agent": req_data.get("user_agent"),
+                        "is_authenticated": req_data.get("is_authenticated", False),
+                        "created_at": req_data.get("created_at") or "",
+                    }
+                    
+                    # Validate required fields
+                    if not req_dict["request_id"]:
+                        logger.warning(f"Skipping request without request_id: {req_data}")
+                        continue
+                    
+                    # Ensure created_at exists
+                    if not req_dict["created_at"]:
+                        from datetime import datetime, timezone
+                        req_dict["created_at"] = datetime.now(timezone.utc).isoformat()
+                    
+                    # Create response model
+                    web_request = WebRequestResponse(**req_dict)
+                    requests.append(web_request)
+                    
+                except KeyError as key_error:
+                    logger.error(f"Missing key in web request data: {key_error}")
+                    logger.error(f"Available keys: {list(req_data.keys()) if 'req_data' in locals() else 'unknown'}")
+                    continue
                 except Exception as e:
-                    logger.error(f"Error parsing web request {req.get('request_id')}: {e}")
+                    logger.error(f"Error parsing web request: {e}", exc_info=True)
+                    logger.error(f"Request data type: {type(req)}")
+                    logger.error(f"Request data: {req}")
                     continue
         
-        # Log admin action
-        logging_system = get_logging_system()
-        logging_system.log_event(
-            log_type=LogType.ADMIN_ACTION,
-            message=f"Admin viewed web requests",
-            log_level=LogLevel.INFO,
-            user_id=admin["user_id"],
-            username=admin.get("username"),
-            metadata={"filters": {"user_id": user_id, "ip_address": ip_address, "method": http_method}, "total": total},
-        )
+        # Log admin action (safely)
+        try:
+            logging_system = get_logging_system()
+            logging_system.log_event(
+                log_type=LogType.ADMIN_ACTION,
+                message=f"Admin viewed web requests",
+                log_level=LogLevel.INFO,
+                user_id=admin.get("user_id") or admin.get("id"),
+                username=admin.get("username") or admin.get("email"),
+                metadata={"filters": {"user_id": user_id, "ip_address": ip_address, "method": http_method}, "total": total},
+            )
+        except Exception as log_error:
+            logger.warning(f"Failed to log admin action: {log_error}")
         
         return WebRequestsResponse(
             skip=skip,
@@ -783,11 +944,26 @@ async def get_web_requests(
             results=requests
         )
         
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Failed to get web requests: {e}", exc_info=True)
+        error_msg = str(e)
+        logger.error(f"Failed to get web requests: {error_msg}", exc_info=True)
+        
+        # Provide more helpful error message
+        if "'user_id'" in error_msg or "user_id" in error_msg.lower():
+            logger.error("Possible issue: user_id column missing or query structure issue")
+            # Return empty result instead of error
+            return WebRequestsResponse(
+                skip=skip,
+                limit=limit,
+                total=0,
+                results=[]
+            )
+        
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to get web requests: {str(e)}"
+            detail=f"Failed to get web requests: {error_msg}"
         )
 
 

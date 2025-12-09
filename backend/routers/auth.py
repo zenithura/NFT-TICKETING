@@ -29,25 +29,51 @@ async def log_failed_login_attempt(
     user_id: Optional[int],
     reason: str
 ):
-    """Log failed login attempt and track for auto-suspension."""
+    """Log failed login attempt and track for auto-suspension.
+    
+    IMPORTANT: Always looks up user by email to ensure blocking by account, not IP.
+    """
     try:
         ip_address = request.client.host if request.client else "unknown"
         user_agent = request.headers.get("user-agent", "unknown")
         
+        # ALWAYS look up user by email (even if user_id is None)
+        # This ensures we block by email account, not IP
+        if not user_id and email:
+            try:
+                user_lookup = db.table("users").select("user_id, role").eq("email", email.lower()).limit(1).execute()
+                if user_lookup.data:
+                    found_user = user_lookup.data[0]
+                    user_id = found_user.get("user_id")
+                    user_role = found_user.get("role", "")
+                    
+                    # Skip tracking for admin users
+                    if user_role == "ADMIN":
+                        return
+            except Exception as lookup_error:
+                logger.error(f"Error looking up user by email: {lookup_error}")
+        
         # Check for duplicate in last 5 seconds
         five_seconds_ago = datetime.now(timezone.utc) - timedelta(seconds=5)
-        duplicate_check = db.table("security_alerts").select("alert_id").eq(
-            "ip_address", ip_address
-        ).eq("attack_type", "BRUTE_FORCE").eq("endpoint", "/api/auth/login").gte(
+        duplicate_check = db.table("security_alerts").select("alert_id")
+        
+        if user_id:
+            duplicate_check = duplicate_check.eq("user_id", user_id)
+        else:
+            duplicate_check = duplicate_check.is_("user_id", "null")
+        
+        duplicate_check = duplicate_check.eq("ip_address", ip_address).eq(
+            "attack_type", "BRUTE_FORCE"
+        ).eq("endpoint", "/api/auth/login").gte(
             "created_at", five_seconds_ago.isoformat()
         ).limit(1).execute()
         
         if duplicate_check.data:
             return  # Skip duplicate
         
-        # Insert alert
+        # Insert alert with user_id (from email lookup)
         result = db.table("security_alerts").insert({
-            "user_id": user_id,
+            "user_id": user_id,  # Now includes user_id from email lookup
             "ip_address": ip_address,
             "attack_type": "BRUTE_FORCE",
             "payload": f"Failed login: {reason} (email: {email})",
@@ -59,7 +85,7 @@ async def log_failed_login_attempt(
             "metadata": json.dumps({"email": email, "reason": reason})
         }).execute()
         
-        # Track attack if user_id exists
+        # Track attack if user_id exists (from email lookup)
         if user_id:
             from attack_tracking import track_attack_and_check_suspension
             
@@ -70,10 +96,10 @@ async def log_failed_login_attempt(
             
             if suspension_result.get("action"):
                 logger.warning(
-                    f"User {user_id} {suspension_result['action']} after failed login"
+                    f"User {user_id} ({email}) {suspension_result['action']} after failed login"
                 )
     except Exception as e:
-        logger.error(f"Error logging failed login: {e}")
+        logger.error(f"Error logging failed login: {e}", exc_info=True)
 
 
 @router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
