@@ -5,7 +5,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 import os
 from dotenv import load_dotenv
 
-from routers import auth, events, tickets, marketplace, admin, admin_auth, wallet
+from routers import auth, events, tickets, marketplace, admin, admin_auth, wallet, ml_services
 from security_middleware import security_middleware
 from middleware_metrics import MetricsMiddleware
 from web_requests_middleware import WebRequestsMiddleware
@@ -70,6 +70,7 @@ app.include_router(marketplace.router, prefix="/api")
 app.include_router(wallet.router, prefix="/api")  # Wallet connection routes
 app.include_router(admin_auth.router, prefix="/api")  # Admin auth routes
 app.include_router(admin.router, prefix="/api")  # Admin dashboard routes (protected)
+app.include_router(ml_services.router, prefix="/api")  # ML services routes (fraud detection, risk analysis)
 
 
 @app.get("/")

@@ -16,7 +16,7 @@ const AdminDashboard = lazy(() => import('./pages/AdminDashboard').then(m => ({ 
 // Loading component
 const PageLoader = () => {
   return (
-    <div className="flex items-center justify-center min-h-screen bg-background">
+    <div className="flex items-center justify-center min-h-screen" style={{ background: 'transparent' }}>
       <Loader2 className="animate-spin text-primary" size={32} />
     </div>
   );
@@ -28,7 +28,7 @@ const PageLoader = () => {
  */
 const AdminApp: React.FC = () => {
   return (
-    <div className="flex flex-col min-h-screen font-sans text-foreground bg-background">
+    <div className="flex flex-col min-h-screen font-sans text-foreground" style={{ background: 'transparent' }}>
       <Routes>
         {/* Admin Login - Non-guessable path */}
         <Route 

@@ -2,12 +2,30 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import List
 from supabase import Client
+import sys
+from pathlib import Path
 
 from database import get_supabase_admin
 from models import MarketplaceListingCreate, MarketplaceListingResponse, MarketplaceListingUpdate, ListRequest, BuyRequest, UpdatePriceRequest, EscrowRequest
 from web3_client import contracts, send_transaction, w3
 from web3 import Web3
 from cache import get as cache_get, set as cache_set, clear as cache_clear
+
+# Import ML services for fraud detection
+_ml_integration = None
+def get_ml_integration():
+    """Lazy import ML integration."""
+    global _ml_integration
+    if _ml_integration is None:
+        try:
+            sprint3_path = Path(__file__).parent.parent.parent / "sprint3"
+            if sprint3_path.exists():
+                sys.path.insert(0, str(sprint3_path.parent))
+                from integration.integration_layer import get_integration_layer
+                _ml_integration = get_integration_layer()
+        except Exception:
+            _ml_integration = None  # ML services optional
+    return _ml_integration
 
 router = APIRouter(prefix="/marketplace", tags=["Marketplace"])
 
@@ -17,8 +35,38 @@ async def create_listing(
     listing: MarketplaceListingCreate,
     db: Client = Depends(get_supabase_admin)
 ):
-    """Create a new marketplace listing with 50% max markup validation."""
+    """Create a new marketplace listing with 50% max markup validation and fraud detection."""
     try:
+        # Optional: Run fraud detection if ML services available
+        ml_integration = get_ml_integration()
+        if ml_integration:
+            try:
+                import uuid
+                transaction_id = str(uuid.uuid4())
+                # Get event_id from ticket
+                ticket_response = db.table("tickets").select("event_id").eq("ticket_id", listing.ticket_id).execute()
+                if not ticket_response.data:
+                    ticket_response = db.table("tickets").select("event_id").eq("id", listing.ticket_id).execute()
+                event_id = ticket_response.data[0].get("event_id") if ticket_response.data else None
+                
+                fraud_check = ml_integration.process_transaction(
+                    transaction_id=transaction_id,
+                    wallet_address=listing.seller_address,
+                    event_id=event_id,
+                    price_paid=listing.price
+                )
+                risk_score = fraud_check.get('model_outputs', {}).get('risk_scoring', {}).get('risk_score', 0.0)
+                if risk_score > 0.85:
+                    raise HTTPException(
+                        status_code=403,
+                        detail=f"Listing flagged as high risk (score: {risk_score:.2f}). Please contact support."
+                    )
+            except HTTPException:
+                raise
+            except Exception as e:
+                # Don't fail listing creation if ML check fails
+                import logging
+                logging.warning(f"ML fraud check failed (non-blocking): {e}")
         # Convert ticket_id to int if needed
         ticket_id = int(listing.ticket_id) if listing.ticket_id else None
         if not ticket_id:

@@ -25,6 +25,11 @@
     "marketplace": "Marketplace",
     "dashboard": "Dashboard",
     "myTickets": "My Tickets",
+    "browseEvents": "Browse Events",
+    "reselling": "Reselling",
+    "features": "Features",
+    "about": "About",
+    "contact": "Contact",
     "createEvent": "Create Event",
     "resalePortal": "Resale Portal",
     "adminPanel": "Admin Panel",
@@ -39,7 +44,9 @@
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
     "mobileMenu": "Mobile menu",
-    "userMenu": "User menu"
+    "userMenu": "User menu",
+    "coreNavigation": "Core Navigation",
+    "tools": "Tools"
   },
   "marketplace": {
     "title": "Collect Moments, Not Just Tickets.",

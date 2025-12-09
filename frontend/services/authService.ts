@@ -147,6 +147,7 @@ export const authenticatedFetch = async (
     
     // Purpose: If token expired, try to refresh it.
     // Side effects: Calls refresh token endpoint, retries original request.
+    // Only clears auth if refresh definitively fails, preventing false redirects.
     if (response.status === 401) {
       const refreshToken = getRefreshToken();
       if (refreshToken && retries > 0) {
@@ -187,21 +188,39 @@ export const authenticatedFetch = async (
                 clearTimeout(retryTimeout);
                 throw retryError;
               }
+            } else {
+              // Refresh returned success but no token - clear auth
+              clearAuth();
+              throw new Error('Session expired. Please login again.');
             }
           } else {
-            // Refresh failed, clear auth
+            // Refresh failed definitively - only clear auth now
+            const errorData = await refreshResponse.json().catch(() => ({}));
+            const errorMessage = errorData.detail || 'Session expired. Please login again.';
             clearAuth();
-            throw new Error('Session expired. Please login again.');
+            throw new Error(errorMessage);
           }
         } catch (error) {
-          if (error instanceof Error && error.name === 'AbortError') {
-            throw new Error('Request timeout. Please try again.');
+          if (error instanceof Error) {
+            if (error.name === 'AbortError') {
+              throw new Error('Request timeout. Please try again.');
+            }
+            // If error already has a message from refresh failure, re-throw it
+            if (error.message.includes('Session expired') || error.message.includes('login')) {
+              throw error;
+            }
           }
-          clearAuth();
-          throw error;
+          // Network or other errors - don't clear auth, just throw
+          // This prevents clearing valid sessions due to temporary network issues
+          throw new Error(error instanceof Error ? error.message : 'Request failed. Please try again.');
         }
       } else {
-        clearAuth();
+        // No refresh token or no retries left
+        // Only clear auth if we're certain there's no valid session
+        const hasToken = getAccessToken();
+        if (!hasToken || !refreshToken) {
+          clearAuth();
+        }
         throw new Error('Authentication required. Please login again.');
       }
     }

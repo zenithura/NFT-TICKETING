@@ -9,18 +9,19 @@ export const calculateDropdownPosition = (
   triggerRect: DOMRect,
   dropdownWidth: number,
   dropdownHeight: number,
-  gap: number = 8
+  gap: number = 2  // Reduced gap from 8px to 2px to minimize flickering
 ): { top: number; left?: number; right?: number; bottom?: number; side: 'top' | 'bottom' | 'left' | 'right' } => {
   const viewportWidth = window.innerWidth;
   const viewportHeight = window.innerHeight;
-  const scrollY = window.scrollY;
-  const scrollX = window.scrollX;
 
-  // Calculate available space
-  const spaceBelow = viewportHeight - (triggerRect.bottom - scrollY);
-  const spaceAbove = triggerRect.top - scrollY;
-  const spaceRight = viewportWidth - (triggerRect.right - scrollX);
-  const spaceLeft = triggerRect.left - scrollX;
+  // getBoundingClientRect() already returns viewport-relative coordinates
+  // For fixed positioning, we use these coordinates directly without scroll adjustments
+  
+  // Calculate available space (viewport-relative)
+  const spaceBelow = viewportHeight - triggerRect.bottom;
+  const spaceAbove = triggerRect.top;
+  const spaceRight = viewportWidth - triggerRect.right;
+  const spaceLeft = triggerRect.left;
 
   // Determine vertical position (prefer below, fallback to above)
   let top: number;
@@ -28,31 +29,39 @@ export const calculateDropdownPosition = (
   let side: 'top' | 'bottom' | 'left' | 'right' = 'bottom';
 
   if (spaceBelow >= dropdownHeight + gap || spaceBelow >= spaceAbove) {
-    // Position below
-    top = triggerRect.bottom + gap;
+    // Position below - use 0 gap to eliminate flickering (overlap handled via negative top offset in style)
+    top = triggerRect.bottom;
     side = 'bottom';
   } else {
     // Position above
-    bottom = viewportHeight - (triggerRect.top - scrollY) + gap;
+    bottom = viewportHeight - triggerRect.top;
     side = 'top';
   }
 
-  // Determine horizontal position (prefer right alignment, adjust if needed)
+  // Determine horizontal position
+  // For user menu on far right, prefer right-aligned dropdown
   let left: number | undefined;
   let right: number | undefined;
 
-  if (triggerRect.right - scrollX + dropdownWidth <= viewportWidth) {
-    // Enough space on right, align to left edge of trigger
-    left = triggerRect.left - scrollX;
-  } else if (spaceRight >= dropdownWidth) {
-    // Align to right edge of viewport
-    right = 0;
-  } else if (spaceLeft >= dropdownWidth) {
-    // Align to left edge of viewport
-    left = 0;
+  // Check if dropdown would overflow on the right
+  if (triggerRect.right + dropdownWidth > viewportWidth) {
+    // Not enough space on right, align to right edge of trigger (right-align dropdown)
+    right = viewportWidth - triggerRect.right;
   } else {
-    // Center if neither side has enough space
-    left = (viewportWidth - dropdownWidth) / 2;
+    // Enough space on right, align to left edge of trigger
+    left = triggerRect.left;
+  }
+
+  // Ensure dropdown doesn't go off-screen on the left
+  if (left !== undefined && left < 0) {
+    right = viewportWidth - triggerRect.right;
+    left = undefined;
+  }
+
+  // Final safety check: if dropdown would still overflow, use right alignment
+  if (left !== undefined && left + dropdownWidth > viewportWidth) {
+    right = Math.max(0, viewportWidth - triggerRect.right);
+    left = undefined;
   }
 
   return { top, left, right, bottom, side };

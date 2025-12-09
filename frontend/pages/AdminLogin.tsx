@@ -101,14 +101,14 @@ export const AdminLogin: React.FC = () => {
 
   if (isCheckingSession) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
+      <div className="flex items-center justify-center min-h-screen" style={{ background: 'transparent' }}>
         <Loader2 className="animate-spin text-primary" size={32} />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'transparent' }}>
       <div className="w-full max-w-md">
         {/* Login Card */}
         <div className="bg-background-elevated rounded-2xl border border-border shadow-xl p-8 space-y-6">

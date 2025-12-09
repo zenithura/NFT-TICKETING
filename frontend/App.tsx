@@ -30,6 +30,9 @@ const Login = lazy(() => import('./pages/Login').then(m => ({ default: m.Login }
 const Register = lazy(() => import('./pages/Register').then(m => ({ default: m.Register })));
 const ForgotPassword = lazy(() => import('./pages/ForgotPassword').then(m => ({ default: m.ForgotPassword })));
 const ResetPassword = lazy(() => import('./pages/ResetPassword').then(m => ({ default: m.ResetPassword })));
+const About = lazy(() => import('./pages/About').then(m => ({ default: m.About })));
+const Contact = lazy(() => import('./pages/Contact').then(m => ({ default: m.Contact })));
+const Features = lazy(() => import('./pages/Features').then(m => ({ default: m.Features })));
 const HeroBackground = lazy(() => import('./components/3d/HeroBackground').then(m => ({ default: m.HeroBackground })));
 
 // Purpose: Loading spinner component displayed while lazy-loaded pages are loading.
@@ -38,7 +41,7 @@ const HeroBackground = lazy(() => import('./components/3d/HeroBackground').then(
 const PageLoader = () => {
   // Don't use translation here to avoid blocking on i18n
   return (
-    <div className="flex items-center justify-center min-h-screen bg-background">
+    <div className="flex items-center justify-center min-h-screen" style={{ background: 'transparent' }}>
       <div className="animate-pulse text-foreground-secondary">Loading...</div>
     </div>
   );
@@ -48,7 +51,7 @@ const PageLoader = () => {
 // Returns: JSX with fixed background div.
 // Side effects: Prevents cumulative layout shift (CLS) during initial render.
 const BackgroundLoader = () => (
-  <div className="fixed inset-0 -z-10 bg-background" />
+  <div className="fixed inset-0 -z-10" style={{ background: 'transparent' }} />
 );
 
 // Purpose: Defer HeroBackground loading until after initial render to improve FCP and LCP.
@@ -94,10 +97,11 @@ const DeferredHeroBackground: React.FC = () => {
 
 // Purpose: Footer component with translated copyright text.
 // Returns: JSX with footer content.
+// Sticks to bottom of page using flexbox layout from parent.
 const Footer: React.FC = () => {
   const { t } = useTranslation();
   return (
-    <footer className="border-t border-border py-12 mt-12 bg-background">
+    <footer className="border-t border-border py-12 mt-auto" style={{ background: 'transparent' }}>
       <div className="max-w-7xl mx-auto px-4 text-center text-foreground-tertiary text-sm">
         <p>{t('footer.copyright')}</p>
       </div>
@@ -118,7 +122,7 @@ const App: React.FC = () => {
         <AuthProvider>
           <Web3Provider>
           <Router>
-          <div className="flex flex-col min-h-screen font-sans text-foreground bg-background">
+          <div className="flex flex-col min-h-screen font-sans text-foreground" style={{ background: 'transparent', display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
             <Routes>
               {/* Public Authentication Routes */}
               <Route path="/login" element={
@@ -155,10 +159,11 @@ const App: React.FC = () => {
               } />
 
               {/* Main Routes with Navbar */}
+              {/* CRITICAL: Use flex flex-col min-h-screen to ensure footer sticks to bottom */}
               <Route path="*" element={
-                <>
+                <div className="flex flex-col min-h-screen" style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
                   <Navbar />
-                  <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8 bg-background">
+                  <main className="flex-grow flex flex-col container mx-auto px-4 sm:px-6 lg:px-8 py-8" style={{ background: 'transparent', position: 'relative', zIndex: 1, flexGrow: 1, flexShrink: 0 }}>
                     <Suspense fallback={<PageLoader />}>
                       <Routes>
                         <Route path="/" element={
@@ -180,12 +185,15 @@ const App: React.FC = () => {
                           </ProtectedRoute>
                         } />
                         <Route path="/resale" element={<Navigate to="/" replace />} />
+                        <Route path="/about" element={<About />} />
+                        <Route path="/contact" element={<Contact />} />
+                        <Route path="/features" element={<Features />} />
                       </Routes>
                     </Suspense>
                   </main>
                   <Footer />
                   <ChatBot />
-                </>
+                </div>
               } />
             </Routes>
           </div>
