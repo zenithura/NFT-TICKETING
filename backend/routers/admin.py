@@ -1,7 +1,7 @@
 """Admin dashboard and security alerts management router."""
 from fastapi import APIRouter, HTTPException, Depends, Query, status, Request
 from fastapi.responses import StreamingResponse
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta, timezone
 from supabase import Client
 from pydantic import BaseModel, Field
@@ -10,6 +10,9 @@ from database import get_supabase_admin
 from auth_middleware import require_role, get_current_user
 from routers.admin_auth import require_admin_auth
 from models import UserResponse
+from logging_system import get_logging_system, LogType, LogLevel
+from soar_integration import get_soar_integration, SOAREvent, SOAREventType
+from attack_tracking import get_user_attack_count, get_ip_attack_count
 import logging
 
 logger = logging.getLogger(__name__)
@@ -186,9 +189,20 @@ async def get_alerts(
         # Pagination
         result = query.range(skip, skip + limit - 1).execute()
         
-        return [AlertResponse(**alert) for alert in result.data]
+        # DEDUPLICATION: Remove duplicates based on alert_id
+        # This is a safety measure in case duplicates somehow exist in the database
+        seen_ids = set()
+        unique_alerts = []
+        for alert in result.data:
+            alert_id = alert.get("alert_id")
+            if alert_id and alert_id not in seen_ids:
+                seen_ids.add(alert_id)
+                unique_alerts.append(alert)
+        
+        return [AlertResponse(**alert) for alert in unique_alerts]
         
     except Exception as e:
+        logger.error(f"Failed to get alerts: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to get alerts: {str(e)}"
@@ -482,7 +496,16 @@ async def get_all_users(
         
         result = query.order("created_at", desc=True).range(skip, skip + limit - 1).execute()
         
-        return [UserResponse(**user) for user in result.data]
+        # Ensure is_active is included in response
+        users = []
+        for user in result.data:
+            user_dict = dict(user)
+            # Default to True if not present
+            if "is_active" not in user_dict:
+                user_dict["is_active"] = True
+            users.append(UserResponse(**user_dict))
+        
+        return users
         
     except Exception as e:
         raise HTTPException(
@@ -551,11 +574,25 @@ async def export_alerts(
         if end_date:
             query = query.lte("created_at", end_date)
         
-        result = query.order("created_at", desc=True).execute()
+        result = query.order("created_at", desc=True).limit(10000).execute()
+        
+        # Log admin action
+        logging_system = get_logging_system()
+        logging_system.log_event(
+            log_type=LogType.ALERT_EXPORTED,
+            message=f"Admin exported alerts as {format.upper()}",
+            log_level=LogLevel.INFO,
+            user_id=admin["user_id"],
+            username=admin.get("username"),
+            metadata={"format": format, "start_date": start_date, "end_date": end_date},
+        )
         
         if format == "json":
             from fastapi.responses import JSONResponse
-            return JSONResponse(content=result.data)
+            return JSONResponse(
+                content=result.data,
+                headers={"Content-Disposition": f"attachment; filename=alerts_{datetime.now().strftime('%Y%m%d')}.json"}
+            )
         else:  # CSV
             import csv
             from fastapi.responses import Response
@@ -564,7 +601,7 @@ async def export_alerts(
             output = io.StringIO()
             writer = csv.DictWriter(output, fieldnames=[
                 "alert_id", "user_id", "ip_address", "attack_type", "endpoint",
-                "severity", "risk_score", "status", "created_at"
+                "severity", "risk_score", "status", "user_agent", "created_at"
             ])
             writer.writeheader()
             for alert in result.data:
@@ -573,10 +610,11 @@ async def export_alerts(
                     "user_id": alert.get("user_id") or "",
                     "ip_address": alert.get("ip_address"),
                     "attack_type": alert.get("attack_type"),
-                    "endpoint": alert.get("endpoint"),
+                    "endpoint": alert.get("endpoint") or "",
                     "severity": alert.get("severity"),
                     "risk_score": alert.get("risk_score"),
                     "status": alert.get("status"),
+                    "user_agent": alert.get("user_agent") or "",
                     "created_at": alert.get("created_at")
                 })
             
@@ -590,5 +628,826 @@ async def export_alerts(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to export alerts: {str(e)}"
+        )
+
+
+# ============================================================================
+# NEW ENDPOINTS: Web Requests, Enhanced Users, Alerts Management, SOAR
+# ============================================================================
+
+class WebRequestResponse(BaseModel):
+    request_id: int
+    user_id: Optional[int] = None
+    username: Optional[str] = None
+    ip_address: str
+    http_method: str
+    path: str
+    endpoint: Optional[str] = None
+    response_status: Optional[int] = None
+    response_time_ms: Optional[int] = None
+    user_agent: Optional[str] = None
+    is_authenticated: bool
+    created_at: str
+
+
+class WebRequestFilters(BaseModel):
+    user_id: Optional[int] = None
+    username: Optional[str] = None
+    ip_address: Optional[str] = None
+    http_method: Optional[str] = None
+    path: Optional[str] = None
+    endpoint: Optional[str] = None
+    status_code: Optional[int] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    skip: int = 0
+    limit: int = 50
+
+
+class WebRequestsResponse(BaseModel):
+    skip: int
+    limit: int
+    total: int
+    results: List[WebRequestResponse]
+
+
+@router.get("/web-requests", response_model=WebRequestsResponse)
+async def get_web_requests(
+    admin: dict = Depends(require_admin_auth),
+    db: Client = Depends(get_supabase_admin),
+    user_id: Optional[int] = Query(None),
+    username: Optional[str] = Query(None),
+    ip_address: Optional[str] = Query(None),
+    http_method: Optional[str] = Query(None),
+    path: Optional[str] = Query(None),
+    endpoint: Optional[str] = Query(None),
+    status_code: Optional[int] = Query(None),
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
+):
+    """Get web requests with filtering."""
+    try:
+        # Check if table exists by trying a simple query
+        try:
+            test_query = db.table("web_requests").select("request_id", count="exact").limit(1).execute()
+        except Exception as table_error:
+            logger.error(f"Web requests table error: {table_error}")
+            # Return empty result if table doesn't exist
+            return WebRequestsResponse(
+                skip=skip,
+                limit=limit,
+                total=0,
+                results=[]
+            )
+        
+        # Build query with filters
+        query = db.table("web_requests").select("*", count="exact")
+        
+        if user_id:
+            query = query.eq("user_id", user_id)
+        if username:
+            query = query.ilike("username", f"%{username}%")
+        if ip_address:
+            query = query.eq("ip_address", ip_address)
+        if http_method:
+            query = query.eq("http_method", http_method.upper())
+        if path:
+            query = query.ilike("path", f"%{path}%")
+        if endpoint:
+            query = query.ilike("endpoint", f"%{endpoint}%")
+        if status_code:
+            query = query.eq("response_status", status_code)
+        if start_date:
+            query = query.gte("created_at", start_date)
+        if end_date:
+            query = query.lte("created_at", end_date)
+        
+        # Get total count first
+        count_query = db.table("web_requests").select("request_id", count="exact")
+        
+        # Apply same filters for count
+        if user_id:
+            count_query = count_query.eq("user_id", user_id)
+        if username:
+            count_query = count_query.ilike("username", f"%{username}%")
+        if ip_address:
+            count_query = count_query.eq("ip_address", ip_address)
+        if http_method:
+            count_query = count_query.eq("http_method", http_method.upper())
+        if path:
+            count_query = count_query.ilike("path", f"%{path}%")
+        if endpoint:
+            count_query = count_query.ilike("endpoint", f"%{endpoint}%")
+        if status_code:
+            count_query = count_query.eq("response_status", status_code)
+        if start_date:
+            count_query = count_query.gte("created_at", start_date)
+        if end_date:
+            count_query = count_query.lte("created_at", end_date)
+        
+        count_result = count_query.execute()
+        total = count_result.count if count_result.count is not None else 0
+        
+        # Get results
+        result = query.order("created_at", desc=True).range(skip, skip + limit - 1).execute()
+        
+        # Convert to response models
+        requests = []
+        if result.data:
+            for req in result.data:
+                try:
+                    # Ensure all required fields are present
+                    req_dict = dict(req)
+                    requests.append(WebRequestResponse(**req_dict))
+                except Exception as e:
+                    logger.error(f"Error parsing web request {req.get('request_id')}: {e}")
+                    continue
+        
+        # Log admin action
+        logging_system = get_logging_system()
+        logging_system.log_event(
+            log_type=LogType.ADMIN_ACTION,
+            message=f"Admin viewed web requests",
+            log_level=LogLevel.INFO,
+            user_id=admin["user_id"],
+            username=admin.get("username"),
+            metadata={"filters": {"user_id": user_id, "ip_address": ip_address, "method": http_method}, "total": total},
+        )
+        
+        return WebRequestsResponse(
+            skip=skip,
+            limit=limit,
+            total=total,
+            results=requests
+        )
+        
+    except Exception as e:
+        logger.error(f"Failed to get web requests: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get web requests: {str(e)}"
+        )
+
+
+@router.get("/web-requests/export")
+async def export_web_requests(
+    admin: dict = Depends(require_admin_auth),
+    db: Client = Depends(get_supabase_admin),
+    format: str = Query("json", regex="^(json|csv)$"),
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None),
+):
+    """Export web requests as JSON or CSV."""
+    try:
+        query = db.table("web_requests").select("*")
+        
+        if start_date:
+            query = query.gte("created_at", start_date)
+        if end_date:
+            query = query.lte("created_at", end_date)
+        
+        result = query.order("created_at", desc=True).limit(10000).execute()
+        
+        if format == "json":
+            from fastapi.responses import JSONResponse
+            return JSONResponse(content=result.data)
+        else:  # CSV
+            import csv
+            from fastapi.responses import Response
+            import io
+            
+            output = io.StringIO()
+            writer = csv.DictWriter(output, fieldnames=[
+                "request_id", "user_id", "username", "ip_address", "http_method",
+                "path", "endpoint", "response_status", "response_time_ms", "created_at"
+            ])
+            writer.writeheader()
+            for req in result.data:
+                writer.writerow({
+                    "request_id": req.get("request_id"),
+                    "user_id": req.get("user_id") or "",
+                    "username": req.get("username") or "",
+                    "ip_address": req.get("ip_address"),
+                    "http_method": req.get("http_method"),
+                    "path": req.get("path"),
+                    "endpoint": req.get("endpoint") or "",
+                    "response_status": req.get("response_status") or "",
+                    "response_time_ms": req.get("response_time_ms") or "",
+                    "created_at": req.get("created_at")
+                })
+            
+            return Response(
+                content=output.getvalue(),
+                media_type="text/csv",
+                headers={"Content-Disposition": f"attachment; filename=web_requests_{datetime.now().strftime('%Y%m%d')}.csv"}
+            )
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to export web requests: {str(e)}"
+        )
+
+
+@router.delete("/web-requests/clear")
+async def clear_web_requests(
+    request: Request,
+    admin: dict = Depends(require_admin_auth),
+    db: Client = Depends(get_supabase_admin),
+    days: int = Query(90, ge=1, le=365, description="Delete requests older than N days"),
+):
+    """Clear old web requests (admin only)."""
+    try:
+        cutoff_date = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        
+        # Delete old requests
+        result = db.table("web_requests").delete().lt("created_at", cutoff_date).execute()
+        
+        deleted_count = len(result.data) if result.data else 0
+        
+        # Log admin action
+        logging_system = get_logging_system()
+        logging_system.log_event(
+            log_type=LogType.ADMIN_ACTION,
+            message=f"Admin cleared web requests older than {days} days",
+            log_level=LogLevel.INFO,
+            user_id=admin["user_id"],
+            username=admin.get("username"),
+            ip_address=request.client.host if request.client else None,
+            metadata={"days": days, "cutoff_date": cutoff_date, "deleted_count": deleted_count},
+        )
+        
+        # Forward to SOAR if configured
+        soar = get_soar_integration()
+        event = SOAREvent(
+            event_type=SOAREventType.ADMIN_ACTION,
+            user_id=admin["user_id"],
+            severity="low",
+            description=f"Admin cleared web requests older than {days} days",
+            metadata={"admin_username": admin.get("username"), "days": days},
+        )
+        await soar.forward_event(event)
+        
+        return {
+            "success": True,
+            "message": f"Cleared web requests older than {days} days",
+            "deleted_count": len(result.data) if result.data else 0
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to clear web requests: {str(e)}"
+        )
+
+
+@router.delete("/alerts/clear")
+async def clear_all_alerts(
+    request: Request,
+    admin: dict = Depends(require_admin_auth),
+    db: Client = Depends(get_supabase_admin),
+):
+    """Clear all alerts (admin only)."""
+    try:
+        # Get count before deletion
+        count_before = db.table("security_alerts").select("alert_id", count="exact").execute()
+        total_before = count_before.count or 0
+        
+        # Delete all alerts
+        delete_result = db.table("security_alerts").delete().neq("alert_id", 0).execute()
+        
+        deleted_count = total_before  # Use count before deletion
+        
+        # Log admin action
+        logging_system = get_logging_system()
+        logging_system.log_event(
+            log_type=LogType.ALERT_CLEARED,
+            message="Admin cleared all alerts",
+            log_level=LogLevel.INFO,
+            user_id=admin["user_id"],
+            username=admin.get("username"),
+            ip_address=request.client.host if request.client else None,
+            metadata={"deleted_count": deleted_count},
+        )
+        
+        # Forward to SOAR if configured
+        soar = get_soar_integration()
+        event = SOAREvent(
+            event_type=SOAREventType.ADMIN_ACTION,
+            user_id=admin["user_id"],
+            severity="medium",
+            description="All alerts cleared by admin",
+            metadata={"admin_username": admin.get("username"), "deleted_count": deleted_count},
+        )
+        await soar.forward_event(event)
+        
+        return {
+            "success": True,
+            "message": "All alerts cleared successfully",
+            "deleted_count": deleted_count
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to clear alerts: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to clear alerts: {str(e)}"
+        )
+
+
+# Enhanced Users Management
+class UserCreateRequest(BaseModel):
+    email: str
+    password: str
+    username: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    role: str = Field(default="BUYER", description="BUYER, ORGANIZER, ADMIN, SCANNER, RESELLER")
+
+
+class UserUpdateRequest(BaseModel):
+    email: Optional[str] = None
+    username: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    role: Optional[str] = None
+    is_active: Optional[bool] = None
+    is_email_verified: Optional[bool] = None
+
+
+class PasswordResetRequest(BaseModel):
+    user_id: int
+    new_password: str
+
+
+@router.post("/users", response_model=UserResponse)
+async def create_user(
+    user_data: UserCreateRequest,
+    admin: dict = Depends(require_admin_auth),
+    db: Client = Depends(get_supabase_admin),
+):
+    """Create a new user (admin only)."""
+    try:
+        from routers.auth import hash_password
+        
+        # Check if email exists
+        existing = db.table("users").select("user_id").eq("email", user_data.email).execute()
+        if existing.data:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already exists"
+            )
+        
+        # Create user
+        user_record = {
+            "email": user_data.email,
+            "password_hash": hash_password(user_data.password),
+            "username": user_data.username,
+            "first_name": user_data.first_name,
+            "last_name": user_data.last_name,
+            "role": user_data.role.upper(),
+            "is_active": True,
+            "is_email_verified": False,
+        }
+        
+        result = db.table("users").insert(user_record).execute()
+        
+        if not result.data:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create user"
+            )
+        
+        new_user = result.data[0]
+        
+        # Ensure is_active is True for new users
+        user_dict = dict(new_user)
+        if "is_active" not in user_dict:
+            user_dict["is_active"] = True
+        
+        # Log admin action
+        logging_system = get_logging_system()
+        logging_system.log_event(
+            log_type=LogType.USER_CREATED,
+            message=f"Admin created user: {user_data.email}",
+            log_level=LogLevel.INFO,
+            user_id=admin["user_id"],
+            username=admin.get("username"),
+            metadata={"created_user_id": user_dict["user_id"], "created_email": user_data.email},
+        )
+        
+        return UserResponse(**user_dict)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create user: {str(e)}"
+        )
+
+
+@router.patch("/users/{user_id}", response_model=UserResponse)
+async def update_user(
+    user_id: int,
+    user_data: UserUpdateRequest,
+    admin: dict = Depends(require_admin_auth),
+    db: Client = Depends(get_supabase_admin),
+):
+    """Update user (admin only)."""
+    try:
+        update_data = {}
+        
+        if user_data.email is not None:
+            update_data["email"] = user_data.email
+        if user_data.username is not None:
+            update_data["username"] = user_data.username
+        if user_data.first_name is not None:
+            update_data["first_name"] = user_data.first_name
+        if user_data.last_name is not None:
+            update_data["last_name"] = user_data.last_name
+        if user_data.role is not None:
+            update_data["role"] = user_data.role.upper()
+        if user_data.is_active is not None:
+            update_data["is_active"] = user_data.is_active
+        if user_data.is_email_verified is not None:
+            update_data["is_email_verified"] = user_data.is_email_verified
+        
+        update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+        
+        result = db.table("users").update(update_data).eq("user_id", user_id).execute()
+        
+        if not result.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        updated_user = result.data[0]
+        user_dict = dict(updated_user)
+        # Ensure is_active is included
+        if "is_active" not in user_dict:
+            user_dict["is_active"] = True
+        
+        # Log admin action
+        logging_system = get_logging_system()
+        log_type = LogType.USER_SUSPENDED if user_data.is_active is False else LogType.USER_ACTIVATED if user_data.is_active is True else LogType.ADMIN_ACTION
+        logging_system.log_event(
+            log_type=log_type,
+            message=f"Admin updated user {user_id}",
+            log_level=LogLevel.INFO,
+            user_id=admin["user_id"],
+            username=admin.get("username"),
+            metadata={"target_user_id": user_id, "updates": update_data},
+        )
+        
+        return UserResponse(**user_dict)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update user: {str(e)}"
+        )
+
+
+@router.delete("/users/{user_id}")
+async def delete_user(
+    user_id: int,
+    admin: dict = Depends(require_admin_auth),
+    db: Client = Depends(get_supabase_admin),
+):
+    """Delete user (admin only)."""
+    try:
+        # Get user info before deletion
+        user = db.table("users").select("*").eq("user_id", user_id).execute()
+        if not user.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        user_email = user.data[0].get("email", "unknown")
+        
+        # Delete user (cascade will handle related records)
+        db.table("users").delete().eq("user_id", user_id).execute()
+        
+        # Log admin action
+        logging_system = get_logging_system()
+        logging_system.log_event(
+            log_type=LogType.USER_DELETED,
+            message=f"Admin deleted user: {user_email}",
+            log_level=LogLevel.WARNING,
+            user_id=admin["user_id"],
+            username=admin.get("username"),
+            metadata={"deleted_user_id": user_id, "deleted_email": user_email},
+        )
+        
+        # Forward to SOAR if configured
+        soar = get_soar_integration()
+        event = SOAREvent(
+            event_type=SOAREventType.ADMIN_ACTION,
+            user_id=admin["user_id"],
+            severity="high",
+            description=f"Admin deleted user: {user_email}",
+            metadata={"admin_username": admin.get("username"), "deleted_user_id": user_id},
+        )
+        await soar.forward_event(event)
+        
+        return {
+            "success": True,
+            "message": f"User {user_email} deleted successfully"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete user: {str(e)}"
+        )
+
+
+@router.post("/users/{user_id}/reset-password")
+async def reset_user_password(
+    user_id: int,
+    reset_data: PasswordResetRequest,
+    admin: dict = Depends(require_admin_auth),
+    db: Client = Depends(get_supabase_admin),
+):
+    """Reset user password (admin only)."""
+    try:
+        from routers.auth import hash_password
+        
+        # Update password
+        db.table("users").update({
+            "password_hash": hash_password(reset_data.new_password),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }).eq("user_id", user_id).execute()
+        
+        # Log admin action
+        logging_system = get_logging_system()
+        logging_system.log_event(
+            log_type=LogType.AUTH_PASSWORD_CHANGE,
+            message=f"Admin reset password for user {user_id}",
+            log_level=LogLevel.INFO,
+            user_id=admin["user_id"],
+            username=admin.get("username"),
+            metadata={"target_user_id": user_id},
+        )
+        
+        return {
+            "success": True,
+            "message": "Password reset successfully"
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to reset password: {str(e)}"
+        )
+
+
+@router.get("/users/{user_id}/activity")
+async def get_user_activity(
+    user_id: int,
+    admin: dict = Depends(require_admin_auth),
+    db: Client = Depends(get_supabase_admin),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
+):
+    """Get user activity log."""
+    try:
+        result = db.table("user_activity_logs").select("*").eq("user_id", user_id).order("created_at", desc=True).range(skip, skip + limit - 1).execute()
+        
+        # Get attack count for this user
+        attack_count = get_user_attack_count(db, user_id)
+        
+        return {
+            "activity": result.data,
+            "attack_count": attack_count,
+            "is_suspended": attack_count >= 2,
+            "is_banned": attack_count >= 10,
+        }
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get user activity: {str(e)}"
+        )
+
+
+# SOAR Configuration Endpoints
+class SOARConfigCreate(BaseModel):
+    platform_name: str
+    endpoint_url: str
+    api_key: str
+    is_enabled: bool = False
+    event_types: List[str] = []
+    severity_filter: List[str] = ["CRITICAL", "HIGH"]
+    retry_count: int = 3
+    timeout_seconds: int = 30
+    verify_ssl: bool = True
+    custom_headers: Dict[str, Any] = {}
+
+
+class SOARConfigUpdate(BaseModel):
+    endpoint_url: Optional[str] = None
+    api_key: Optional[str] = None
+    is_enabled: Optional[bool] = None
+    event_types: Optional[List[str]] = None
+    severity_filter: Optional[List[str]] = None
+    retry_count: Optional[int] = None
+    timeout_seconds: Optional[int] = None
+    verify_ssl: Optional[bool] = None
+    custom_headers: Optional[Dict[str, Any]] = None
+
+
+@router.post("/soar/config")
+async def create_soar_config(
+    config: SOARConfigCreate,
+    admin: dict = Depends(require_admin_auth),
+    db: Client = Depends(get_supabase_admin),
+):
+    """Create SOAR configuration."""
+    try:
+        config_data = config.dict()
+        config_data["created_at"] = datetime.now(timezone.utc).isoformat()
+        config_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+        
+        result = db.table("soar_config").insert(config_data).execute()
+        
+        # Log admin action
+        logging_system = get_logging_system()
+        logging_system.log_event(
+            log_type=LogType.ADMIN_ACTION,
+            message=f"Admin created SOAR config: {config.platform_name}",
+            log_level=LogLevel.INFO,
+            user_id=admin["user_id"],
+            username=admin.get("username"),
+        )
+        
+        return result.data[0] if result.data else {}
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create SOAR config: {str(e)}"
+        )
+
+
+@router.get("/soar/config")
+async def get_soar_configs(
+    admin: dict = Depends(require_admin_auth),
+    db: Client = Depends(get_supabase_admin),
+):
+    """Get all SOAR configurations."""
+    try:
+        result = db.table("soar_config").select("*").order("created_at", desc=True).execute()
+        return result.data
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get SOAR configs: {str(e)}"
+        )
+
+
+@router.patch("/soar/config/{config_id}")
+async def update_soar_config(
+    config_id: int,
+    config: SOARConfigUpdate,
+    admin: dict = Depends(require_admin_auth),
+    db: Client = Depends(get_supabase_admin),
+):
+    """Update SOAR configuration."""
+    try:
+        update_data = config.dict(exclude_unset=True)
+        update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+        
+        result = db.table("soar_config").update(update_data).eq("config_id", config_id).execute()
+        
+        if not result.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="SOAR config not found"
+            )
+        
+        # Log admin action
+        logging_system = get_logging_system()
+        logging_system.log_event(
+            log_type=LogType.ADMIN_ACTION,
+            message=f"Admin updated SOAR config {config_id}",
+            log_level=LogLevel.INFO,
+            user_id=admin["user_id"],
+            username=admin.get("username"),
+        )
+        
+        return result.data[0]
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to update SOAR config: {str(e)}"
+        )
+
+
+@router.delete("/soar/config/{config_id}")
+async def delete_soar_config(
+    config_id: int,
+    admin: dict = Depends(require_admin_auth),
+    db: Client = Depends(get_supabase_admin),
+):
+    """Delete SOAR configuration."""
+    try:
+        db.table("soar_config").delete().eq("config_id", config_id).execute()
+        
+        # Log admin action
+        logging_system = get_logging_system()
+        logging_system.log_event(
+            log_type=LogType.ADMIN_ACTION,
+            message=f"Admin deleted SOAR config {config_id}",
+            log_level=LogLevel.INFO,
+            user_id=admin["user_id"],
+            username=admin.get("username"),
+        )
+        
+        return {"success": True, "message": "SOAR config deleted successfully"}
+        
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to delete SOAR config: {str(e)}"
+        )
+
+
+@router.post("/soar/config/{config_id}/test")
+async def test_soar_connection(
+    config_id: int,
+    admin: dict = Depends(require_admin_auth),
+    db: Client = Depends(get_supabase_admin),
+):
+    """Test SOAR configuration connection."""
+    try:
+        # Get config
+        result = db.table("soar_config").select("*").eq("config_id", config_id).execute()
+        if not result.data:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="SOAR config not found"
+            )
+        
+        config = result.data[0]
+        
+        # Create test event
+        test_event = SOAREvent(
+            event_type=SOAREventType.SYSTEM_ERROR,
+            severity="low",
+            description="Test connection from admin panel",
+            metadata={"test": True, "admin_user_id": admin["user_id"]},
+        )
+        
+        # Try to forward event
+        soar = get_soar_integration()
+        success = await soar.forward_event(test_event, config_id=config_id)
+        
+        # Log admin action
+        logging_system = get_logging_system()
+        logging_system.log_event(
+            log_type=LogType.ADMIN_ACTION,
+            message=f"Admin tested SOAR config {config_id}",
+            log_level=LogLevel.INFO,
+            user_id=admin["user_id"],
+            username=admin.get("username"),
+            metadata={"config_id": config_id, "success": success},
+        )
+        
+        return {
+            "success": success,
+            "message": "Connection test successful" if success else "Connection test failed",
+            "config_id": config_id
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        # Log admin action
+        logging_system = get_logging_system()
+        logging_system.log_event(
+            log_type=LogType.ADMIN_ACTION,
+            message=f"Admin tested SOAR config {config_id} - Failed",
+            log_level=LogLevel.ERROR,
+            user_id=admin["user_id"],
+            username=admin.get("username"),
+            metadata={"config_id": config_id, "error": str(e)},
+        )
+        
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Connection test failed: {str(e)}"
         )
 

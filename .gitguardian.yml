@@ -1,0 +1,110 @@
+# GitGuardian Configuration
+# This file configures GitGuardian secret scanning for the repository
+
+version: 2
+
+# Paths to exclude from scanning
+paths-ignore:
+  # Documentation and example files
+  - "**/*.md"
+  - "**/README*.md"
+  - "**/CHANGELOG.md"
+  - "**/*.example"
+  - "**/.env.example"
+  - "**/.env.template"
+  
+  # Test files and fixtures
+  - "**/tests/**"
+  - "**/test/**"
+  - "**/cypress/**"
+  - "**/__tests__/**"
+  - "**/*.test.ts"
+  - "**/*.test.tsx"
+  - "**/*.test.js"
+  - "**/*.spec.ts"
+  - "**/*.spec.tsx"
+  - "**/*.spec.js"
+  
+  # Build outputs and dependencies
+  - "**/node_modules/**"
+  - "**/dist/**"
+  - "**/dist-admin/**"
+  - "**/build/**"
+  - "**/coverage/**"
+  - "**/.next/**"
+  - "**/.vite/**"
+  - "**/venv/**"
+  - "**/__pycache__/**"
+  - "**/*.pyc"
+  
+  # Lock files and package manifests
+  - "**/package-lock.json"
+  - "**/yarn.lock"
+  - "**/pnpm-lock.yaml"
+  - "**/poetry.lock"
+  - "**/Pipfile.lock"
+  
+  # Documentation and guides
+  - "**/docs/**"
+  - "**/documentation/**"
+  - "**/*_GUIDE.md"
+  - "**/*_SUMMARY.md"
+  - "**/*_COMPLETE.md"
+  - "**/*_FIX.md"
+  
+  # SQL schema files (contain example data, not real secrets)
+  - "**/*.sql"
+  - "**/migrations/**"
+  
+  # Config files that may contain placeholders
+  - "**/*.config.ts"
+  - "**/*.config.js"
+  - "**/vite.config.*.ts"
+
+# Patterns to ignore (false positives)
+matches-ignore:
+  # Generic test secrets
+  - name: Generic API Key
+    match: test-secret-key
+  - name: Generic API Key
+    match: your-jwt-secret-key-here
+  - name: Generic API Key
+    match: your-supabase-url
+  - name: Generic API Key
+    match: your-supabase-anon-key
+  - name: Generic API Key
+    match: your-supabase-service-role-key
+  - name: Generic API Key
+    match: your-gemini-api-key
+  
+  # Localhost URLs
+  - name: URL
+    match: http://localhost
+  - name: URL
+    match: http://127.0.0.1
+  
+  # Example/placeholder values
+  - name: Generic API Key
+    match: "sk-[A-Za-z0-9]{20,}"
+    path: "**/*.example"
+  - name: Generic API Key
+    match: "sk-[A-Za-z0-9]{20,}"
+    path: "**/*.md"
+  
+  # Documentation examples
+  - name: Generic Secret
+    path: "**/README.md"
+  - name: Generic Secret
+    path: "**/*_GUIDE.md"
+  - name: Generic Secret
+    path: "**/*EXAMPLE*"
+
+# Allow missing secrets in certain contexts
+allow-missing-secrets: true
+
+# Minimum entropy for secrets (0.0 to 1.0)
+minimum-entropy: 3.5
+
+# Enable verbose output for debugging
+verbose: false
+

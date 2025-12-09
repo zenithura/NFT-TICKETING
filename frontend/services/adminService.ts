@@ -67,6 +67,81 @@ export interface AlertFilters {
   end_date?: string;
 }
 
+export interface WebRequest {
+  request_id: number;
+  user_id: number | null;
+  username: string | null;
+  ip_address: string;
+  http_method: string;
+  path: string;
+  endpoint: string | null;
+  response_status: number | null;
+  response_time_ms: number | null;
+  user_agent: string | null;
+  is_authenticated: boolean;
+  created_at: string;
+}
+
+export interface WebRequestFilters {
+  user_id?: number;
+  username?: string;
+  ip_address?: string;
+  http_method?: string;
+  path?: string;
+  endpoint?: string;
+  status_code?: number;
+  start_date?: string;
+  end_date?: string;
+  skip?: number;
+  limit?: number;
+}
+
+export interface User {
+  user_id: number;
+  email: string;
+  username: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  role: string;
+  is_email_verified: boolean;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface UserCreateRequest {
+  email: string;
+  password: string;
+  username?: string;
+  first_name?: string;
+  last_name?: string;
+  role?: string;
+}
+
+export interface UserUpdateRequest {
+  email?: string;
+  username?: string;
+  first_name?: string;
+  last_name?: string;
+  role?: string;
+  is_active?: boolean;
+  is_email_verified?: boolean;
+}
+
+export interface SOARConfig {
+  config_id: number;
+  platform_name: string;
+  endpoint_url: string;
+  is_enabled: boolean;
+  event_types: string[];
+  severity_filter: string[];
+  retry_count: number;
+  timeout_seconds: number;
+  verify_ssl: boolean;
+  custom_headers: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+}
+
 /**
  * Get admin dashboard statistics.
  */
@@ -188,7 +263,7 @@ export const exportAlerts = async (format: 'json' | 'csv' = 'json', start_date?:
 /**
  * Get all users (admin only).
  */
-export const getAllUsers = async (skip: number = 0, limit: number = 50, search?: string): Promise<any[]> => {
+export const getAllUsers = async (skip: number = 0, limit: number = 50, search?: string): Promise<User[]> => {
   const params = new URLSearchParams();
   params.append('skip', skip.toString());
   params.append('limit', limit.toString());
@@ -197,6 +272,235 @@ export const getAllUsers = async (skip: number = 0, limit: number = 50, search?:
   const response = await adminAuthenticatedFetch(`/admin/users?${params.toString()}`);
   if (!response.ok) {
     throw new Error('Failed to fetch users');
+  }
+  return response.json();
+};
+
+// ============================================================================
+// Web Requests
+// ============================================================================
+
+export interface WebRequestsResponse {
+  skip: number;
+  limit: number;
+  total: number;
+  results: WebRequest[];
+}
+
+/**
+ * Get web requests with filtering.
+ */
+export const getWebRequests = async (filters: WebRequestFilters = {}): Promise<WebRequestsResponse> => {
+  const params = new URLSearchParams();
+  if (filters.user_id) params.append('user_id', filters.user_id.toString());
+  if (filters.username) params.append('username', filters.username);
+  if (filters.ip_address) params.append('ip_address', filters.ip_address);
+  if (filters.http_method) params.append('http_method', filters.http_method);
+  if (filters.path) params.append('path', filters.path);
+  if (filters.endpoint) params.append('endpoint', filters.endpoint);
+  if (filters.status_code) params.append('status_code', filters.status_code.toString());
+  if (filters.start_date) params.append('start_date', filters.start_date);
+  if (filters.end_date) params.append('end_date', filters.end_date);
+  if (filters.skip !== undefined) params.append('skip', filters.skip.toString());
+  if (filters.limit !== undefined) params.append('limit', filters.limit.toString());
+
+  const response = await adminAuthenticatedFetch(`/admin/web-requests?${params.toString()}`);
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: 'Failed to fetch web requests' }));
+    throw new Error(error.detail || 'Failed to fetch web requests');
+  }
+  return response.json();
+};
+
+/**
+ * Export web requests as JSON or CSV.
+ */
+export const exportWebRequests = async (format: 'json' | 'csv' = 'json', start_date?: string, end_date?: string): Promise<Blob> => {
+  const params = new URLSearchParams();
+  params.append('format', format);
+  if (start_date) params.append('start_date', start_date);
+  if (end_date) params.append('end_date', end_date);
+
+  const response = await adminAuthenticatedFetch(`/admin/web-requests/export?${params.toString()}`);
+  if (!response.ok) {
+    throw new Error('Failed to export web requests');
+  }
+  return response.blob();
+};
+
+/**
+ * Clear old web requests.
+ */
+export const clearWebRequests = async (days: number = 90): Promise<{ success: boolean; message: string; deleted_count: number }> => {
+  const response = await adminAuthenticatedFetch(`/admin/web-requests/clear?days=${days}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    throw new Error('Failed to clear web requests');
+  }
+  return response.json();
+};
+
+/**
+ * Clear all alerts.
+ */
+export const clearAllAlerts = async (): Promise<{ success: boolean; message: string; deleted_count: number }> => {
+  const response = await adminAuthenticatedFetch('/admin/alerts/clear', {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    throw new Error('Failed to clear alerts');
+  }
+  return response.json();
+};
+
+// ============================================================================
+// Users Management
+// ============================================================================
+
+/**
+ * Create a new user.
+ */
+export const createUser = async (userData: UserCreateRequest): Promise<User> => {
+  const response = await adminAuthenticatedFetch('/admin/users', {
+    method: 'POST',
+    body: JSON.stringify(userData),
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to create user');
+  }
+  return response.json();
+};
+
+/**
+ * Update user.
+ */
+export const updateUser = async (userId: number, userData: UserUpdateRequest): Promise<User> => {
+  const response = await adminAuthenticatedFetch(`/admin/users/${userId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(userData),
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to update user');
+  }
+  return response.json();
+};
+
+/**
+ * Delete user.
+ */
+export const deleteUser = async (userId: number): Promise<{ success: boolean; message: string }> => {
+  const response = await adminAuthenticatedFetch(`/admin/users/${userId}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to delete user');
+  }
+  return response.json();
+};
+
+/**
+ * Reset user password.
+ */
+export const resetUserPassword = async (userId: number, newPassword: string): Promise<{ success: boolean; message: string }> => {
+  const response = await adminAuthenticatedFetch(`/admin/users/${userId}/reset-password`, {
+    method: 'POST',
+    body: JSON.stringify({ user_id: userId, new_password: newPassword }),
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to reset password');
+  }
+  return response.json();
+};
+
+/**
+ * Get user activity log.
+ */
+export const getUserActivity = async (userId: number, skip: number = 0, limit: number = 50): Promise<any[]> => {
+  const params = new URLSearchParams();
+  params.append('skip', skip.toString());
+  params.append('limit', limit.toString());
+
+  const response = await adminAuthenticatedFetch(`/admin/users/${userId}/activity?${params.toString()}`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch user activity');
+  }
+  return response.json();
+};
+
+// ============================================================================
+// SOAR Configuration
+// ============================================================================
+
+/**
+ * Get all SOAR configurations.
+ */
+export const getSOARConfigs = async (): Promise<SOARConfig[]> => {
+  const response = await adminAuthenticatedFetch('/admin/soar/config');
+  if (!response.ok) {
+    throw new Error('Failed to fetch SOAR configs');
+  }
+  return response.json();
+};
+
+/**
+ * Create SOAR configuration.
+ */
+export const createSOARConfig = async (config: Partial<SOARConfig>): Promise<SOARConfig> => {
+  const response = await adminAuthenticatedFetch('/admin/soar/config', {
+    method: 'POST',
+    body: JSON.stringify(config),
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to create SOAR config');
+  }
+  return response.json();
+};
+
+/**
+ * Update SOAR configuration.
+ */
+export const updateSOARConfig = async (configId: number, config: Partial<SOARConfig>): Promise<SOARConfig> => {
+  const response = await adminAuthenticatedFetch(`/admin/soar/config/${configId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(config),
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to update SOAR config');
+  }
+  return response.json();
+};
+
+/**
+ * Delete SOAR configuration.
+ */
+export const deleteSOARConfig = async (configId: number): Promise<{ success: boolean; message: string }> => {
+  const response = await adminAuthenticatedFetch(`/admin/soar/config/${configId}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Failed to delete SOAR config');
+  }
+  return response.json();
+};
+
+/**
+ * Test SOAR configuration connection.
+ */
+export const testSOARConnection = async (configId: number): Promise<{ success: boolean; message: string }> => {
+  const response = await adminAuthenticatedFetch(`/admin/soar/config/${configId}/test`, {
+    method: 'POST',
+  });
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail || 'Connection test failed');
   }
   return response.json();
 };

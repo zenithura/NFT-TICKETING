@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from routers import auth, events, tickets, marketplace, admin, admin_auth, wallet
 from security_middleware import security_middleware
 from middleware_metrics import MetricsMiddleware
+from web_requests_middleware import WebRequestsMiddleware
 
 from contextlib import asynccontextmanager
 from web3_client import load_contracts
@@ -54,6 +55,9 @@ app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # Add metrics middleware for Prometheus
 app.add_middleware(MetricsMiddleware)
+
+# Add web requests logging middleware (must be before security middleware)
+app.add_middleware(WebRequestsMiddleware, exclude_paths=['/health', '/metrics', '/docs', '/redoc', '/openapi.json'])
 
 # Add security middleware (must be before routers)
 app.middleware("http")(security_middleware)

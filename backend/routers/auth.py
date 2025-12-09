@@ -3,6 +3,8 @@ from fastapi import APIRouter, HTTPException, Depends, status, Request
 from typing import Optional
 from datetime import datetime, timedelta, timezone
 from supabase import Client
+import logging
+import json
 
 from database import get_supabase_admin
 from models import (
@@ -17,6 +19,61 @@ from auth_utils import (
 from auth_middleware import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+logger = logging.getLogger(__name__)
+
+
+async def log_failed_login_attempt(
+    db: Client,
+    request: Request,
+    email: str,
+    user_id: Optional[int],
+    reason: str
+):
+    """Log failed login attempt and track for auto-suspension."""
+    try:
+        ip_address = request.client.host if request.client else "unknown"
+        user_agent = request.headers.get("user-agent", "unknown")
+        
+        # Check for duplicate in last 5 seconds
+        five_seconds_ago = datetime.now(timezone.utc) - timedelta(seconds=5)
+        duplicate_check = db.table("security_alerts").select("alert_id").eq(
+            "ip_address", ip_address
+        ).eq("attack_type", "BRUTE_FORCE").eq("endpoint", "/api/auth/login").gte(
+            "created_at", five_seconds_ago.isoformat()
+        ).limit(1).execute()
+        
+        if duplicate_check.data:
+            return  # Skip duplicate
+        
+        # Insert alert
+        result = db.table("security_alerts").insert({
+            "user_id": user_id,
+            "ip_address": ip_address,
+            "attack_type": "BRUTE_FORCE",
+            "payload": f"Failed login: {reason} (email: {email})",
+            "endpoint": "/api/auth/login",
+            "severity": "MEDIUM",
+            "risk_score": 50,
+            "status": "NEW",
+            "user_agent": user_agent,
+            "metadata": json.dumps({"email": email, "reason": reason})
+        }).execute()
+        
+        # Track attack if user_id exists
+        if user_id:
+            from attack_tracking import track_attack_and_check_suspension
+            
+            alert_id = result.data[0].get("alert_id") if result.data else None
+            suspension_result = await track_attack_and_check_suspension(
+                db, user_id, ip_address, "BRUTE_FORCE", alert_id
+            )
+            
+            if suspension_result.get("action"):
+                logger.warning(
+                    f"User {user_id} {suspension_result['action']} after failed login"
+                )
+    except Exception as e:
+        logger.error(f"Error logging failed login: {e}")
 
 
 @router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)

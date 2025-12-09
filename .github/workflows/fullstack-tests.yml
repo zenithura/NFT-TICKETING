@@ -69,7 +69,7 @@ jobs:
           name: backend-coverage
       
       - name: Upload test results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: backend-test-results
@@ -114,14 +114,14 @@ jobs:
           CYPRESS_baseUrl: http://localhost:5173
       
       - name: Upload Cypress screenshots
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: cypress-screenshots
           path: frontend/cypress/screenshots
       
       - name: Upload Cypress videos
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: always()
         with:
           name: cypress-videos
