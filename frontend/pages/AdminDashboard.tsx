@@ -102,14 +102,14 @@ export const AdminDashboard: React.FC = () => {
       try {
         const authenticated = await checkAdminSession();
         if (!authenticated) {
-          navigate('/admin/login', { replace: true });
+          navigate('/secure-admin/login', { replace: true });
           return;
         }
         const user = await getAdminUser();
         setAdminUser(user.admin);
         setIsAuthenticated(true);
       } catch (error) {
-        navigate('/admin/login', { replace: true });
+        navigate('/secure-admin/login', { replace: true });
       } finally {
         setIsCheckingAuth(false);
       }
@@ -122,10 +122,10 @@ export const AdminDashboard: React.FC = () => {
     try {
       await adminLogout();
       adminToasts.logoutSuccess();
-      navigate('/admin/login', { replace: true });
+      navigate('/secure-admin/login', { replace: true });
     } catch (error) {
       console.error('Logout error:', error);
-      navigate('/admin/login', { replace: true });
+      navigate('/secure-admin/login', { replace: true });
     }
   };
 

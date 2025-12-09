@@ -50,14 +50,9 @@
   
   <title>NFTix - Web3 Ticketing Platform</title>
 
-  <!-- DNS prefetch and preconnect for faster resource loading -->
+  <!-- DNS prefetch and preconnect - Limited to 4 most critical origins -->
   <link rel="dns-prefetch" href="https://fonts.googleapis.com">
   <link rel="dns-prefetch" href="https://fonts.gstatic.com">
-  <link rel="dns-prefetch" href="https://esm.sh">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-
-  <!-- Optimized font loading - load asynchronously to not block render -->
   <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
@@ -74,14 +69,6 @@
   <!-- Preload critical CSS -->
   <link rel="preload" href="/index.css" as="style">
   <link rel="stylesheet" href="/index.css">
-  
-  <!-- Preconnect to image CDN for faster image loading -->
-  <link rel="preconnect" href="https://picsum.photos">
-  <link rel="dns-prefetch" href="https://picsum.photos">
-  
-  <!-- Preconnect to API for faster requests -->
-  <link rel="preconnect" href="http://localhost:8000">
-  <link rel="dns-prefetch" href="http://localhost:8000">
 
   <!-- Inline critical CSS for above-the-fold content -->
   <style>

@@ -82,6 +82,24 @@
   --text-tertiary: #6B6B6B;
 }
 
+/* Japanese Matte Palette Gradients */
+:root[data-theme="light"],
+:root:not([data-theme]) {
+  --gradient-primary: linear-gradient(135deg, #f5f5f0 0%, #e8e8e0 100%);
+  --gradient-secondary: linear-gradient(135deg, #faf9f6 0%, #f5f3ed 100%);
+  --gradient-accent: linear-gradient(135deg, #fff8e7 0%, #f5eed6 100%);
+  --gradient-warm: linear-gradient(135deg, #fef5e7 0%, #fae5d3 100%);
+  --gradient-cool: linear-gradient(135deg, #f0f4f8 0%, #e8f0f5 100%);
+}
+
+:root[data-theme="dark"] {
+  --gradient-primary: linear-gradient(135deg, #2a2a25 0%, #1f1f1a 100%);
+  --gradient-secondary: linear-gradient(135deg, #252520 0%, #1a1a15 100%);
+  --gradient-accent: linear-gradient(135deg, #2a251f 0%, #1f1a15 100%);
+  --gradient-warm: linear-gradient(135deg, #2a221f 0%, #1f1815 100%);
+  --gradient-cool: linear-gradient(135deg, #1f252a 0%, #151a1f 100%);
+}
+
 @theme {
   --font-sans: 'Inter', sans-serif;
   --font-mono: 'JetBrains Mono', monospace;

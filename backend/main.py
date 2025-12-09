@@ -36,7 +36,8 @@ app = FastAPI(
 
 # Configure CORS
 # Default origins include localhost and common local network IPs
-default_origins = "http://localhost:5173,http://localhost:3000,http://10.230.33.197:3000"
+# Admin panel runs on port 4201 with non-guessable path
+default_origins = "http://localhost:5173,http://localhost:3000,http://localhost:4201,http://10.230.33.197:3000"
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", default_origins).split(",")
 # Strip whitespace from origins
 CORS_ORIGINS = [origin.strip() for origin in CORS_ORIGINS]
