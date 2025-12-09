@@ -21,6 +21,7 @@ class UserResponse(BaseModel):
     last_name: Optional[str] = None
     role: str
     is_email_verified: bool
+    is_active: bool = True  # Default to active
     created_at: str
 
 

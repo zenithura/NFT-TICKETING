@@ -239,10 +239,35 @@ async def log_security_alert(
     severity: Optional[str] = None,
     metadata: Optional[Dict[str, Any]] = None
 ):
-    """Log security alert to database."""
+    """Log security alert to database with deduplication."""
     try:
         ip_address = request.client.host if request.client else "unknown"
         user_agent = request.headers.get("user-agent", "unknown")
+        endpoint_path = endpoint or str(request.url.path)
+        
+        # DEDUPLICATION: Check for duplicate alert in last 5 seconds
+        # This prevents multiple alerts for the same attack attempt
+        five_seconds_ago = datetime.now(timezone.utc) - timedelta(seconds=5)
+        
+        duplicate_check = db.table("security_alerts").select("alert_id").eq(
+            "ip_address", ip_address
+        ).eq("attack_type", attack_type).eq("endpoint", endpoint_path)
+        
+        if user_id:
+            duplicate_check = duplicate_check.eq("user_id", user_id)
+        else:
+            duplicate_check = duplicate_check.is_("user_id", "null")
+        
+        # Check for recent duplicate (same attack type, same IP, same endpoint, within 5 seconds)
+        duplicate_check = duplicate_check.gte("created_at", five_seconds_ago.isoformat()).limit(1).execute()
+        
+        if duplicate_check.data:
+            # Duplicate alert detected - skip insertion
+            logger.debug(
+                f"Skipping duplicate alert: {attack_type} from {ip_address} at {endpoint_path} "
+                f"(duplicate found within 5 seconds)"
+            )
+            return None
         
         # Calculate risk score and severity
         risk_score = calculate_risk_score(attack_type, severity or "MEDIUM", payload)
@@ -258,7 +283,7 @@ async def log_security_alert(
             "ip_address": ip_address,
             "attack_type": attack_type,
             "payload": sanitized_payload,
-            "endpoint": endpoint or str(request.url.path),
+            "endpoint": endpoint_path,
             "severity": severity,
             "risk_score": risk_score,
             "status": "NEW",
@@ -269,10 +294,24 @@ async def log_security_alert(
         # Insert alert
         result = db.table("security_alerts").insert(alert_data).execute()
         
+        alert_id = result.data[0].get("alert_id") if result.data else None
+        
         logger.warning(f"Security alert logged: {attack_type} from {ip_address} at {endpoint}")
         
-        # Check for auto-ban conditions
+        # Check for auto-ban conditions (legacy)
         await check_auto_ban_conditions(db, user_id, ip_address, attack_type, severity)
+        
+        # NEW: Track attack and check for auto-suspension/ban (2+ = suspend, 10+ = ban)
+        from attack_tracking import track_attack_and_check_suspension
+        suspension_result = await track_attack_and_check_suspension(
+            db, user_id, ip_address, attack_type, alert_id
+        )
+        
+        if suspension_result.get("action"):
+            logger.warning(
+                f"User {user_id} {suspension_result['action']} automatically "
+                f"due to {suspension_result.get('attack_count', 0)} attack attempts"
+            )
         
         return result.data[0] if result.data else None
         

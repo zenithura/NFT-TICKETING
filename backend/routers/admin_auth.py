@@ -1,5 +1,6 @@
 """Admin authentication router for admin login and session management."""
 import os
+import json
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -115,7 +116,7 @@ def check_rate_limit(ip_address: str) -> tuple[bool, Optional[str]]:
 
 
 def record_failed_login(ip_address: str, db: Client, username: str):
-    """Record failed login attempt."""
+    """Record failed login attempt with deduplication and track attacks."""
     now = datetime.now(timezone.utc)
     
     # Track attempts
@@ -126,10 +127,36 @@ def record_failed_login(ip_address: str, db: Client, username: str):
     # Increment failed count
     failed_login_count[ip_address] = failed_login_count.get(ip_address, 0) + 1
     
-    # Log security alert directly to database
+    # DEDUPLICATION: Check for duplicate alert in last 5 seconds
+    # This prevents multiple alerts for rapid failed login attempts
     try:
-        db.table("security_alerts").insert({
-            "user_id": None,
+        five_seconds_ago = now - timedelta(seconds=5)
+        duplicate_check = db.table("security_alerts").select("alert_id").eq(
+            "ip_address", ip_address
+        ).eq("attack_type", "BRUTE_FORCE").eq("endpoint", "/api/admin/login").gte(
+            "created_at", five_seconds_ago.isoformat()
+        ).limit(1).execute()
+        
+        if duplicate_check.data:
+            # Duplicate alert detected - skip insertion
+            logger.debug(
+                f"Skipping duplicate BRUTE_FORCE alert from {ip_address} "
+                f"(duplicate found within 5 seconds)"
+            )
+            return
+        
+        # Try to get user_id from username (for attack tracking)
+        user_id = None
+        try:
+            user_lookup = db.table("users").select("user_id").eq("email", username).limit(1).execute()
+            if user_lookup.data:
+                user_id = user_lookup.data[0].get("user_id")
+        except Exception:
+            pass
+        
+        # Log security alert directly to database
+        result = db.table("security_alerts").insert({
+            "user_id": user_id,  # Now includes user_id if found
             "ip_address": ip_address,
             "attack_type": "BRUTE_FORCE",
             "payload": f"Failed admin login attempt for username: {username}",
@@ -138,11 +165,37 @@ def record_failed_login(ip_address: str, db: Client, username: str):
             "risk_score": 50,
             "status": "NEW",
             "user_agent": "Admin Login",
-            "metadata": {
+            "metadata": json.dumps({
                 "username": username,
                 "failed_attempts": failed_login_count[ip_address],
-            }
+            })
         }).execute()
+        
+        # Track attack and check for auto-suspension/ban
+        if user_id:
+            try:
+                from attack_tracking import track_attack_and_check_suspension
+                import asyncio
+                
+                alert_id = result.data[0].get("alert_id") if result.data else None
+                
+                # Run async function
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                suspension_result = loop.run_until_complete(
+                    track_attack_and_check_suspension(
+                        db, user_id, ip_address, "BRUTE_FORCE", alert_id
+                    )
+                )
+                loop.close()
+                
+                if suspension_result.get("action"):
+                    logger.warning(
+                        f"User {user_id} {suspension_result['action']} after failed login attempts"
+                    )
+            except Exception as e:
+                logger.error(f"Error tracking attack: {e}")
+                
     except Exception as e:
         logger.error(f"Error logging security alert: {e}")
 

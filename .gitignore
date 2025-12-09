@@ -1,41 +1,89 @@
-# Python
-venv/
-*.pyc
-__pycache__/
-*.pyo
-*.pyd
-.Python
-*.so
-*.egg
-*.egg-info/
-dist/
-build/
-
-# Environment
+# Environment variables
 .env
 .env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+!.env.example
+!.env.template
 
-# Data files (generated)
-sprint3/demos/data/*.csv
-sprint3/demos/data/*.json
+# Secrets and keys
+*.pem
+*.key
+*.cert
+*.crt
+*.p12
+*.pfx
+secrets/
+.secrets/
 
-# Model files (too large)
-sprint3/ml_pipeline/models/*.pkl
+# Dependencies
+node_modules/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.Python
+pip-log.txt
 
-# IDE
+# Build outputs
+dist/
+dist-admin/
+dist_performance/
+build/
+out/
+*.egg
+*.whl
+
+# IDE and editor files
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
-
-# OS
 .DS_Store
-Thumbs.db
 
-# Node
-node_modules/
-**/node_modules
+# Testing
+coverage/
+htmlcov/
+.coverage
+.pytest_cache/
+.tox/
+junit.xml
+cypress/screenshots/
+cypress/videos/
 
-# Log files
+# Logs
 *.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+pnpm-debug.log*
+
+# Cache
+.cache/
+.vite/
+.next/
+.nuxt/
+.turbo/
+*.cache
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+*.backup
+
+# OS files
+Thumbs.db
+Desktop.ini
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
