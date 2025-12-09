@@ -13,6 +13,8 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { AdminProtectedRoute } from './components/AdminProtectedRoute';
 import { ChatBot } from './components/ChatBot';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { PerformanceOptimizer } from './components/PerformanceOptimizer';
+import { ImageOptimizer } from './components/ImageOptimizer';
 
 // Purpose: Lazy load page components to improve initial bundle size and code splitting.
 // Side effects: Components loaded on-demand when routes are accessed.
@@ -94,6 +96,8 @@ const Footer: React.FC = () => {
 const App: React.FC = () => {
   return (
     <ErrorBoundary>
+      <PerformanceOptimizer />
+      <ImageOptimizer />
       <ThemeProvider>
         <AuthProvider>
           <Web3Provider>
@@ -122,20 +126,8 @@ const App: React.FC = () => {
                 </Suspense>
               } />
 
-              {/* Admin Routes (separate layout, no navbar) */}
-              <Route path="/admin/login" element={
-                <Suspense fallback={<PageLoader />}>
-                  <AdminLogin />
-                </Suspense>
-              } />
-              <Route path="/admin/dashboard" element={
-                <AdminProtectedRoute>
-                  <Suspense fallback={<PageLoader />}>
-                    <AdminDashboard />
-                  </Suspense>
-                </AdminProtectedRoute>
-              } />
-              <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
+              {/* Admin Routes - Removed: Admin panel now runs on separate port 4201 */}
+              {/* Admin routes are handled by AdminApp.tsx on port 4201 with /secure-admin paths */}
 
               {/* Scanner Route (separate layout) */}
               <Route path="/scanner" element={

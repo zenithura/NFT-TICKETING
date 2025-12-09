@@ -29,7 +29,7 @@ export const AdminLogin: React.FC = () => {
         const isAuthenticated = await checkAdminSession();
         if (isAuthenticated) {
           // Redirect to dashboard if already logged in
-          const from = (location.state as any)?.from?.pathname || '/admin/dashboard';
+          const from = (location.state as any)?.from?.pathname || '/secure-admin/dashboard';
           navigate(from, { replace: true });
         }
       } catch (error) {
@@ -83,7 +83,7 @@ export const AdminLogin: React.FC = () => {
       adminToasts.loginSuccess();
       
       // Redirect to dashboard on success
-      const from = (location.state as any)?.from?.pathname || '/admin/dashboard';
+      const from = (location.state as any)?.from?.pathname || '/secure-admin/dashboard';
       navigate(from, { replace: true });
     } catch (error: any) {
       console.error('Login error:', error);

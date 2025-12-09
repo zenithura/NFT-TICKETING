@@ -44,58 +44,93 @@ export default defineConfig(({ mode }) => {
     },
     // Build optimizations for performance
     build: {
-      // Enable minification (only in production)
-      minify: mode === 'production' ? 'terser' : false,
+      // Always enable minification for better performance
+      minify: mode === 'production' ? 'terser' : 'esbuild',
       terserOptions: mode === 'production' ? {
         compress: {
           drop_console: true, // Remove console.logs in production
           drop_debugger: true,
-          pure_funcs: ['console.log', 'console.info', 'console.debug'],
-          passes: 2, // Multiple passes for better compression
+          pure_funcs: ['console.log', 'console.info', 'console.debug', 'console.warn'],
+          passes: 3, // More passes for better compression
+          dead_code: true,
+          unused: true,
         },
         mangle: {
           safari10: true, // Fix Safari 10 issues
+          properties: {
+            regex: /^_/,
+          },
+        },
+        format: {
+          comments: false,
         },
       } : undefined,
+      esbuild: {
+        minifyIdentifiers: true,
+        minifySyntax: true,
+        minifyWhitespace: true,
+        legalComments: 'none',
+        treeShaking: true,
+      },
       // Code splitting configuration
       rollupOptions: {
         output: {
-          // Manual chunks for better code splitting
+          // Aggressive code splitting to reduce unused JavaScript
           manualChunks: (id) => {
-            // React and core libraries
+            // React and core libraries (most critical)
             if (id.includes('node_modules/react') || id.includes('node_modules/react-dom')) {
               return 'react-vendor';
             }
-            // Router
+            // Router (separate chunk)
             if (id.includes('node_modules/react-router')) {
               return 'router';
             }
-            // Charts (heavy library)
+            // Charts (heavy library - lazy load)
             if (id.includes('node_modules/recharts')) {
               return 'charts';
             }
-            // Three.js (3D library - very heavy)
+            // Three.js (3D library - very heavy, lazy load)
             if (id.includes('node_modules/three')) {
               return 'three';
             }
-            // UI libraries
-            if (id.includes('node_modules/lucide-react') || id.includes('node_modules/react-hot-toast')) {
-              return 'ui-libs';
+            // UI libraries (split further)
+            if (id.includes('node_modules/lucide-react')) {
+              return 'icons';
             }
-            // i18n
-            if (id.includes('node_modules/i18next') || id.includes('node_modules/react-i18next')) {
-              return 'i18n';
+            if (id.includes('node_modules/react-hot-toast')) {
+              return 'toast';
             }
-            // SWR
+            // i18n (split)
+            if (id.includes('node_modules/i18next')) {
+              return 'i18n-core';
+            }
+            if (id.includes('node_modules/react-i18next')) {
+              return 'i18n-react';
+            }
+            // SWR (data fetching)
             if (id.includes('node_modules/swr')) {
               return 'swr';
             }
-            // Utilities
+            // Utilities (small, can be inlined)
             if (id.includes('node_modules/clsx') || id.includes('node_modules/tailwind-merge')) {
               return 'utils';
             }
-            // Other node_modules
+            // Sentry (monitoring - lazy load)
+            if (id.includes('node_modules/@sentry')) {
+              return 'sentry';
+            }
+            // Other node_modules (split by package)
             if (id.includes('node_modules')) {
+              // Extract package name for better splitting
+              const match = id.match(/node_modules\/(@?[^/]+)/);
+              if (match) {
+                const packageName = match[1];
+                // Group small packages together
+                if (['clsx', 'tailwind-merge'].includes(packageName)) {
+                  return 'utils';
+                }
+                return `vendor-${packageName.replace('@', '')}`;
+              }
               return 'vendor';
             }
           },
@@ -105,21 +140,24 @@ export default defineConfig(({ mode }) => {
           assetFileNames: 'assets/[ext]/[name]-[hash].[ext]',
         },
       },
-      // Chunk size warnings (increase limit slightly for heavy 3D libraries)
-      chunkSizeWarningLimit: 600,
+      // Chunk size warnings (reduce for better splitting)
+      chunkSizeWarningLimit: 300,
       // Report chunk sizes
       reportCompressedSize: true,
-      // Enable CSS code splitting
+      // Enable CSS code splitting and minification
       cssCodeSplit: true,
+      cssMinify: mode === 'production',
       // Source maps for production (disable for better performance)
       sourcemap: false,
-      // Asset optimization
-      assetsInlineLimit: 4096, // Inline assets smaller than 4kb
+      // Asset optimization - inline smaller assets
+      assetsInlineLimit: 2048, // Reduced from 4kb to 2kb
       // Target modern browsers for smaller bundles (ES2020 for better tree-shaking)
-      target: ['es2020', 'edge88', 'firefox78', 'chrome87', 'safari14'],
-      // Tree shaking
+      target: ['es2022', 'edge88', 'firefox78', 'chrome87', 'safari14'],
+      // Aggressive tree shaking
       treeshake: {
         moduleSideEffects: false,
+        propertyReadSideEffects: false,
+        tryCatchDeoptimization: false,
       },
     },
     // Optimize dependencies

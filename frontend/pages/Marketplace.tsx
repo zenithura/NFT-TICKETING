@@ -229,8 +229,8 @@ export const Marketplace: React.FC = React.memo(() => {
               key={event.id}
               className="group bg-background-elevated rounded-xl border border-border overflow-hidden card-hover"
             >
-              <div className="event-image-container">
-                {/* Placeholder for better LCP */}
+              <div className="event-image-container" style={{ aspectRatio: '16/9' }}>
+                {/* Preload critical LCP image */}
                 {index === 0 && (
                   <link rel="preload" as="image" href={event.imageUrl} fetchpriority="high" />
                 )}
@@ -241,14 +241,20 @@ export const Marketplace: React.FC = React.memo(() => {
                   height="360"
                   loading={index < 3 ? "eager" : "lazy"}
                   decoding="async"
-                  fetchpriority={index === 0 ? "high" : "auto"}
+                  fetchpriority={index === 0 ? "high" : index < 3 ? "high" : "auto"}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  style={{ 
+                    aspectRatio: '16/9',
+                    objectFit: 'cover',
+                    backgroundColor: 'var(--color-background-hover)'
+                  }}
                   onError={(e) => {
                     // Fallback to a simple gradient placeholder if image fails
                     const target = e.target as HTMLImageElement;
                     target.style.display = 'none';
                     const placeholder = document.createElement('div');
                     placeholder.className = 'w-full h-full bg-gradient-to-br from-primary/20 to-primary/5';
+                    placeholder.style.aspectRatio = '16/9';
                     target.parentElement?.appendChild(placeholder);
                   }}
                 />

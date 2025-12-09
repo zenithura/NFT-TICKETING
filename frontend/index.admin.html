@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en" class="bg-background" dir="ltr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Admin Panel - NFTix Platform" />
+  <meta name="theme-color" content="#191919" />
+  <meta name="robots" content="noindex, nofollow" />
+  
+  <title>Admin Panel - NFTix Platform</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet"
+    media="print"
+    onload="this.media='all'; this.onload=null;">
+  <noscript>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+      rel="stylesheet">
+  </noscript>
+
+  <link rel="preload" href="/index.css" as="style">
+  <link rel="stylesheet" href="/index.css">
+  
+  <link rel="preconnect" href="http://localhost:8000">
+  <link rel="dns-prefetch" href="http://localhost:8000">
+
+  <style>
+    :root {
+      --bg-primary: #ffffff;
+      --color-foreground: #111111;
+    }
+    
+    :root[data-theme="dark"],
+    html:not([data-theme]) {
+      --bg-primary: #191919;
+      --color-foreground: #EFEFEF;
+    }
+    
+    html, body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--bg-primary);
+      color: var(--color-foreground);
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+    
+    #root {
+      min-height: 100vh;
+      background-color: var(--bg-primary);
+    }
+
+    .initial-loader {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: var(--bg-primary);
+      color: var(--color-foreground);
+      z-index: 9999;
+    }
+  </style>
+  
+  <script defer>
+    (function() {
+      function getInitialTheme() {
+        try {
+          const stored = localStorage.getItem('theme-preference');
+          if (stored === 'light' || stored === 'dark' || stored === 'system') {
+            return stored;
+          }
+        } catch (e) {}
+        return 'system';
+      }
+      
+      function getResolvedTheme(theme) {
+        if (theme === 'system') {
+          return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        return theme;
+      }
+      
+      const theme = getInitialTheme();
+      const resolved = getResolvedTheme(theme);
+      document.documentElement.setAttribute('data-theme', resolved);
+      document.documentElement.classList.add(resolved);
+      
+      const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+      if (metaThemeColor) {
+        metaThemeColor.setAttribute('content', resolved === 'dark' ? '#191919' : '#ffffff');
+      }
+    })();
+  </script>
+</head>
+
+<body class="bg-background">
+  <div id="root" class="bg-background">
+    <div class="flex items-center justify-center min-h-screen bg-background">
+      <div class="text-foreground">Loading...</div>
+    </div>
+  </div>
+  <script type="module" src="/index.admin.tsx" defer></script>
+</body>
+</html>
+

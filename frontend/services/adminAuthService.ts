@@ -116,7 +116,7 @@ export const adminAuthenticatedFetch = async (
 
   // If unauthorized, redirect to login
   if (response.status === 401) {
-    window.location.href = '/admin/login';
+    window.location.href = '/secure-admin/login';
     throw new Error('Unauthorized');
   }
 
