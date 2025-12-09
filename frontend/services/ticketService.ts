@@ -63,11 +63,30 @@ export const purchaseTickets = async (request: PurchaseTicketRequest): Promise<T
 export const getUserTickets = async (ownerAddress: string): Promise<Ticket[]> => {
   const response = await authenticatedFetch(`/tickets/user/${ownerAddress}`);
 
+  // Handle empty state gracefully - return empty array instead of throwing error
   if (!response.ok) {
-    throw new Error('Failed to fetch tickets');
+    // If 404 or empty result, return empty array (user has no tickets)
+    if (response.status === 404 || response.status === 200) {
+      return [];
+    }
+    // For other errors, provide a more descriptive error message
+    const errorText = await response.text().catch(() => '');
+    let errorMessage = 'Failed to fetch tickets';
+    try {
+      const errorJson = JSON.parse(errorText);
+      errorMessage = errorJson.detail || errorMessage;
+    } catch {
+      // If response is not JSON, use default message
+    }
+    throw new Error(errorMessage);
   }
 
   const apiTickets: TicketResponse[] = await response.json();
+  
+  // Return empty array if response is empty or null
+  if (!apiTickets || apiTickets.length === 0) {
+    return [];
+  }
   
   // CRITICAL: Verify event_name is in the response
   console.log('🔵 API RESPONSE CHECK:', apiTickets.map(t => {

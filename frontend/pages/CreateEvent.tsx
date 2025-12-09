@@ -12,8 +12,38 @@ import { UserRole } from '../types';
 import { createEvent, type CreateEventData } from '../services/eventService';
 
 // Login required message component
+// CRITICAL: Check authentication state and route accordingly - never hardcode login redirect
 const LoginRequiredMessage: React.FC = () => {
   const { t } = useTranslation();
+  const { isAuthenticated, user } = useAuth();
+  const { userRole } = useWeb3();
+  const navigate = useNavigate();
+  
+  // If user is authenticated but doesn't have organizer/admin role, show role error
+  if (isAuthenticated && user) {
+    const userRoleUpper = user.role ? (user.role.toUpperCase() as UserRole) : null;
+    if (userRoleUpper !== UserRole.ORGANIZER && userRoleUpper !== UserRole.ADMIN) {
+      return (
+        <div className="max-w-2xl mx-auto animate-slide-up">
+          <div className="bg-background-elevated p-8 rounded-xl border border-border text-center">
+            <Lock className="w-16 h-16 text-foreground-tertiary mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-foreground mb-2">{t('createEvent.roleRequired') || 'Organizer Role Required'}</h2>
+            <p className="text-foreground-secondary mb-6">
+              {t('createEvent.roleRequiredDesc') || 'You need an organizer account to create events. Please contact support to upgrade your account.'}
+            </p>
+            <Link
+              to="/dashboard"
+              className="inline-block bg-primary hover:bg-primary-hover text-white px-6 py-3 rounded-lg font-bold transition-all"
+            >
+              {t('dashboard.backToDashboard') || 'Back to Dashboard'}
+            </Link>
+          </div>
+        </div>
+      );
+    }
+  }
+  
+  // If not authenticated, show login prompt
   return (
     <div className="max-w-2xl mx-auto animate-slide-up">
       <div className="bg-background-elevated p-8 rounded-xl border border-border text-center">
@@ -36,8 +66,11 @@ const LoginRequiredMessage: React.FC = () => {
 export const CreateEvent: React.FC = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { userRole, isConnected } = useWeb3();
+  const { userRole: web3UserRole, isConnected } = useWeb3();
   const { isAuthenticated, user } = useAuth();
+  
+  // CRITICAL: Get user role from auth context first (most reliable), fallback to web3 role
+  const userRole = user?.role ? (user.role.toUpperCase() as UserRole) : (web3UserRole || UserRole.BUYER);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
   
@@ -127,11 +160,14 @@ export const CreateEvent: React.FC = () => {
     }
   };
 
-  // Show login message if not authenticated or not organizer/admin
-  const canCreateEvents = isAuthenticated && (userRole === UserRole.ORGANIZER || userRole === UserRole.ADMIN);
+  // CRITICAL: Show login message if not authenticated or not organizer/admin
+  // Check authentication first, then role
+  const canCreateEvents = isAuthenticated && user && (userRole === UserRole.ORGANIZER || userRole === UserRole.ADMIN);
   const isSubmitDisabled = !canCreateEvents || isSubmitting;
 
-  if (!canCreateEvents) {
+  // Only show login message if user is not authenticated or doesn't have correct role
+  // This prevents authenticated organizers from seeing the login redirect
+  if (!isAuthenticated || !user || (userRole !== UserRole.ORGANIZER && userRole !== UserRole.ADMIN)) {
     return <LoginRequiredMessage />;
   }
 
