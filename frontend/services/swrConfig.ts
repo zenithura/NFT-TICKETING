@@ -77,11 +77,36 @@ export const useUserTickets = (address: string | null) => {
     address ? `tickets:user:${address}` : null, // Use custom key
     async () => {
       if (!address) return null;
-      return getUserTickets(address); // Use the mapping function that adds eventName!
+      try {
+        return await getUserTickets(address); // Use the mapping function that adds eventName!
+      } catch (error: any) {
+        // Handle empty state gracefully - return empty array instead of throwing
+        // Only throw for actual errors (network issues, auth failures, etc.)
+        if (error.message && (
+          error.message.includes('404') || 
+          error.message.includes('No tickets') ||
+          error.message.includes('not found')
+        )) {
+          return []; // Empty state is not an error
+        }
+        throw error; // Re-throw actual errors
+      }
     },
     {
       ...swrConfig,
       refreshInterval: 0, // Don't auto-refresh user tickets (user action required)
+      // Don't treat empty arrays as errors
+      shouldRetryOnError: (error) => {
+        // Don't retry on 404 or empty state errors
+        if (error.message && (
+          error.message.includes('404') || 
+          error.message.includes('No tickets') ||
+          error.message.includes('not found')
+        )) {
+          return false;
+        }
+        return true; // Retry on other errors
+      },
     }
   );
 };

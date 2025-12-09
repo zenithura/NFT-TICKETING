@@ -7,7 +7,7 @@ import { useTranslation } from 'react-i18next';
 import { useWeb3 } from '../services/web3Context';
 import { useAuth } from '../services/authContext';
 import { UserRole, type Event, type Ticket } from '../types';
-import { Ticket as TicketIcon, Plus, TrendingUp, Shield, DollarSign, Calendar, ArrowRight } from 'lucide-react';
+import { Ticket as TicketIcon, Plus, TrendingUp, Shield, DollarSign, Calendar, ArrowRight, AlertCircle } from 'lucide-react';
 import { getOrganizerStats, getEvent, type OrganizerStats } from '../services/eventService';
 import { useEvents, useUserTickets } from '../services/swrConfig';
 import { Skeleton } from '../components/ui/skeleton';
@@ -89,7 +89,11 @@ const BuyerDashboard = React.memo(() => {
   const { data: apiEvents, error: eventsError, isLoading: isLoadingEvents } = useEvents();
   
   const isLoading = isLoadingTickets || isLoadingEvents;
-  const error = ticketsError?.message || eventsError?.message || null;
+  
+  // CRITICAL: Distinguish between actual errors and empty states
+  // Empty tickets array is NOT an error - it's a normal state
+  const hasActualError = ticketsError && ticketsError.message && !ticketsError.message.includes('404');
+  const error = hasActualError ? ticketsError?.message : (eventsError?.message || null);
   
   // Memoize mapped events - ensure IDs match ticket event_id values
   const events = useMemo<Event[]>(() => {
@@ -338,7 +342,15 @@ const BuyerDashboard = React.memo(() => {
 
       {error ? (
         <div className="py-20 text-center border border-dashed border-border rounded-xl bg-background-elevated/50">
-          <p className="text-foreground-secondary">{error}</p>
+          <AlertCircle className="mx-auto h-12 w-12 text-error mb-4" />
+          <h3 className="text-lg font-medium text-foreground mb-2">{t('dashboard.errorLoadingTickets', 'Error Loading Tickets')}</h3>
+          <p className="text-foreground-secondary mb-6">{error}</p>
+          <button
+            onClick={() => mutateTickets()}
+            className="px-4 py-2 bg-primary text-white rounded hover:bg-primary-hover transition-colors"
+          >
+            {t('common.retry', 'Retry')}
+          </button>
         </div>
       ) : tickets.length === 0 ? (
         <div className="py-20 text-center border border-dashed border-border rounded-xl bg-background-elevated/50">

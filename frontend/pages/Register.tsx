@@ -67,45 +67,61 @@ export const Register: React.FC = () => {
   // Purpose: Handle form field changes with validation.
   // Side effects: Updates form data and validates fields.
   const handleChange = (field: string, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    
-    // Clear error for this field
-    if (errors[field]) {
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[field];
-        return newErrors;
-      });
-    }
-    
-    // Validate password in real-time
-    if (field === 'password') {
-      const validation = validatePassword(value);
-      if (!validation.valid && value.length > 0) {
-        setErrors(prev => ({ ...prev, password: validation.errors[0] }));
-      } else if (validation.valid) {
-        setErrors(prev => {
-          const newErrors = { ...prev };
-          delete newErrors.password;
+    // Use functional update to get the latest state immediately
+    setFormData(prev => {
+      const updated = { ...prev, [field]: value };
+      
+      // Clear error for this field
+      if (errors[field]) {
+        setErrors(prevErrors => {
+          const newErrors = { ...prevErrors };
+          delete newErrors[field];
           return newErrors;
         });
       }
-    }
-    
-    // Validate password match
-    if (field === 'confirmPassword' || field === 'password') {
-      if (formData.password && formData.confirmPassword) {
-        if (formData.password !== formData.confirmPassword) {
-          setErrors(prev => ({ ...prev, confirmPassword: t('auth.errors.passwordMismatch') }));
-        } else {
-          setErrors(prev => {
-            const newErrors = { ...prev };
+      
+      // Validate password in real-time
+      if (field === 'password') {
+        const validation = validatePassword(value);
+        if (!validation.valid && value.length > 0) {
+          setErrors(prevErrors => ({ ...prevErrors, password: validation.errors[0] }));
+        } else if (validation.valid) {
+          setErrors(prevErrors => {
+            const newErrors = { ...prevErrors };
+            delete newErrors.password;
+            return newErrors;
+          });
+        }
+      }
+      
+      // Validate password match using UPDATED values (not stale state)
+      // CRITICAL FIX: Use 'updated' object instead of 'prev' to get the latest values
+      if (field === 'confirmPassword' || field === 'password') {
+        const currentPassword = field === 'password' ? value : updated.password;
+        const currentConfirmPassword = field === 'confirmPassword' ? value : updated.confirmPassword;
+        
+        if (currentPassword && currentConfirmPassword) {
+          if (currentPassword !== currentConfirmPassword) {
+            setErrors(prevErrors => ({ ...prevErrors, confirmPassword: t('auth.errors.passwordMismatch') }));
+          } else {
+            setErrors(prevErrors => {
+              const newErrors = { ...prevErrors };
+              delete newErrors.confirmPassword;
+              return newErrors;
+            });
+          }
+        } else if (field === 'confirmPassword' && currentPassword && !currentConfirmPassword) {
+          // Clear error if confirmPassword is cleared
+          setErrors(prevErrors => {
+            const newErrors = { ...prevErrors };
             delete newErrors.confirmPassword;
             return newErrors;
           });
         }
       }
-    }
+      
+      return updated;
+    });
   };
 
   // Purpose: Handle form submission and registration.

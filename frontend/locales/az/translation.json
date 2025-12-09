@@ -19,7 +19,8 @@
     "open": "Aç",
     "yes": "Bəli",
     "no": "Xeyr",
-    "or": "VƏ YA"
+    "or": "VƏ YA",
+    "retry": "Yenidən Cəhd Et"
   },
   "nav": {
     "marketplace": "Bazar",
@@ -96,7 +97,9 @@
     "browseEvents": "Tədbirlərə Bax",
     "noTickets": "Hələ bilet yoxdur",
     "noTicketsDesc": "Kolleksiyanızı bu gün başlayın.",
-    "exploreMarketplace": "Bazarı Kəşf Et",
+    "exploreMarketplace": "Bazarı Kəşf Edin",
+    "errorLoadingTickets": "Biletləri Yükləmə Xətası",
+    "backToDashboard": "İdarə Panelinə Qayıt",
     "viewQR": "QR Kod Gör",
     "sell": "Sat",
     "organizerStudio": "Təşkilatçı Studiyası",
@@ -140,6 +143,10 @@
     "warning": "Ağıllı müqavilə yerləşdirməsi dəyişdirilə bilməz. Təsdiqləmədən əvvəl bütün detalların düzgün olduğundan əmin olun.",
     "deployContract": "Müqaviləni Yerləşdir",
     "eventContractDeployed": "Tədbir Müqaviləsi Yerləşdirildi",
+    "loginRequired": "Giriş Tələb Olunur",
+    "loginRequiredDesc": "Tədbirlər yaratmaq üçün təşkilatçı kimi giriş edin.",
+    "roleRequired": "Təşkilatçı Rol Tələb Olunur",
+    "roleRequiredDesc": "Tədbirlər yaratmaq üçün təşkilatçı hesabınız olmalıdır. Hesabınızı yüksəltmək üçün dəstəklə əlaqə saxlayın.",
     "categories": {
       "music": "Musiqi",
       "technology": "Texnologiya",

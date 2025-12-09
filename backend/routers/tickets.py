@@ -260,7 +260,11 @@ async def get_user_tickets(
     owner_address: str,
     db: Client = Depends(get_supabase_admin)
 ):
-    """Get all tickets owned by a specific user with caching."""
+    """Get all tickets owned by a specific user with caching.
+    
+    Returns an empty list if the user has no tickets (not an error).
+    This is a normal state and should be handled gracefully by the frontend.
+    """
     cache_key = f"tickets:user:{owner_address.lower()}"
     # Temporarily disable cache to ensure fresh data with event_name
     # cached_result = cache_get(cache_key)
@@ -280,6 +284,10 @@ async def get_user_tickets(
             # Try owner_address directly (simple schema)
             # Select all columns - Supabase will return what exists
             response = db.table("tickets").select("*").eq("owner_address", owner_address).execute()
+        
+        # CRITICAL: Return empty array if no tickets found (not an error)
+        if not response.data or len(response.data) == 0:
+            return []
         
         # Batch fetch all event_ids from tickets to verify they exist
         ticket_event_ids = []
