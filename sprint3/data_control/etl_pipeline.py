@@ -57,21 +57,22 @@ class ETLPipeline:
                 
                 query = f"""
                     SELECT 
-                        t.transaction_id,
-                        t.wallet_address,
-                        t.event_id,
-                        t.price_paid,
-                        t.status,
-                        t.created_at,
-                        t.transaction_hash,
-                        e.event_name,
-                        e.capacity,
+                        o.order_id as transaction_id,
+                        w.address as wallet_address,
+                        o.event_id,
+                        o.price as price_paid,
+                        o.status,
+                        o.created_at,
+                        o.transaction_hash,
+                        e.name as event_name,
+                        e.total_supply as capacity,
                         e.event_date,
                         e.created_at as event_created_at
-                    FROM transactions t
-                    LEFT JOIN events e ON e.event_id = t.event_id
+                    FROM orders o
+                    JOIN wallets w ON w.wallet_id = o.buyer_wallet_id
+                    LEFT JOIN events e ON e.event_id = o.event_id
                     WHERE 1=1 {time_filter}
-                    ORDER BY t.created_at DESC
+                    ORDER BY o.created_at DESC
                 """
                 
                 cur.execute(query, params)

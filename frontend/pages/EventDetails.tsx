@@ -10,7 +10,7 @@ import { Event } from '../types';
 import { useWeb3 } from '../services/web3Context';
 import { purchaseTickets } from '../services/ticketService';
 import { EventDetailsSkeleton } from '../components/ui/TicketCardSkeleton';
-import toast, { Toaster } from 'react-hot-toast';
+import toast from 'react-hot-toast';
 import { cn, formatCurrency } from '../lib/utils';
 
 export const EventDetails: React.FC = () => {
@@ -145,9 +145,7 @@ export const EventDetails: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto animate-fade-in">
-      <Toaster position="bottom-right" toastOptions={{
-        style: { background: '#202020', color: '#EFEFEF', border: '1px solid #2F2F2F' }
-      }} />
+      {/* Toaster uses theme-aware styles from App.tsx - no need for duplicate Toaster */}
 
       <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-foreground-secondary hover:text-foreground mb-6 transition-colors">
         <ArrowLeft size={16} /> {t('eventDetails.back')}
@@ -190,8 +188,8 @@ export const EventDetails: React.FC = () => {
               </div>
             </div>
 
-            <div className="prose prose-invert max-w-none">
-              <h2 className="text-xl font-bold mb-4">{t('eventDetails.about')}</h2>
+            <div className="max-w-none">
+              <h2 className="text-xl font-bold mb-4 text-foreground">{t('eventDetails.about')}</h2>
               <p className="text-foreground-secondary leading-relaxed text-lg">{event.description}</p>
             </div>
           </div>

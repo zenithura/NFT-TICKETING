@@ -73,9 +73,10 @@ class FeatureEngineer:
             with conn.cursor() as cur:
                 query = """
                     SELECT COUNT(*) 
-                    FROM transactions
-                    WHERE wallet_address = %s
-                    AND created_at > NOW() - INTERVAL '%s hours'
+                    FROM orders o
+                    JOIN wallets w ON w.wallet_id = o.buyer_wallet_id
+                    WHERE w.address = %s
+                    AND o.created_at > NOW() - INTERVAL '%s hours'
                 """
                 cur.execute(query, (wallet_address, hours))
                 result = cur.fetchone()
@@ -93,9 +94,10 @@ class FeatureEngineer:
         try:
             with conn.cursor() as cur:
                 query = """
-                    SELECT MIN(created_at) as first_transaction
-                    FROM transactions
-                    WHERE wallet_address = %s
+                    SELECT MIN(o.created_at) as first_transaction
+                    FROM orders o
+                    JOIN wallets w ON w.wallet_id = o.buyer_wallet_id
+                    WHERE w.address = %s
                 """
                 cur.execute(query, (wallet_address,))
                 result = cur.fetchone()
@@ -117,11 +119,12 @@ class FeatureEngineer:
         try:
             with conn.cursor() as cur:
                 query = """
-                    SELECT AVG(EXTRACT(EPOCH FROM (transfer_time - purchase_time)) / 3600.0)
-                    FROM tickets
-                    WHERE owner_address = %s
-                    AND transfer_time IS NOT NULL
-                    AND purchase_time IS NOT NULL
+                    SELECT AVG(EXTRACT(EPOCH FROM (t.last_transfer_at - t.minted_at)) / 3600.0)
+                    FROM tickets t
+                    JOIN wallets w ON w.wallet_id = t.owner_wallet_id
+                    WHERE w.address = %s
+                    AND t.last_transfer_at IS NOT NULL
+                    AND t.minted_at IS NOT NULL
                 """
                 cur.execute(query, (wallet_address,))
                 result = cur.fetchone()
@@ -205,9 +208,10 @@ class FeatureEngineer:
         try:
             with conn.cursor() as cur:
                 query = """
-                    SELECT COUNT(DISTINCT event_id)
-                    FROM tickets
-                    WHERE owner_address = %s
+                    SELECT COUNT(DISTINCT t.event_id)
+                    FROM tickets t
+                    JOIN wallets w ON w.wallet_id = t.owner_wallet_id
+                    WHERE w.address = %s
                 """
                 cur.execute(query, (wallet_address,))
                 result = cur.fetchone()
@@ -226,16 +230,18 @@ class FeatureEngineer:
         try:
             with conn.cursor() as cur:
                 # This is a simplified version - in production, would use IP geolocation
+                # Note: IP address tracking would need to be added to orders table
                 query = """
-                    SELECT COUNT(DISTINCT ip_address) as distinct_ips
-                    FROM transactions
-                    WHERE wallet_address = %s
-                    AND created_at > NOW() - INTERVAL '1 hour'
+                    SELECT COUNT(DISTINCT o.order_id) as distinct_orders
+                    FROM orders o
+                    JOIN wallets w ON w.wallet_id = o.buyer_wallet_id
+                    WHERE w.address = %s
+                    AND o.created_at > NOW() - INTERVAL '1 hour'
                 """
                 cur.execute(query, (wallet_address,))
-                result = cur.fetchone()
-                distinct_ips = result[0] if result else 0
-                return 1 if distinct_ips > 1 else 0
+                # For now, return 0 (geo velocity requires IP tracking)
+                # In production, would use IP geolocation data
+                return 0
         except Exception as e:
             print(f"Error computing geo_velocity_flag: {e}")
             return 0
@@ -248,12 +254,9 @@ class FeatureEngineer:
         
         try:
             with conn.cursor() as cur:
-                query = """
-                    SELECT COUNT(DISTINCT payment_method)
-                    FROM transactions
-                    WHERE wallet_address = %s
-                """
-                cur.execute(query, (wallet_address,))
+                # Note: payment_method would need to be added to orders table
+                # For now, return 1 (default)
+                return 1
                 result = cur.fetchone()
                 return result[0] if result else 1
         except Exception as e:
@@ -276,14 +279,14 @@ class FeatureEngineer:
             with conn.cursor() as cur:
                 query = """
                     SELECT 
-                        t.created_at as mint_time,
-                        MIN(m.created_at) as first_resale_time
+                        t.minted_at as mint_time,
+                        MIN(r.listed_at) as first_resale_time
                     FROM tickets t
-                    LEFT JOIN marketplace_listings m ON m.ticket_id = t.ticket_id
+                    LEFT JOIN resales r ON r.ticket_id = t.ticket_id
                     WHERE t.ticket_id = (
-                        SELECT ticket_id FROM transactions WHERE transaction_id = %s
+                        SELECT o.ticket_id FROM orders o WHERE o.order_id::text = %s
                     )
-                    GROUP BY t.ticket_id, t.created_at
+                    GROUP BY t.ticket_id, t.minted_at
                 """
                 cur.execute(query, (transaction_id,))
                 result = cur.fetchone()
