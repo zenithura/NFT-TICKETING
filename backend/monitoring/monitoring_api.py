@@ -4,7 +4,15 @@ from flask_cors import CORS
 from datetime import datetime, timedelta
 from typing import Dict, Optional
 import logging
-from ml_pipeline.kpi_calculator import get_kpi_calculator
+# Updated to use consolidated data_science implementation
+try:
+    from data_science.core import kpi_calculator
+    # Create wrapper function for compatibility
+    def get_kpi_calculator():
+        return kpi_calculator
+except ImportError:
+    # Fallback to old implementation if data_science not available
+    from ml_pipeline.kpi_calculator import get_kpi_calculator
 from data_control.db_connection import get_db_connection, return_db_connection
 
 logging.basicConfig(level=logging.INFO)

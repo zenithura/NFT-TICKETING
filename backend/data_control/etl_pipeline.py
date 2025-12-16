@@ -9,7 +9,15 @@ import sys
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 from data_control.db_connection import get_db_connection, return_db_connection
-from ml_pipeline.feature_engineering import get_feature_engineer
+# Updated to use consolidated data_science implementation
+try:
+    from data_science.feature_store import feature_store
+    # Create wrapper function for compatibility
+    def get_feature_engineer():
+        return feature_store
+except ImportError:
+    # Fallback to old implementation if data_science not available
+    from ml_pipeline.feature_engineering import get_feature_engineer
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
