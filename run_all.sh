@@ -29,18 +29,31 @@ HARDHAT_TELEMETRY_DISABLED=1 npx hardhat run scripts/deploy.ts --network localho
 cd ..
 
 # 3. Start Sprint 3 Services (Docker)
-echo "Starting Sprint 3 Services..."
-if docker compose version >/dev/null 2>&1; then
-    cd sprint3
-    docker compose up -d
-    cd ..
-elif docker-compose version >/dev/null 2>&1; then
-    cd sprint3
-    docker-compose up -d
-    cd ..
+if [ -d "sprint3" ]; then
+    echo "Starting Sprint 3 Services..."
+    if docker compose version >/dev/null 2>&1; then
+        cd sprint3
+        docker compose up -d
+        cd ..
+    elif docker-compose version >/dev/null 2>&1; then
+        cd sprint3
+        docker-compose up -d
+        cd ..
+    else
+        echo "WARNING: Docker Compose not found. Skipping Sprint 3 services."
+    fi
 else
-    echo "WARNING: Docker Compose not found. Skipping Sprint 3 services."
+    echo "Sprint 3 directory not found. Skipping Docker services."
 fi
+
+# 3b. Start Monitoring Dashboard
+echo "Starting Monitoring Dashboard..."
+# Check if venv exists, otherwise assume python3 is available
+if [ -d "backend/venv" ]; then
+    source backend/venv/bin/activate
+fi
+python backend/monitoring/dashboard.py > logs/dashboard.log 2>&1 &
+DASHBOARD_PID=$!
 
 # 4. Start Backend
 echo "Starting Backend..."
@@ -67,4 +80,4 @@ echo "Hardhat Node: http://localhost:8545"
 echo "Press Ctrl+C to stop all services."
 
 # Wait for any process to exit
-wait $HARDHAT_PID $BACKEND_PID $FRONTEND_PID
+wait $HARDHAT_PID $BACKEND_PID $FRONTEND_PID $DASHBOARD_PID
