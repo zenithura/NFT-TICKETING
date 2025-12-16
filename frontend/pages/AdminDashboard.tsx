@@ -163,15 +163,9 @@ export const AdminDashboard: React.FC = () => {
       setStats(statsData);
       
       // DEDUPLICATION: Remove duplicates based on alert_id
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/6f73afbf-23a6-4de4-b6ab-d5b0e3d32ccc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminDashboard.tsx:165',message:'Before deduplication - alertsData check',data:{alertsDataLength:alertsData?.length,hasNulls:alertsData?.some(a=>a===null||a===undefined),hasUndefinedPayload:alertsData?.some(a=>a?.payload===undefined&&a!==null&&a!==undefined)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       const uniqueAlerts = alertsData.filter((alert, index, self) =>
-        index === self.findIndex((a) => a && a.alert_id === alert?.alert_id)
-      ).filter((alert): alert is SecurityAlert => alert !== null && alert !== undefined);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/6f73afbf-23a6-4de4-b6ab-d5b0e3d32ccc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminDashboard.tsx:169',message:'After deduplication - uniqueAlerts check',data:{uniqueAlertsLength:uniqueAlerts?.length,hasNulls:uniqueAlerts?.some(a=>a===null||a===undefined)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
+        index === self.findIndex((a) => a.alert_id === alert.alert_id)
+      );
       setAlerts(uniqueAlerts);
       
       setGraphData(graphDataResponse);
@@ -192,15 +186,9 @@ export const AdminDashboard: React.FC = () => {
       
       // DEDUPLICATION: Remove duplicates based on alert_id
       // This ensures we don't show the same alert multiple times
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/6f73afbf-23a6-4de4-b6ab-d5b0e3d32ccc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminDashboard.tsx:187',message:'loadAlerts - before deduplication',data:{alertsDataLength:alertsData?.length,hasNulls:alertsData?.some(a=>a===null||a===undefined)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       const uniqueAlerts = alertsData.filter((alert, index, self) =>
-        index === self.findIndex((a) => a && a.alert_id === alert?.alert_id)
-      ).filter((alert): alert is SecurityAlert => alert !== null && alert !== undefined);
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/6f73afbf-23a6-4de4-b6ab-d5b0e3d32ccc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminDashboard.tsx:193',message:'loadAlerts - after deduplication',data:{uniqueAlertsLength:uniqueAlerts?.length},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
+        index === self.findIndex((a) => a.alert_id === alert.alert_id)
+      );
       
       setAlerts(uniqueAlerts);
       
@@ -234,14 +222,8 @@ export const AdminDashboard: React.FC = () => {
       await updateAlertStatus(alertId, status as any);
       await loadAlerts();
       if (selectedAlert?.alert_id === alertId) {
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/6f73afbf-23a6-4de4-b6ab-d5b0e3d32ccc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminDashboard.tsx:225',message:'Before getAlert call',data:{alertId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
         const updated = await getAlert(alertId);
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/6f73afbf-23a6-4de4-b6ab-d5b0e3d32ccc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminDashboard.tsx:227',message:'After getAlert call - checking response',data:{updatedIsUndefined:updated===undefined,updatedIsNull:updated===null,hasPayload:updated?.payload!==undefined,alertId:updated?.alert_id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-        // #endregion
-        setSelectedAlert(updated || null);
+        setSelectedAlert(updated);
       }
       adminToasts.alertUpdated();
     } catch (error) {
@@ -268,7 +250,7 @@ export const AdminDashboard: React.FC = () => {
       adminToasts.userBanned();
     } catch (error: any) {
       console.error('Failed to ban:', error);
-      window.alert(error.message || 'Failed to ban user/IP');
+      alert(error.message || 'Failed to ban user/IP');
     }
   };
 
@@ -670,25 +652,15 @@ export const AdminDashboard: React.FC = () => {
                 <div className="text-center p-12 text-foreground-secondary">No alerts found</div>
               ) : (
                 <div className="divide-y divide-border">
-                  {alerts.map((alert) => {
-                    // #region agent log
-                    fetch('http://127.0.0.1:7242/ingest/6f73afbf-23a6-4de4-b6ab-d5b0e3d32ccc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminDashboard.tsx:673',message:'Rendering AlertRow - checking alert',data:{alertIsUndefined:alert===undefined,alertIsNull:alert===null,alertId:alert?.alert_id,hasPayload:alert?.payload!==undefined},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-                    // #endregion
-                    return (
+                  {alerts.map((alert) => (
                     <AlertRow
-                      key={alert?.alert_id || Math.random()}
+                      key={alert.alert_id}
                       alert={alert}
-                      onSelect={() => {
-                        // #region agent log
-                        fetch('http://127.0.0.1:7242/ingest/6f73afbf-23a6-4de4-b6ab-d5b0e3d32ccc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminDashboard.tsx:677',message:'AlertRow onSelect - setting selectedAlert',data:{alertIsUndefined:alert===undefined,alertIsNull:alert===null,alertId:alert?.alert_id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-                        // #endregion
-                        setSelectedAlert(alert);
-                      }}
+                      onSelect={() => setSelectedAlert(alert)}
                       onUpdateStatus={handleUpdateAlertStatus}
                       onBan={handleBan}
                     />
-                    );
-                  })}
+                  ))}
                 </div>
               )}
             </div>
@@ -749,10 +721,6 @@ const AlertRow: React.FC<{
   onUpdateStatus: (id: number, status: string) => void;
   onBan: (alert: SecurityAlert) => void;
 }> = ({ alert, onSelect, onUpdateStatus, onBan }) => {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/6f73afbf-23a6-4de4-b6ab-d5b0e3d32ccc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminDashboard.tsx:724',message:'AlertRow render - alert check',data:{alertIsUndefined:alert===undefined,alertIsNull:alert===null,alertId:alert?.alert_id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
-  if (!alert) return null;
   const severityColor = SEVERITY_COLORS[alert.severity] || '#6b7280';
   const statusColor = STATUS_COLORS[alert.status] || '#6b7280';
 
@@ -823,15 +791,6 @@ const AlertDetailModal: React.FC<{
   onUpdateStatus: (id: number, status: string) => void;
   onBan: (alert: SecurityAlert) => void;
 }> = ({ alert, onClose, onUpdateStatus, onBan }) => {
-  // #region agent log
-  fetch('http://127.0.0.1:7242/ingest/6f73afbf-23a6-4de4-b6ab-d5b0e3d32ccc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminDashboard.tsx:793',message:'AlertDetailModal render - alert check',data:{alertIsUndefined:alert===undefined,alertIsNull:alert===null,hasPayload:alert?.payload!==undefined,payloadType:typeof alert?.payload,alertId:alert?.alert_id},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-  // #endregion
-  if (!alert) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/6f73afbf-23a6-4de4-b6ab-d5b0e3d32ccc',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'AdminDashboard.tsx:797',message:'AlertDetailModal - alert is null/undefined',data:{},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
-    return null;
-  }
   const severityColor = SEVERITY_COLORS[alert.severity] || '#6b7280';
 
   return (
@@ -873,7 +832,7 @@ const AlertDetailModal: React.FC<{
           <DetailRow label="User Agent" value={alert.user_agent || 'Unknown'} />
           <DetailRow label="Status" value={alert.status} />
           <DetailRow label="Created At" value={new Date(alert.created_at).toLocaleString()} />
-          {alert?.payload && (
+          {alert.payload && (
             <div>
               <label className="text-sm font-medium text-foreground-secondary mb-2 block">Payload</label>
               <pre className="p-4 rounded-lg bg-background border border-border text-xs text-foreground-secondary overflow-x-auto">

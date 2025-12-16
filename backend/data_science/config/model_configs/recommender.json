@@ -1,0 +1,6 @@
+{
+    "version": "1.0",
+    "description": "Recommender Model Configuration",
+    "max_recommendations": 5,
+    "fallback_strategy": "popular"
+}

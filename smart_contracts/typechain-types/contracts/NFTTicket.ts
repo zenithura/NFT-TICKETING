@@ -27,19 +27,31 @@ export interface NFTTicketInterface extends Interface {
   getFunction(
     nameOrSignature:
       | "DEFAULT_ADMIN_ROLE"
+      | "MAX_BUYS_PER_BLOCK"
+      | "MAX_MINTS_PER_ADDRESS"
+      | "MAX_RESALE_MULTIPLIER"
       | "MINTER_ROLE"
+      | "MIN_RESALE_PRICE"
+      | "RATE_LIMIT_WINDOW"
+      | "RESALE_COOLDOWN"
       | "VALIDATOR_ROLE"
       | "approve"
       | "balanceOf"
+      | "buyCount"
       | "buyTicket"
       | "getApproved"
       | "getRoleAdmin"
+      | "getTicketInfo"
       | "grantRole"
       | "hasRole"
       | "isApprovedForAll"
+      | "lastBuyWindow"
+      | "mintCount"
       | "mintTicket"
       | "name"
       | "ownerOf"
+      | "pause"
+      | "paused"
       | "renounceRole"
       | "resellTicket"
       | "revokeRole"
@@ -52,6 +64,7 @@ export interface NFTTicketInterface extends Interface {
       | "tickets"
       | "tokenURI"
       | "transferFrom"
+      | "unpause"
       | "validateTicket"
       | "withdraw"
   ): FunctionFragment;
@@ -61,7 +74,10 @@ export interface NFTTicketInterface extends Interface {
       | "Approval"
       | "ApprovalForAll"
       | "BatchMetadataUpdate"
+      | "ContractPaused"
+      | "ContractUnpaused"
       | "MetadataUpdate"
+      | "Paused"
       | "RoleAdminChanged"
       | "RoleGranted"
       | "RoleRevoked"
@@ -70,6 +86,7 @@ export interface NFTTicketInterface extends Interface {
       | "TicketSold"
       | "TicketValidated"
       | "Transfer"
+      | "Unpaused"
   ): EventFragment;
 
   encodeFunctionData(
@@ -77,7 +94,31 @@ export interface NFTTicketInterface extends Interface {
     values?: undefined
   ): string;
   encodeFunctionData(
+    functionFragment: "MAX_BUYS_PER_BLOCK",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "MAX_MINTS_PER_ADDRESS",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "MAX_RESALE_MULTIPLIER",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
     functionFragment: "MINTER_ROLE",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "MIN_RESALE_PRICE",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "RATE_LIMIT_WINDOW",
+    values?: undefined
+  ): string;
+  encodeFunctionData(
+    functionFragment: "RESALE_COOLDOWN",
     values?: undefined
   ): string;
   encodeFunctionData(
@@ -93,6 +134,10 @@ export interface NFTTicketInterface extends Interface {
     values: [AddressLike]
   ): string;
   encodeFunctionData(
+    functionFragment: "buyCount",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(
     functionFragment: "buyTicket",
     values: [BigNumberish]
   ): string;
@@ -103,6 +148,10 @@ export interface NFTTicketInterface extends Interface {
   encodeFunctionData(
     functionFragment: "getRoleAdmin",
     values: [BytesLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "getTicketInfo",
+    values: [BigNumberish]
   ): string;
   encodeFunctionData(
     functionFragment: "grantRole",
@@ -117,14 +166,24 @@ export interface NFTTicketInterface extends Interface {
     values: [AddressLike, AddressLike]
   ): string;
   encodeFunctionData(
+    functionFragment: "lastBuyWindow",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "mintCount",
+    values: [AddressLike]
+  ): string;
+  encodeFunctionData(
     functionFragment: "mintTicket",
-    values: [AddressLike, string, BigNumberish, BigNumberish]
+    values: [AddressLike, string, BigNumberish, BigNumberish, BigNumberish]
   ): string;
   encodeFunctionData(functionFragment: "name", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "ownerOf",
     values: [BigNumberish]
   ): string;
+  encodeFunctionData(functionFragment: "pause", values?: undefined): string;
+  encodeFunctionData(functionFragment: "paused", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "renounceRole",
     values: [BytesLike, AddressLike]
@@ -170,6 +229,7 @@ export interface NFTTicketInterface extends Interface {
     functionFragment: "transferFrom",
     values: [AddressLike, AddressLike, BigNumberish]
   ): string;
+  encodeFunctionData(functionFragment: "unpause", values?: undefined): string;
   encodeFunctionData(
     functionFragment: "validateTicket",
     values: [BigNumberish]
@@ -181,7 +241,31 @@ export interface NFTTicketInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
+    functionFragment: "MAX_BUYS_PER_BLOCK",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "MAX_MINTS_PER_ADDRESS",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "MAX_RESALE_MULTIPLIER",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
     functionFragment: "MINTER_ROLE",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "MIN_RESALE_PRICE",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "RATE_LIMIT_WINDOW",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(
+    functionFragment: "RESALE_COOLDOWN",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -190,6 +274,7 @@ export interface NFTTicketInterface extends Interface {
   ): Result;
   decodeFunctionResult(functionFragment: "approve", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "balanceOf", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "buyCount", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "buyTicket", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "getApproved",
@@ -199,15 +284,26 @@ export interface NFTTicketInterface extends Interface {
     functionFragment: "getRoleAdmin",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(
+    functionFragment: "getTicketInfo",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "grantRole", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "hasRole", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "isApprovedForAll",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(
+    functionFragment: "lastBuyWindow",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(functionFragment: "mintCount", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "mintTicket", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "name", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "ownerOf", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "pause", data: BytesLike): Result;
+  decodeFunctionResult(functionFragment: "paused", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "renounceRole",
     data: BytesLike
@@ -244,6 +340,7 @@ export interface NFTTicketInterface extends Interface {
     functionFragment: "transferFrom",
     data: BytesLike
   ): Result;
+  decodeFunctionResult(functionFragment: "unpause", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "validateTicket",
     data: BytesLike
@@ -307,11 +404,47 @@ export namespace BatchMetadataUpdateEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
+export namespace ContractPausedEvent {
+  export type InputTuple = [account: AddressLike];
+  export type OutputTuple = [account: string];
+  export interface OutputObject {
+    account: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace ContractUnpausedEvent {
+  export type InputTuple = [account: AddressLike];
+  export type OutputTuple = [account: string];
+  export interface OutputObject {
+    account: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
 export namespace MetadataUpdateEvent {
   export type InputTuple = [_tokenId: BigNumberish];
   export type OutputTuple = [_tokenId: bigint];
   export interface OutputObject {
     _tokenId: bigint;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
+export namespace PausedEvent {
+  export type InputTuple = [account: AddressLike];
+  export type OutputTuple = [account: string];
+  export interface OutputObject {
+    account: string;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -395,19 +528,22 @@ export namespace TicketMintedEvent {
     tokenId: BigNumberish,
     owner: AddressLike,
     eventId: BigNumberish,
-    price: BigNumberish
+    price: BigNumberish,
+    eventDate: BigNumberish
   ];
   export type OutputTuple = [
     tokenId: bigint,
     owner: string,
     eventId: bigint,
-    price: bigint
+    price: bigint,
+    eventDate: bigint
   ];
   export interface OutputObject {
     tokenId: bigint;
     owner: string;
     eventId: bigint;
     price: bigint;
+    eventDate: bigint;
   }
   export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
   export type Filter = TypedDeferredTopicFilter<Event>;
@@ -471,6 +607,18 @@ export namespace TransferEvent {
   export type LogDescription = TypedLogDescription<Event>;
 }
 
+export namespace UnpausedEvent {
+  export type InputTuple = [account: AddressLike];
+  export type OutputTuple = [account: string];
+  export interface OutputObject {
+    account: string;
+  }
+  export type Event = TypedContractEvent<InputTuple, OutputTuple, OutputObject>;
+  export type Filter = TypedDeferredTopicFilter<Event>;
+  export type Log = TypedEventLog<Event>;
+  export type LogDescription = TypedLogDescription<Event>;
+}
+
 export interface NFTTicket extends BaseContract {
   connect(runner?: ContractRunner | null): NFTTicket;
   waitForDeployment(): Promise<this>;
@@ -516,7 +664,19 @@ export interface NFTTicket extends BaseContract {
 
   DEFAULT_ADMIN_ROLE: TypedContractMethod<[], [string], "view">;
 
+  MAX_BUYS_PER_BLOCK: TypedContractMethod<[], [bigint], "view">;
+
+  MAX_MINTS_PER_ADDRESS: TypedContractMethod<[], [bigint], "view">;
+
+  MAX_RESALE_MULTIPLIER: TypedContractMethod<[], [bigint], "view">;
+
   MINTER_ROLE: TypedContractMethod<[], [string], "view">;
+
+  MIN_RESALE_PRICE: TypedContractMethod<[], [bigint], "view">;
+
+  RATE_LIMIT_WINDOW: TypedContractMethod<[], [bigint], "view">;
+
+  RESALE_COOLDOWN: TypedContractMethod<[], [bigint], "view">;
 
   VALIDATOR_ROLE: TypedContractMethod<[], [string], "view">;
 
@@ -528,11 +688,27 @@ export interface NFTTicket extends BaseContract {
 
   balanceOf: TypedContractMethod<[owner: AddressLike], [bigint], "view">;
 
+  buyCount: TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
+
   buyTicket: TypedContractMethod<[tokenId: BigNumberish], [void], "payable">;
 
   getApproved: TypedContractMethod<[tokenId: BigNumberish], [string], "view">;
 
   getRoleAdmin: TypedContractMethod<[role: BytesLike], [string], "view">;
+
+  getTicketInfo: TypedContractMethod<
+    [tokenId: BigNumberish],
+    [
+      [bigint, bigint, boolean, bigint, boolean] & {
+        eventId: bigint;
+        price: bigint;
+        forSale: boolean;
+        eventDate: bigint;
+        used: boolean;
+      }
+    ],
+    "view"
+  >;
 
   grantRole: TypedContractMethod<
     [role: BytesLike, account: AddressLike],
@@ -552,8 +728,18 @@ export interface NFTTicket extends BaseContract {
     "view"
   >;
 
+  lastBuyWindow: TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
+
+  mintCount: TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
+
   mintTicket: TypedContractMethod<
-    [to: AddressLike, uri: string, eventId: BigNumberish, price: BigNumberish],
+    [
+      to: AddressLike,
+      uri: string,
+      eventId: BigNumberish,
+      price: BigNumberish,
+      eventDate: BigNumberish
+    ],
     [void],
     "nonpayable"
   >;
@@ -561,6 +747,10 @@ export interface NFTTicket extends BaseContract {
   name: TypedContractMethod<[], [string], "view">;
 
   ownerOf: TypedContractMethod<[tokenId: BigNumberish], [string], "view">;
+
+  pause: TypedContractMethod<[], [void], "nonpayable">;
+
+  paused: TypedContractMethod<[], [boolean], "view">;
 
   renounceRole: TypedContractMethod<
     [role: BytesLike, callerConfirmation: AddressLike],
@@ -620,10 +810,13 @@ export interface NFTTicket extends BaseContract {
   tickets: TypedContractMethod<
     [arg0: BigNumberish],
     [
-      [bigint, bigint, boolean] & {
+      [bigint, bigint, boolean, bigint, bigint, boolean] & {
         eventId: bigint;
         price: bigint;
         forSale: boolean;
+        eventDate: bigint;
+        lastResaleTime: bigint;
+        used: boolean;
       }
     ],
     "view"
@@ -636,6 +829,8 @@ export interface NFTTicket extends BaseContract {
     [void],
     "nonpayable"
   >;
+
+  unpause: TypedContractMethod<[], [void], "nonpayable">;
 
   validateTicket: TypedContractMethod<
     [tokenId: BigNumberish],
@@ -653,8 +848,26 @@ export interface NFTTicket extends BaseContract {
     nameOrSignature: "DEFAULT_ADMIN_ROLE"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
+    nameOrSignature: "MAX_BUYS_PER_BLOCK"
+  ): TypedContractMethod<[], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "MAX_MINTS_PER_ADDRESS"
+  ): TypedContractMethod<[], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "MAX_RESALE_MULTIPLIER"
+  ): TypedContractMethod<[], [bigint], "view">;
+  getFunction(
     nameOrSignature: "MINTER_ROLE"
   ): TypedContractMethod<[], [string], "view">;
+  getFunction(
+    nameOrSignature: "MIN_RESALE_PRICE"
+  ): TypedContractMethod<[], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "RATE_LIMIT_WINDOW"
+  ): TypedContractMethod<[], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "RESALE_COOLDOWN"
+  ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
     nameOrSignature: "VALIDATOR_ROLE"
   ): TypedContractMethod<[], [string], "view">;
@@ -669,6 +882,9 @@ export interface NFTTicket extends BaseContract {
     nameOrSignature: "balanceOf"
   ): TypedContractMethod<[owner: AddressLike], [bigint], "view">;
   getFunction(
+    nameOrSignature: "buyCount"
+  ): TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
+  getFunction(
     nameOrSignature: "buyTicket"
   ): TypedContractMethod<[tokenId: BigNumberish], [void], "payable">;
   getFunction(
@@ -677,6 +893,21 @@ export interface NFTTicket extends BaseContract {
   getFunction(
     nameOrSignature: "getRoleAdmin"
   ): TypedContractMethod<[role: BytesLike], [string], "view">;
+  getFunction(
+    nameOrSignature: "getTicketInfo"
+  ): TypedContractMethod<
+    [tokenId: BigNumberish],
+    [
+      [bigint, bigint, boolean, bigint, boolean] & {
+        eventId: bigint;
+        price: bigint;
+        forSale: boolean;
+        eventDate: bigint;
+        used: boolean;
+      }
+    ],
+    "view"
+  >;
   getFunction(
     nameOrSignature: "grantRole"
   ): TypedContractMethod<
@@ -699,9 +930,21 @@ export interface NFTTicket extends BaseContract {
     "view"
   >;
   getFunction(
+    nameOrSignature: "lastBuyWindow"
+  ): TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
+  getFunction(
+    nameOrSignature: "mintCount"
+  ): TypedContractMethod<[arg0: AddressLike], [bigint], "view">;
+  getFunction(
     nameOrSignature: "mintTicket"
   ): TypedContractMethod<
-    [to: AddressLike, uri: string, eventId: BigNumberish, price: BigNumberish],
+    [
+      to: AddressLike,
+      uri: string,
+      eventId: BigNumberish,
+      price: BigNumberish,
+      eventDate: BigNumberish
+    ],
     [void],
     "nonpayable"
   >;
@@ -711,6 +954,12 @@ export interface NFTTicket extends BaseContract {
   getFunction(
     nameOrSignature: "ownerOf"
   ): TypedContractMethod<[tokenId: BigNumberish], [string], "view">;
+  getFunction(
+    nameOrSignature: "pause"
+  ): TypedContractMethod<[], [void], "nonpayable">;
+  getFunction(
+    nameOrSignature: "paused"
+  ): TypedContractMethod<[], [boolean], "view">;
   getFunction(
     nameOrSignature: "renounceRole"
   ): TypedContractMethod<
@@ -776,10 +1025,13 @@ export interface NFTTicket extends BaseContract {
   ): TypedContractMethod<
     [arg0: BigNumberish],
     [
-      [bigint, bigint, boolean] & {
+      [bigint, bigint, boolean, bigint, bigint, boolean] & {
         eventId: bigint;
         price: bigint;
         forSale: boolean;
+        eventDate: bigint;
+        lastResaleTime: bigint;
+        used: boolean;
       }
     ],
     "view"
@@ -794,6 +1046,9 @@ export interface NFTTicket extends BaseContract {
     [void],
     "nonpayable"
   >;
+  getFunction(
+    nameOrSignature: "unpause"
+  ): TypedContractMethod<[], [void], "nonpayable">;
   getFunction(
     nameOrSignature: "validateTicket"
   ): TypedContractMethod<[tokenId: BigNumberish], [void], "nonpayable">;
@@ -823,11 +1078,32 @@ export interface NFTTicket extends BaseContract {
     BatchMetadataUpdateEvent.OutputObject
   >;
   getEvent(
+    key: "ContractPaused"
+  ): TypedContractEvent<
+    ContractPausedEvent.InputTuple,
+    ContractPausedEvent.OutputTuple,
+    ContractPausedEvent.OutputObject
+  >;
+  getEvent(
+    key: "ContractUnpaused"
+  ): TypedContractEvent<
+    ContractUnpausedEvent.InputTuple,
+    ContractUnpausedEvent.OutputTuple,
+    ContractUnpausedEvent.OutputObject
+  >;
+  getEvent(
     key: "MetadataUpdate"
   ): TypedContractEvent<
     MetadataUpdateEvent.InputTuple,
     MetadataUpdateEvent.OutputTuple,
     MetadataUpdateEvent.OutputObject
+  >;
+  getEvent(
+    key: "Paused"
+  ): TypedContractEvent<
+    PausedEvent.InputTuple,
+    PausedEvent.OutputTuple,
+    PausedEvent.OutputObject
   >;
   getEvent(
     key: "RoleAdminChanged"
@@ -885,6 +1161,13 @@ export interface NFTTicket extends BaseContract {
     TransferEvent.OutputTuple,
     TransferEvent.OutputObject
   >;
+  getEvent(
+    key: "Unpaused"
+  ): TypedContractEvent<
+    UnpausedEvent.InputTuple,
+    UnpausedEvent.OutputTuple,
+    UnpausedEvent.OutputObject
+  >;
 
   filters: {
     "Approval(address,address,uint256)": TypedContractEvent<
@@ -920,6 +1203,28 @@ export interface NFTTicket extends BaseContract {
       BatchMetadataUpdateEvent.OutputObject
     >;
 
+    "ContractPaused(address)": TypedContractEvent<
+      ContractPausedEvent.InputTuple,
+      ContractPausedEvent.OutputTuple,
+      ContractPausedEvent.OutputObject
+    >;
+    ContractPaused: TypedContractEvent<
+      ContractPausedEvent.InputTuple,
+      ContractPausedEvent.OutputTuple,
+      ContractPausedEvent.OutputObject
+    >;
+
+    "ContractUnpaused(address)": TypedContractEvent<
+      ContractUnpausedEvent.InputTuple,
+      ContractUnpausedEvent.OutputTuple,
+      ContractUnpausedEvent.OutputObject
+    >;
+    ContractUnpaused: TypedContractEvent<
+      ContractUnpausedEvent.InputTuple,
+      ContractUnpausedEvent.OutputTuple,
+      ContractUnpausedEvent.OutputObject
+    >;
+
     "MetadataUpdate(uint256)": TypedContractEvent<
       MetadataUpdateEvent.InputTuple,
       MetadataUpdateEvent.OutputTuple,
@@ -929,6 +1234,17 @@ export interface NFTTicket extends BaseContract {
       MetadataUpdateEvent.InputTuple,
       MetadataUpdateEvent.OutputTuple,
       MetadataUpdateEvent.OutputObject
+    >;
+
+    "Paused(address)": TypedContractEvent<
+      PausedEvent.InputTuple,
+      PausedEvent.OutputTuple,
+      PausedEvent.OutputObject
+    >;
+    Paused: TypedContractEvent<
+      PausedEvent.InputTuple,
+      PausedEvent.OutputTuple,
+      PausedEvent.OutputObject
     >;
 
     "RoleAdminChanged(bytes32,bytes32,bytes32)": TypedContractEvent<
@@ -975,7 +1291,7 @@ export interface NFTTicket extends BaseContract {
       TicketListedEvent.OutputObject
     >;
 
-    "TicketMinted(uint256,address,uint256,uint256)": TypedContractEvent<
+    "TicketMinted(uint256,address,uint256,uint256,uint256)": TypedContractEvent<
       TicketMintedEvent.InputTuple,
       TicketMintedEvent.OutputTuple,
       TicketMintedEvent.OutputObject
@@ -1017,6 +1333,17 @@ export interface NFTTicket extends BaseContract {
       TransferEvent.InputTuple,
       TransferEvent.OutputTuple,
       TransferEvent.OutputObject
+    >;
+
+    "Unpaused(address)": TypedContractEvent<
+      UnpausedEvent.InputTuple,
+      UnpausedEvent.OutputTuple,
+      UnpausedEvent.OutputObject
+    >;
+    Unpaused: TypedContractEvent<
+      UnpausedEvent.InputTuple,
+      UnpausedEvent.OutputTuple,
+      UnpausedEvent.OutputObject
     >;
   };
 }

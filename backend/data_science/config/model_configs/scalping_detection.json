@@ -1,0 +1,6 @@
+{
+    "version": "1.0",
+    "description": "Scalping Detection Model Configuration",
+    "threshold": 0.7,
+    "velocity_window_hours": 24
+}

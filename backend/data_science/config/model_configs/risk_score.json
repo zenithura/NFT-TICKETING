@@ -1,0 +1,6 @@
+{
+    "version": "1.0",
+    "description": "Risk Score Model Configuration",
+    "threshold_high_risk": 0.8,
+    "threshold_medium_risk": 0.5
+}

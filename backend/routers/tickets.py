@@ -15,19 +15,16 @@ from cache import get as cache_get, set as cache_set, clear as cache_clear
 # Import ML services for fraud detection
 _ml_integration = None
 def get_ml_integration():
-    """Lazy import ML integration from Machine Learning folder."""
+    """Lazy import ML integration."""
     global _ml_integration
     if _ml_integration is None:
         try:
-            ml_path = Path(__file__).parent.parent.parent / "Machine Learning"
-            if ml_path.exists():
-                sys.path.insert(0, str(ml_path.parent))
-                from integration.ml_integration_backend import get_ml_integration_backend
-                # Pass Supabase client - will be set when called with db dependency
-                _ml_integration = get_ml_integration_backend()
-        except Exception as e:
-            import logging
-            logging.warning(f"ML integration not available: {e}")
+            sprint3_path = Path(__file__).parent.parent.parent / "sprint3"
+            if sprint3_path.exists():
+                sys.path.insert(0, str(sprint3_path.parent))
+                from integration.integration_layer import get_integration_layer
+                _ml_integration = get_integration_layer()
+        except Exception:
             _ml_integration = None  # ML services optional
     return _ml_integration
 
@@ -51,31 +48,24 @@ async def create_ticket(
     try:
         # Optional: Run fraud detection if ML services available
         ml_integration = get_ml_integration()
+        fraud_check = None
         if ml_integration:
             try:
                 import uuid
                 transaction_id = str(uuid.uuid4())
                 price_paid = float(ticket.purchase_price) if hasattr(ticket, 'purchase_price') and ticket.purchase_price else 0.0
-                
-                # Update ML integration with Supabase client
-                ml_integration.feature_engineer._db_client = db
-                
                 fraud_check = ml_integration.process_transaction(
                     transaction_id=transaction_id,
                     wallet_address=ticket.owner_address,
                     event_id=ticket.event_id,
                     price_paid=price_paid
                 )
-                
-                # Check fraud detection result - new integration returns 'fraud_detection' key
-                fraud_detection = fraud_check.get('fraud_detection', {})
-                fraud_probability = fraud_detection.get('fraud_probability', 0.0)
-                
-                # Block if fraud detected or high risk
-                if fraud_check.get('status') == 'blocked' or fraud_probability > 0.85:
+                # Log fraud check but don't block unless risk is extremely high
+                risk_score = fraud_check.get('model_outputs', {}).get('risk_scoring', {}).get('risk_score', 0.0)
+                if risk_score > 0.85:
                     raise HTTPException(
                         status_code=403,
-                        detail=f"Transaction flagged as high risk (probability: {fraud_probability:.2f}). Please contact support."
+                        detail=f"Transaction flagged as high risk (score: {risk_score:.2f}). Please contact support."
                     )
             except HTTPException:
                 raise

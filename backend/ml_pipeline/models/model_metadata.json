@@ -1,0 +1,115 @@
+{
+  "model_version": "v1.2.3",
+  "training_date": "2025-11-28T18:55:38.480122",
+  "features": [
+    "txn_velocity_1h",
+    "wallet_age_days",
+    "avg_ticket_hold_time",
+    "event_popularity_score",
+    "price_deviation_ratio",
+    "cross_event_attendance",
+    "geo_velocity_flag",
+    "payment_method_diversity",
+    "social_graph_centrality",
+    "time_to_first_resale"
+  ],
+  "metrics": {
+    "auc_roc": 0.9982177215189874,
+    "auc_pr": 0.8749985303778742,
+    "f1_score": 0.7999999999999999,
+    "confusion_matrix": [
+      [
+        1964,
+        11
+      ],
+      [
+        1,
+        24
+      ]
+    ],
+    "feature_importance": [
+      {
+        "feature": "price_deviation_ratio",
+        "importance": 0.7923156023025513
+      },
+      {
+        "feature": "cross_event_attendance",
+        "importance": 0.05996493995189667
+      },
+      {
+        "feature": "payment_method_diversity",
+        "importance": 0.03923469036817551
+      },
+      {
+        "feature": "avg_ticket_hold_time",
+        "importance": 0.02832324616611004
+      },
+      {
+        "feature": "social_graph_centrality",
+        "importance": 0.025237571448087692
+      },
+      {
+        "feature": "event_popularity_score",
+        "importance": 0.020291371271014214
+      },
+      {
+        "feature": "time_to_first_resale",
+        "importance": 0.019401075318455696
+      },
+      {
+        "feature": "wallet_age_days",
+        "importance": 0.015231451950967312
+      },
+      {
+        "feature": "txn_velocity_1h",
+        "importance": 0.0
+      },
+      {
+        "feature": "geo_velocity_flag",
+        "importance": 0.0
+      }
+    ],
+    "false_positive_rate": 0.005569620253164557
+  },
+  "hyperparameters": {
+    "objective": "binary:logistic",
+    "base_score": null,
+    "booster": null,
+    "callbacks": null,
+    "colsample_bylevel": null,
+    "colsample_bynode": null,
+    "colsample_bytree": 0.8,
+    "device": null,
+    "early_stopping_rounds": null,
+    "enable_categorical": false,
+    "eval_metric": "aucpr",
+    "feature_types": null,
+    "gamma": null,
+    "grow_policy": null,
+    "importance_type": null,
+    "interaction_constraints": null,
+    "learning_rate": 0.05,
+    "max_bin": null,
+    "max_cat_threshold": null,
+    "max_cat_to_onehot": null,
+    "max_delta_step": null,
+    "max_depth": 6,
+    "max_leaves": null,
+    "min_child_weight": null,
+    "missing": null,
+    "monotone_constraints": null,
+    "multi_strategy": null,
+    "n_estimators": 200,
+    "n_jobs": -1,
+    "num_parallel_tree": null,
+    "random_state": 42,
+    "reg_alpha": null,
+    "reg_lambda": null,
+    "sampling_method": null,
+    "scale_pos_weight": 80.63265306122449,
+    "subsample": 0.8,
+    "tree_method": null,
+    "validate_parameters": null,
+    "verbosity": null
+  }
+}

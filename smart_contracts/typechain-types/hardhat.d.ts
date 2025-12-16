@@ -82,6 +82,10 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.SafeCast__factory>;
     getContractFactory(
+      name: "Pausable",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.Pausable__factory>;
+    getContractFactory(
       name: "ReentrancyGuard",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.ReentrancyGuard__factory>;
@@ -93,6 +97,10 @@ declare module "hardhat/types/runtime" {
       name: "NFTTicket",
       signerOrOptions?: ethers.Signer | FactoryOptions
     ): Promise<Contracts.NFTTicket__factory>;
+    getContractFactory(
+      name: "ReentrancyAttacker",
+      signerOrOptions?: ethers.Signer | FactoryOptions
+    ): Promise<Contracts.ReentrancyAttacker__factory>;
 
     getContractAt(
       name: "AccessControl",
@@ -180,6 +188,11 @@ declare module "hardhat/types/runtime" {
       signer?: ethers.Signer
     ): Promise<Contracts.SafeCast>;
     getContractAt(
+      name: "Pausable",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.Pausable>;
+    getContractAt(
       name: "ReentrancyGuard",
       address: string | ethers.Addressable,
       signer?: ethers.Signer
@@ -194,6 +207,11 @@ declare module "hardhat/types/runtime" {
       address: string | ethers.Addressable,
       signer?: ethers.Signer
     ): Promise<Contracts.NFTTicket>;
+    getContractAt(
+      name: "ReentrancyAttacker",
+      address: string | ethers.Addressable,
+      signer?: ethers.Signer
+    ): Promise<Contracts.ReentrancyAttacker>;
 
     deployContract(
       name: "AccessControl",
@@ -264,6 +282,10 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.SafeCast>;
     deployContract(
+      name: "Pausable",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.Pausable>;
+    deployContract(
       name: "ReentrancyGuard",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.ReentrancyGuard>;
@@ -275,6 +297,10 @@ declare module "hardhat/types/runtime" {
       name: "NFTTicket",
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.NFTTicket>;
+    deployContract(
+      name: "ReentrancyAttacker",
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.ReentrancyAttacker>;
 
     deployContract(
       name: "AccessControl",
@@ -362,6 +388,11 @@ declare module "hardhat/types/runtime" {
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.SafeCast>;
     deployContract(
+      name: "Pausable",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.Pausable>;
+    deployContract(
       name: "ReentrancyGuard",
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
@@ -376,6 +407,11 @@ declare module "hardhat/types/runtime" {
       args: any[],
       signerOrOptions?: ethers.Signer | DeployContractOptions
     ): Promise<Contracts.NFTTicket>;
+    deployContract(
+      name: "ReentrancyAttacker",
+      args: any[],
+      signerOrOptions?: ethers.Signer | DeployContractOptions
+    ): Promise<Contracts.ReentrancyAttacker>;
 
     // default types
     getContractFactory(
