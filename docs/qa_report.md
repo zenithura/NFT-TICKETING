@@ -58,7 +58,7 @@ The project has achieved **Production-Ready** status across all major components
 
 | ID | Severity | Component | Description | Status |
 |----|----------|-----------|-------------|--------|
-| **BUG-01** | Low | Data Science | Models rely on synthetic data (Standard for MVP). | Accepted |
+| **INFO-01** | Low | Data Science | Models support Hybrid Data (Real + Synthetic Fallback). | Verified |
 | **BUG-02** | Low | Monitoring | SIEM integration is a placeholder (Non-blocking). | Accepted |
 
 ## 4. Performance Testing
