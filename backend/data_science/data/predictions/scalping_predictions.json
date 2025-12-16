@@ -1,0 +1,277 @@
+[
+  {
+    "ticket_id": 49.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 50.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 51.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 52.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 53.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 54.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 55.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 56.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 57.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 58.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 59.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 60.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 61.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 62.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 63.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 64.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 65.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 66.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 67.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 68.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 69.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 70.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 71.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 72.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 73.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 74.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 75.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 76.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 77.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 78.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 79.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 80.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 81.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 82.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 83.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 84.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 85.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 86.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 87.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 88.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 89.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 90.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 91.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 92.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 93.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 94.0,
+    "scalping_score": 0.4,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 95.0,
+    "scalping_score": 0.4,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 96.0,
+    "scalping_score": 0.4,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 97.0,
+    "scalping_score": 0.4,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 98.0,
+    "scalping_score": 0.4,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 99.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 100.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 101.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 102.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  },
+  {
+    "ticket_id": 103.0,
+    "scalping_score": 0.1,
+    "model": "scalping_detection"
+  }
+]

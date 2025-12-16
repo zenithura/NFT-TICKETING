@@ -1,0 +1,132 @@
+[
+  {
+    "user_id": 5.0,
+    "risk_score": 0.4,
+    "model": "risk_score"
+  },
+  {
+    "user_id": 7.0,
+    "risk_score": 0.4,
+    "model": "risk_score"
+  },
+  {
+    "user_id": 14.0,
+    "risk_score": 0.4,
+    "model": "risk_score"
+  },
+  {
+    "user_id": 15.0,
+    "risk_score": 0.4,
+    "model": "risk_score"
+  },
+  {
+    "user_id": 16.0,
+    "risk_score": 0.4,
+    "model": "risk_score"
+  },
+  {
+    "user_id": 17.0,
+    "risk_score": 0.0,
+    "model": "risk_score"
+  },
+  {
+    "user_id": 18.0,
+    "risk_score": 0.4,
+    "model": "risk_score"
+  },
+  {
+    "user_id": 19.0,
+    "risk_score": 0.4,
+    "model": "risk_score"
+  },
+  {
+    "user_id": 20.0,
+    "risk_score": 0.4,
+    "model": "risk_score"
+  },
+  {
+    "user_id": 21.0,
+    "risk_score": 0.0,
+    "model": "risk_score"
+  },
+  {
+    "user_id": 22.0,
+    "risk_score": 0.3,
+    "model": "risk_score"
+  },
+  {
+    "user_id": 23.0,
+    "risk_score": 0.0,
+    "model": "risk_score"
+  },
+  {
+    "user_id": 24.0,
+    "risk_score": 0.4,
+    "model": "risk_score"
+  },
+  {
+    "user_id": 25.0,
+    "risk_score": 0.4,
+    "model": "risk_score"
+  },
+  {
+    "user_id": 26.0,
+    "risk_score": 0.7,
+    "model": "risk_score"
+  },
+  {
+    "user_id": 27.0,
+    "risk_score": 0.7,
+    "model": "risk_score"
+  },
+  {
+    "user_id": 28.0,
+    "risk_score": 0.4,
+    "model": "risk_score"
+  },
+  {
+    "user_id": 29.0,
+    "risk_score": 0.7,
+    "model": "risk_score"
+  },
+  {
+    "user_id": 30.0,
+    "risk_score": 0.0,
+    "model": "risk_score"
+  },
+  {
+    "user_id": 31.0,
+    "risk_score": 0.0,
+    "model": "risk_score"
+  },
+  {
+    "user_id": 32.0,
+    "risk_score": 0.0,
+    "model": "risk_score"
+  },
+  {
+    "user_id": 33.0,
+    "risk_score": 0.4,
+    "model": "risk_score"
+  },
+  {
+    "user_id": 34.0,
+    "risk_score": 0.4,
+    "model": "risk_score"
+  },
+  {
+    "user_id": 35.0,
+    "risk_score": 0.4,
+    "model": "risk_score"
+  },
+  {
+    "user_id": 36.0,
+    "risk_score": 0.4,
+    "model": "risk_score"
+  },
+  {
+    "user_id": 37.0,
+    "risk_score": 0.0,
+    "model": "risk_score"
+  }
+]
