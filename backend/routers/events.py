@@ -383,7 +383,35 @@ async def get_organizer_events(
     """Get all events created by a specific organizer."""
     try:
         response = db.table("events").select("*").eq("organizer_address", organizer_address).execute()
-        return [EventResponse(**event) for event in response.data]
+        
+        # Map DB fields to EventResponse fields
+        results = []
+        for event in response.data:
+            # Handle date mapping
+            event_date = event.get("event_date")
+            from datetime import datetime
+            if isinstance(event_date, datetime):
+                event_date = event_date.isoformat()
+            
+            # Handle other fields
+            formatted_event = {
+                "id": event.get("event_id") or event.get("id"),
+                "name": event.get("name"),
+                "description": event.get("description"),
+                "date": event_date,
+                "location": event.get("location") or "Unknown Location",
+                "total_tickets": event.get("total_supply") or event.get("total_tickets"),
+                "price": float(event.get("base_price") or event.get("price") or 0),
+                "organizer_address": event.get("organizer_address"),
+                "image_url": event.get("image_url"),
+                "category": event.get("category") or "All",
+                "currency": event.get("currency") or "ETH",
+                "created_at": event.get("created_at"),
+                "sold_tickets": 0 # Calculate if needed, or default to 0
+            }
+            results.append(EventResponse(**formatted_event))
+            
+        return results
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

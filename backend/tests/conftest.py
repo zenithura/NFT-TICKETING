@@ -28,7 +28,7 @@ def create_mock_table():
     # Chain all methods
     chain_methods = ['select', 'insert', 'update', 'delete', 'eq', 'neq', 'gt', 'gte', 
                      'lt', 'lte', 'limit', 'order', 'is_', 'like', 'ilike', 'in_', 
-                     'contains', 'contained_by']
+                     'contains', 'contained_by', 'range', 'single']
     for method in chain_methods:
         setattr(table, method, Mock(return_value=table))
     
@@ -50,19 +50,12 @@ with patch('database.create_client', return_value=mock_db_instance), \
     database.supabase_admin = mock_db_instance
     
     # Patch security middleware BEFORE importing main
+    # Patch security middleware BEFORE importing main
+    # We mock is_banned because it makes DB calls that interfere with test mocks (side_effects).
+    # We do NOT mock detection functions, so we can test them.
     import security_middleware
-    async def bypass_security_middleware(request, call_next):
-        """Bypass security middleware for testing."""
-        return await call_next(request)
-    
-    # Replace the security middleware function in the module
-    security_middleware.security_middleware = bypass_security_middleware
     security_middleware.is_banned = lambda db, user_id=None, ip_address=None: False
-    security_middleware.detect_sql_injection = lambda s: False
-    security_middleware.detect_xss = lambda s: False
-    security_middleware.detect_command_injection = lambda s: False
-    security_middleware.detect_suspicious_user_agent = lambda s: False
-
+    
     # Patch WebRequestsMiddleware
     import web_requests_middleware
     # We need to patch the class method dispatch, but since it's an instance method called by BaseHTTPMiddleware,

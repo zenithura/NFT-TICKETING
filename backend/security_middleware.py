@@ -111,7 +111,6 @@ SUSPICIOUS_USER_AGENTS = [
     'hack',
     'exploit',
     'inject',
-    'test',
     'admin',
     'root',
 ]
