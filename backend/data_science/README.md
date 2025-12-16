@@ -34,59 +34,59 @@ data_science/
 
 ## Models
 
-### 1. Risk Score Model
-- **Type**: Random Forest Classifier
-- **Purpose**: Detect high-risk transactions
-- **Inputs**: Transaction amount, user transaction count
-- **Output**: Risk score (0.0 - 1.0)
+### 1. Risk Score Model (`risk_score.py`)
+- **Algorithm**: **Random Forest Classifier**
+- **Why**: Robust against overfitting and handles non-linear relationships well. Provides feature importance (SHAP values) to explain *why* a transaction is flagged.
+- **Inputs**: Transaction amount, user transaction count, velocity.
+- **Output**: Risk score (0.0 - 1.0).
 
-### 2. Bot Detection Model
-- **Type**: Isolation Forest
-- **Purpose**: Identify bot activity
-- **Inputs**: Transaction velocity, patterns
-- **Output**: Bot probability
+### 2. Bot Detection Model (`bot_detection.py`)
+- **Algorithm**: **Isolation Forest**
+- **Why**: Unsupervised anomaly detection. Efficiently isolates "different" behavior (superhuman speed, perfect timing) without needing labeled bot data.
+- **Inputs**: Transaction velocity, user agent score, IP reputation.
+- **Output**: Bot probability and anomaly score.
 
-### 3. Fair Price Model
-- **Type**: Linear Regression
-- **Purpose**: Predict fair market price
-- **Inputs**: Event features, historical prices
-- **Output**: Predicted fair price
+### 3. Fair Price Model (`fair_price.py`)
+- **Algorithm**: **Gradient Boosting Regressor**
+- **Why**: Handles complex, non-linear interactions between features (e.g., popularity vs. days left) to predict continuous price values accurately in volatile markets.
+- **Inputs**: Original price, popularity score, days left.
+- **Output**: Predicted fair market price.
 
-### 4. Scalping Detection Model
-- **Type**: Rule-based + ML
-- **Purpose**: Detect ticket scalping
-- **Inputs**: Purchase patterns, resale behavior
-- **Output**: Scalping score
+### 4. Scalping Detection Model (`scalping_detection.py`)
+- **Algorithm**: **Logistic Regression**
+- **Why**: Fast, interpretable binary classification. Outputs a probability score (0-1) perfect for setting clear thresholds on linear indicators like purchase count and holding time.
+- **Inputs**: Purchase count, resale velocity, holding time.
+- **Output**: Scalping probability.
 
-### 5. Wash Trading Model
-- **Type**: Graph-based detection
-- **Purpose**: Identify wash trading
-- **Inputs**: Transaction network
-- **Output**: Wash trading probability
+### 5. Wash Trading Model (`wash_trading.py`)
+- **Algorithm**: **Graph Cycle Detection (NetworkX)**
+- **Why**: Wash trading is a topology problem (circular flow A->B->C->A). Graph traversal algorithms find these closed loops more effectively than statistical models.
+- **Inputs**: Buyer ID, Seller ID, NFT ID.
+- **Output**: Cycle detection path.
 
-### 6. Recommender System
-- **Type**: Content-based filtering
-- **Purpose**: Recommend events to users
-- **Inputs**: User preferences, event categories
-- **Output**: Recommended event list
+### 6. Recommender System (`recommender.py`)
+- **Algorithm**: **Content-Based Filtering**
+- **Why**: Solves the "Cold Start" problem for MVPs. Recommends items similar to user's history without needing massive collaborative datasets.
+- **Inputs**: User preferred category.
+- **Output**: List of recommended ticket IDs.
 
-### 7. User Segmentation
-- **Type**: K-Means Clustering
-- **Purpose**: Segment users by behavior
-- **Inputs**: Transaction value, frequency
-- **Output**: Cluster ID (0, 1, 2)
+### 7. User Segmentation (`segmentation.py`)
+- **Algorithm**: **K-Means Clustering**
+- **Why**: Unsupervised grouping of users into distinct buckets (e.g., "Whales", "Casuals") based on behavioral distance.
+- **Inputs**: Average transaction value, frequency.
+- **Output**: Cluster ID (0, 1, 2).
 
-### 8. Market Trend Prediction
-- **Type**: Linear Regression
-- **Purpose**: Predict future trends
-- **Inputs**: Time series data
-- **Output**: Predicted trend
+### 8. Market Trend Prediction (`market_trend.py`)
+- **Algorithm**: **Linear Regression**
+- **Why**: Captures the general direction (slope) of the market efficiently. Computationally cheap and provides clear trend lines for dashboards.
+- **Inputs**: Day index.
+- **Output**: Predicted sales trend.
 
-### 9. Decision Rule Engine
-- **Type**: Statistical (Bollinger Bands)
-- **Purpose**: Real-time anomaly detection
-- **Inputs**: Value stream
-- **Output**: NORMAL or ANOMALY
+### 9. Decision Rule Engine (`decision_rule.py`)
+- **Algorithm**: **Statistical Bollinger Bands**
+- **Why**: Heuristic model for real-time monitoring. Extremely fast, requires no training, and instantly detects anomalies defined as deviations from the moving average.
+- **Inputs**: Value stream (e.g., latency).
+- **Output**: NORMAL or ANOMALY decision.
 
 ## Usage
 
