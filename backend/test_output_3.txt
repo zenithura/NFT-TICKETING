@@ -1,0 +1,196 @@
+2025-12-16 19:41:02,190 - data_science.core - INFO - Connected to Supabase for logging.
+2025-12-16 19:41:02,985 - data_science.core - INFO - Loaded model risk_score from data_science/artifacts/risk_score.joblib
+2025-12-16 19:41:03,027 - data_science.core - INFO - Loaded model bot_detection from data_science/artifacts/bot_detection.joblib
+2025-12-16 19:41:03,032 - data_science.core - INFO - Loaded model fair_price from data_science/artifacts/fair_price.joblib
+2025-12-16 19:41:03,033 - data_science.core - INFO - Loaded model scalping_detection from data_science/artifacts/scalping_detection.joblib
+2025-12-16 19:41:03,034 - data_science.core - WARNING - No artifact found for wash_trading at data_science/artifacts/wash_trading.joblib. Model will need training.
+Loading .env from /home/mahammad/Documents/NFT-TICKETING/backend/.env
+Web3 Client Loaded. RPC: True, Key: True
+Deployments file not found at /home/mahammad/Documents/NFT-TICKETING/deployments/sepolia.json
+⚠️  Sample data not found, generating minimal dataset...
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-7.4.4, pluggy-1.6.0 -- /home/mahammad/Documents/NFT-TICKETING/backend/venv/bin/python
+cachedir: .pytest_cache
+rootdir: /home/mahammad/Documents/NFT-TICKETING/backend
+configfile: pytest.ini
+plugins: cov-4.1.0, asyncio-0.23.3, web3-6.15.1, anyio-4.12.0, Faker-22.2.0, dash-2.14.2
+asyncio: mode=Mode.AUTO
+collecting ... collected 10 items
+
+tests/test_events_expanded.py::TestEventsCreate::test_create_event_success 2025-12-16 19:41:03,934 - httpx - INFO - HTTP Request: POST http://testserver/api/events/ "HTTP/1.1 200 OK"
+PASSED
+tests/test_events_expanded.py::TestEventsCreate::test_create_event_existing_venue Traceback (most recent call last):
+  File "/home/mahammad/Documents/NFT-TICKETING/backend/routers/events.py", line 42, in create_event
+    venue_id = venue_response.data[0]["venue_id"]
+               ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+KeyError: 'venue_id'
+2025-12-16 19:41:03,946 - httpx - INFO - HTTP Request: POST http://testserver/api/events/ "HTTP/1.1 500 Internal Server Error"
+DEBUG: venue_response.data type: <class 'list'>
+DEBUG: venue_response.data[0] type: <class 'dict'>
+DEBUG: venue_response.data[0]: {'event_id': 1, 'name': 'Test', 'created_at': '2024-01-01T00:00:00Z'}
+FAILED
+tests/test_events_expanded.py::TestEventsCreate::test_create_event_unauthorized 2025-12-16 19:41:04,073 - httpx - INFO - HTTP Request: POST http://testserver/api/events/ "HTTP/1.1 403 Forbidden"
+PASSED
+tests/test_events_expanded.py::TestEventsCreate::test_create_event_not_organizer 2025-12-16 19:41:04,090 - httpx - INFO - HTTP Request: POST http://testserver/api/events/ "HTTP/1.1 403 Forbidden"
+PASSED
+tests/test_events_expanded.py::TestEventsList::test_list_events_success 2025-12-16 19:41:04,109 - httpx - INFO - HTTP Request: GET http://testserver/api/events/ "HTTP/1.1 500 Internal Server Error"
+FAILED
+tests/test_events_expanded.py::TestEventsList::test_list_events_with_filters 2025-12-16 19:41:04,136 - httpx - INFO - HTTP Request: GET http://testserver/api/events/?category=Music "HTTP/1.1 500 Internal Server Error"
+FAILED
+tests/test_events_expanded.py::TestEventsGet::test_get_event_success 2025-12-16 19:41:04,152 - httpx - INFO - HTTP Request: GET http://testserver/api/events/1 "HTTP/1.1 200 OK"
+PASSED
+tests/test_events_expanded.py::TestEventsGet::test_get_event_not_found 2025-12-16 19:41:04,160 - httpx - INFO - HTTP Request: GET http://testserver/api/events/999 "HTTP/1.1 404 Not Found"
+PASSED
+tests/test_events_expanded.py::TestEventsOrganizer::test_get_organizer_events 2025-12-16 19:41:04,185 - httpx - INFO - HTTP Request: GET http://testserver/api/events/organizer/0x2345678901234567890123456789012345678901 "HTTP/1.1 500 Internal Server Error"
+FAILED
+tests/test_events_expanded.py::TestEventsOrganizer::test_get_organizer_stats 2025-12-16 19:41:04,218 - httpx - INFO - HTTP Request: GET http://testserver/api/events/organizer/0x2345678901234567890123456789012345678901/stats "HTTP/1.1 200 OK"
+PASSED
+
+=================================== FAILURES ===================================
+______________ TestEventsCreate.test_create_event_existing_venue _______________
+tests/test_events_expanded.py:100: in test_create_event_existing_venue
+    assert response.status_code == 200
+E   assert 500 == 200
+E    +  where 500 = <Response [500 Internal Server Error]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1026 HTTP Request: POST http://testserver/api/events/ "HTTP/1.1 500 Internal Server Error"
+___________________ TestEventsList.test_list_events_success ____________________
+tests/test_events_expanded.py:166: in test_list_events_success
+    assert response.status_code == 200
+E   assert 500 == 200
+E    +  where 500 = <Response [500 Internal Server Error]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1026 HTTP Request: GET http://testserver/api/events/ "HTTP/1.1 500 Internal Server Error"
+_________________ TestEventsList.test_list_events_with_filters _________________
+tests/test_events_expanded.py:179: in test_list_events_with_filters
+    assert response.status_code == 200
+E   assert 500 == 200
+E    +  where 500 = <Response [500 Internal Server Error]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1026 HTTP Request: GET http://testserver/api/events/?category=Music "HTTP/1.1 500 Internal Server Error"
+________________ TestEventsOrganizer.test_get_organizer_events _________________
+tests/test_events_expanded.py:227: in test_get_organizer_events
+    assert response.status_code == 200
+E   assert 500 == 200
+E    +  where 500 = <Response [500 Internal Server Error]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1026 HTTP Request: GET http://testserver/api/events/organizer/0x2345678901234567890123456789012345678901 "HTTP/1.1 500 Internal Server Error"
+=============================== warnings summary ===============================
+venv/lib/python3.12/site-packages/supabase/__init__.py:1
+  /home/mahammad/Documents/NFT-TICKETING/backend/venv/lib/python3.12/site-packages/supabase/__init__.py:1: DeprecationWarning:
+  
+  The `gotrue` package is deprecated, is not going to receive updates in the future. Please, use `supabase_auth` instead.
+
+venv/lib/python3.12/site-packages/passlib/utils/__init__.py:854
+  /home/mahammad/Documents/NFT-TICKETING/backend/venv/lib/python3.12/site-packages/passlib/utils/__init__.py:854: DeprecationWarning:
+  
+  'crypt' is deprecated and slated for removal in Python 3.13
+
+routers/admin.py:644
+  /home/mahammad/Documents/NFT-TICKETING/backend/routers/admin.py:644: DeprecationWarning:
+  
+  `regex` has been deprecated, please use `pattern` instead
+
+venv/lib/python3.12/site-packages/pydantic/_internal/_config.py:271
+  /home/mahammad/Documents/NFT-TICKETING/backend/venv/lib/python3.12/site-packages/pydantic/_internal/_config.py:271: PydanticDeprecatedSince20:
+  
+  Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.5/migration/
+
+routers/admin.py:974
+  /home/mahammad/Documents/NFT-TICKETING/backend/routers/admin.py:974: DeprecationWarning:
+  
+  `regex` has been deprecated, please use `pattern` instead
+
+tests/test_events_expanded.py: 10 warnings
+  /home/mahammad/Documents/NFT-TICKETING/backend/venv/lib/python3.12/site-packages/httpx/_client.py:680: DeprecationWarning:
+  
+  The 'app' shortcut is now deprecated. Use the explicit style 'transport=WSGITransport(app=...)' instead.
+
+tests/test_events_expanded.py::TestEventsCreate::test_create_event_success
+tests/test_events_expanded.py::TestEventsCreate::test_create_event_existing_venue
+tests/test_events_expanded.py::TestEventsCreate::test_create_event_not_organizer
+tests/test_events_expanded.py::TestEventsOrganizer::test_get_organizer_events
+tests/test_events_expanded.py::TestEventsOrganizer::test_get_organizer_stats
+  /home/mahammad/Documents/NFT-TICKETING/backend/venv/lib/python3.12/site-packages/jose/jwt.py:311: DeprecationWarning:
+  
+  datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+
+---------- coverage: platform linux, python 3.12.3-final-0 -----------
+Name                                        Stmts   Miss  Cover   Missing
+-------------------------------------------------------------------------
+attack_tracking.py                             93     80    14%   51-226, 231-239, 244-255
+auth_middleware.py                             40     23    42%   18-56, 67-73
+auth_utils.py                                  53     22    58%   26, 31, 39, 50-57, 67, 70-71, 76, 85-100
+cache.py                                       73     45    38%   19-25, 37, 45-51, 59-65, 84, 90-95, 100-131, 136-137
+data_control/__init__.py                        0      0   100%
+data_control/data_retention.py                 96     96     0%   2-184
+data_control/db_connection.py                  70     70     0%   2-115
+data_control/etl_pipeline.py                  135    135     0%   2-336
+data_science/__init__.py                        0      0   100%
+data_science/core.py                          119     52    56%   19-20, 37-38, 41-66, 77, 80, 87-90, 93-96, 113-114, 120-133, 136-138, 157-159, 163-170, 180-181, 185
+data_science/data_loader.py                   112     92    18%   26, 45-59, 76-88, 105-117, 134-148, 162-172, 184-194, 206-215, 242-258, 279-296, 319-333, 347-372, 390-392
+data_science/feature_store.py                  78     52    33%   9-10, 32-49, 53-61, 65-81, 96-102, 116-124, 140, 157, 173-188
+data_science/models/__init__.py                 0      0   100%
+data_science/models/bot_detection.py           85     67    21%   11-12, 23, 27-93, 96-137
+data_science/models/decision_rule.py           41     24    41%   21-22, 29-68
+data_science/models/fair_price.py              59     42    29%   12-13, 21, 24-51, 54-93
+data_science/models/market_trend.py            42     19    55%   13-14, 32-34, 41-68
+data_science/models/recommender.py             29     15    48%   25-26, 33-62
+data_science/models/risk_score.py             127    107    16%   12-13, 25, 33-115, 132-191, 195-201, 205-238
+data_science/models/scalping_detection.py      69     51    26%   13-14, 22, 25-64, 67-107
+data_science/models/segmentation.py            46     24    48%   13-14, 35-37, 44-77
+data_science/models/wash_trading.py            53     34    36%   12, 26-27, 34-89
+database.py                                    13      2    85%   23, 28
+logging_system.py                              92     26    72%   142-179, 183-208, 227, 231
+main.py                                        88     28    68%   38-40, 50-73, 125, 136, 145-146, 151, 155-156
+middleware_metrics.py                          22      3    86%   47-53
+ml_pipeline/__init__.py                         1      1     0%   3
+ml_pipeline/feature_engineering.py            184    184     0%   2-341
+ml_pipeline/kpi_calculator.py                 160    160     0%   2-368
+ml_pipeline/mab_pricing.py                     90     90     0%   2-245
+ml_pipeline/model_logging.py                   95     95     0%   2-227
+ml_pipeline/models_ensemble.py                114    114     0%   2-287
+ml_pipeline/train_fraud_model.py              100    100     0%   8-240
+models.py                                     110      0   100%
+monitoring/__init__.py                         38     19    50%   77-108, 112
+monitoring/alert_rules.py                     109    109     0%   2-262
+monitoring/dashboard.py                       136     97    29%   34-35, 56-91, 246-248, 266-310, 322-343, 356-373, 385-415, 423-463, 471-488, 496-500, 503-522
+monitoring/monitoring_api.py                  188    188     0%   2-364
+routers/__init__.py                             2      0   100%
+routers/admin.py                              715    536    25%   85-146, 167-206, 219-240, 254-371, 384-431, 444-482, 495-556, 571-591, 603-629, 649-708, 777-964, 979-1024, 1038-1076, 1089-1135, 1173-1227, 1241-1292, 1305-1349, 1363-1389, 1404-1418, 1457-1477, 1489-1493, 1507-1534, 1547-1563, 1576-1630
+routers/admin_auth.py                         180    130    28%   42-43, 64-71, 76-82, 87-115, 120-213, 219-241, 247-258, 269-329, 346-356, 369-378, 383-398, 406-411
+routers/auth.py                               201    172    14%   36-102, 112-208, 221-313, 326-394, 406-413, 425-456, 468-521, 533-577, 588
+routers/events.py                             229     95    59%   29, 53, 65-75, 96, 124, 153-247, 250, 266, 289, 309-312, 317, 319, 327-328, 333, 338-339, 359-366, 375-378, 407, 440-441
+routers/marketplace.py                        295    256    13%   19-28, 39-173, 182-257, 266-277, 287-303, 313-340, 349-354, 364-394, 401-438, 442-447, 454-476, 480-485, 489-494, 498-503
+routers/ml_services.py                         69     47    32%   13, 25-32, 38-45, 51-54, 70-87, 97-123, 129-141
+routers/ml_services_v2.py                     145     75    48%   20-22, 81, 103-116, 122-129, 135-142, 148-155, 161-168, 174-181, 187-199, 205-212, 218-229, 235-253
+routers/tickets.py                            384    346    10%   20-29, 38-40, 48-255, 268-413, 422-463, 472-546, 556-565, 574-584, 591-603, 614-664, 668-678, 682-692, 696-707
+routers/wallet.py                              15      8    47%   19-43
+security_middleware.py                        250    155    38%   122, 127, 134, 139, 146, 151, 158, 163, 169-197, 202-209, 214-228, 242-319, 330-375, 380-421, 443-444, 447, 461-462, 466, 471-473, 487-490, 492-495, 500-503, 505-508, 513-516, 518-521, 525-528, 539-542, 548-566
+sentry_config.py                               21     15    29%   12-42
+soar_integration.py                           131     94    28%   62-68, 72, 84, 92, 96-98, 114-152, 165-209, 226-246, 263-283, 296-316, 326-328
+tests/__init__.py                               0      0   100%
+tests/conftest.py                              82      2    98%   99, 186
+tests/test_auth.py                            248    248     0%   2-578
+tests/test_events.py                           79     79     0%   2-219
+tests/test_events_expanded.py                  96      1    99%   167
+tests/test_integration.py                      35     35     0%   2-101
+tests/test_marketplace.py                      78     78     0%   2-216
+tests/test_security_middleware.py              24     24     0%   2-69
+tests/test_tickets.py                          79     79     0%   2-195
+tests/test_wallet.py                           27     27     0%   2-58
+verify_db_integration.py                      141    141     0%   6-243
+web3_client.py                                 50     24    52%   22, 25, 32, 44-58, 67-92
+web_requests_middleware.py                     93     72    23%   38-158, 180-205, 210-220, 224-239
+-------------------------------------------------------------------------
+TOTAL                                        6629   5005    24%
+Coverage HTML written to dir htmlcov
+
+=========================== short test summary info ============================
+FAILED tests/test_events_expanded.py::TestEventsCreate::test_create_event_existing_venue
+FAILED tests/test_events_expanded.py::TestEventsList::test_list_events_success
+FAILED tests/test_events_expanded.py::TestEventsList::test_list_events_with_filters
+FAILED tests/test_events_expanded.py::TestEventsOrganizer::test_get_organizer_events
+=================== 4 failed, 6 passed, 20 warnings in 1.66s ===================
