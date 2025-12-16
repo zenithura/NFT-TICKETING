@@ -1,0 +1,5 @@
+{
+    "version": "1.0",
+    "description": "Wash Trading Detection Model Configuration",
+    "max_cycle_length": 5
+}

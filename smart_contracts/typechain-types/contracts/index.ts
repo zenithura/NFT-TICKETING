@@ -2,3 +2,4 @@
 /* tslint:disable */
 /* eslint-disable */
 export type { NFTTicket } from "./NFTTicket";
+export type { ReentrancyAttacker } from "./ReentrancyAttacker";

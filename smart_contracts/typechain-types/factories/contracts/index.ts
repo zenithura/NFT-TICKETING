@@ -2,3 +2,4 @@
 /* tslint:disable */
 /* eslint-disable */
 export { NFTTicket__factory } from "./NFTTicket__factory";
+export { ReentrancyAttacker__factory } from "./ReentrancyAttacker__factory";

@@ -5,7 +5,7 @@ from fastapi.middleware.gzip import GZipMiddleware
 import os
 from dotenv import load_dotenv
 
-from routers import auth, events, tickets, marketplace, admin, admin_auth, wallet, ml_services
+from routers import auth, events, tickets, marketplace, admin, admin_auth, wallet, ml_services, ml_services_v2
 from security_middleware import security_middleware
 from middleware_metrics import MetricsMiddleware
 from web_requests_middleware import WebRequestsMiddleware
@@ -17,6 +17,28 @@ from web3_client import load_contracts
 from sentry_config import init_sentry
 from monitoring import get_metrics
 
+# Data Science Integration
+try:
+    from data_science.core import data_logger, kpi_calculator, ab_test_manager
+    from data_science.data_loader import DataLoader
+    from database import get_supabase_admin
+    
+    # Import all models
+    from data_science.models.risk_score import risk_model
+    from data_science.models.bot_detection import bot_model
+    from data_science.models.fair_price import fair_price_model
+    from data_science.models.scalping_detection import scalping_model
+    from data_science.models.wash_trading import wash_trading_model
+    from data_science.models.recommender import recommender_model
+    from data_science.models.segmentation import segmentation_model
+    from data_science.models.market_trend import market_trend_model
+    from data_science.models.decision_rule import decision_rule_model
+    
+    DATA_SCIENCE_AVAILABLE = True
+except ImportError as e:
+    print(f"Warning: Data science modules not fully available: {e}")
+    DATA_SCIENCE_AVAILABLE = False
+
 load_dotenv()
 
 # Initialize Sentry
@@ -24,7 +46,30 @@ init_sentry()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Load smart contracts
     load_contracts()
+    
+    # Initialize data_loader for all ML models
+    if DATA_SCIENCE_AVAILABLE:
+        try:
+            db = get_supabase_admin()
+            data_loader = DataLoader(db)
+            
+            # Set data_loader for all models
+            risk_model.data_loader = data_loader
+            bot_model.data_loader = data_loader
+            fair_price_model.data_loader = data_loader
+            scalping_model.data_loader = data_loader
+            wash_trading_model.data_loader = data_loader
+            recommender_model.data_loader = data_loader
+            segmentation_model.data_loader = data_loader
+            market_trend_model.data_loader = data_loader
+            decision_rule_model.data_loader = data_loader
+            
+            print("✓ Data loader initialized for all ML models")
+        except Exception as e:
+            print(f"Warning: Could not initialize data loader: {e}")
+    
     yield
 
 # Create FastAPI app
@@ -70,7 +115,8 @@ app.include_router(marketplace.router, prefix="/api")
 app.include_router(wallet.router, prefix="/api")  # Wallet connection routes
 app.include_router(admin_auth.router, prefix="/api")  # Admin auth routes
 app.include_router(admin.router, prefix="/api")  # Admin dashboard routes (protected)
-app.include_router(ml_services.router, prefix="/api")  # ML services routes (fraud detection, risk analysis)
+app.include_router(ml_services.router, prefix="/api")  # ML services routes (legacy)
+app.include_router(ml_services_v2.router, prefix="/api")  # ML services routes (new - with DB integration)
 
 
 @app.get("/")
@@ -89,6 +135,15 @@ async def health_check():
     """Health check endpoint."""
     return {"status": "healthy"}
 
+
+
+# Mount Monitoring Dashboard
+try:
+    from a2wsgi import WSGIMiddleware
+    from monitoring.dashboard import app as dashboard_app
+    app.mount("/dashboard", WSGIMiddleware(dashboard_app.server))
+except ImportError:
+    pass
 
 @app.get("/metrics")
 async def metrics():

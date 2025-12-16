@@ -1,0 +1,6 @@
+{
+    "version": "1.0",
+    "description": "Bot Detection Model Configuration",
+    "contamination": 0.1,
+    "threshold": -0.5
+}

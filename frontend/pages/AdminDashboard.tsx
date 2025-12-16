@@ -285,11 +285,22 @@ export const AdminDashboard: React.FC = () => {
         await loadAlerts();
         adminToasts.alertUpdated();
       } else {
-        alert(result.message || 'Failed to clear alerts');
+        // This case should rarely occur as backend returns success: true on success
+        alert(result.message || 'Unable to clear alerts');
       }
     } catch (error: any) {
-      console.error('Failed to clear alerts:', error);
-      alert(error.message || 'Failed to clear alerts');
+      console.error('Error clearing alerts:', error);
+      
+      // Only show "Failed" for true unrecoverable errors
+      if (error.message === 'NETWORK_ERROR' || error.message === 'SERVER_ERROR') {
+        alert('Failed to clear alerts. Please check your connection and try again.');
+      } else if (error.message === 'Unauthorized') {
+        // Already handled by adminAuthenticatedFetch redirect
+        return;
+      } else {
+        // For other errors (validation, permissions, etc.), show a more informative message
+        alert(error.message || 'Unable to clear alerts. Please try again.');
+      }
     }
   };
 

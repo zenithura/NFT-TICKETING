@@ -8,7 +8,9 @@ const config: HardhatUserConfig = {
   solidity: "0.8.20",
   networks: {
     hardhat: {
-      chainId: 1337
+      chainId: 1337,
+      blockGasLimit: 100000000,
+      allowUnlimitedContractSize: true
     },
     sepolia: {
       url: process.env.SEPOLIA_RPC_URL || "",

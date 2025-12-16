@@ -1,0 +1,5 @@
+{
+    "version": "1.0",
+    "description": "Market Trend Model Configuration",
+    "forecast_horizon": 7
+}

@@ -87,3 +87,7 @@ Desktop.ini
 *.db
 *.sqlite
 *.sqlite3
+
+# Data Science Artifacts
+*.joblib
+backend/data_science/artifacts/

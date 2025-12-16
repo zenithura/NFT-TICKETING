@@ -1,0 +1,4 @@
+{"timestamp": "2025-12-16T13:05:11.075201", "model_name": "risk_score_model", "inputs": {"amount": 500, "user_tx_count": 3}, "output": 0.0, "latency_ms": 0.9398460388183594}
+{"timestamp": "2025-12-16T13:05:12.300932", "model_name": "bot_detection_model", "inputs": {"request_freq": 5, "ua_score": 0.9, "ip_reputation": 0.95}, "output": {"is_bot": false, "anomaly_score": 0.11559128006511421, "model_version": "1.0"}, "latency_ms": 2.608060836791992}
+{"timestamp": "2025-12-16T13:06:06.486133", "model_name": "risk_score_model", "inputs": {"amount": 1500.0, "user_tx_count": 2}, "output": 0.4, "latency_ms": 9.867429733276367}
+{"timestamp": "2025-12-16T13:06:08.454830", "model_name": "bot_detection_model", "inputs": {"request_freq": 50.0, "ua_score": 0.2, "ip_reputation": 0.3}, "output": {"is_bot": false, "anomaly_score": 0.03539059950380208, "model_version": "1.0"}, "latency_ms": 5.265951156616211}

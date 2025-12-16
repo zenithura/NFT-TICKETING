@@ -1108,16 +1108,21 @@ async def clear_all_alerts(
             metadata={"deleted_count": deleted_count},
         )
         
-        # Forward to SOAR if configured
-        soar = get_soar_integration()
-        event = SOAREvent(
-            event_type=SOAREventType.ADMIN_ACTION,
-            user_id=admin["user_id"],
-            severity="medium",
-            description="All alerts cleared by admin",
-            metadata={"admin_username": admin.get("username"), "deleted_count": deleted_count},
-        )
-        await soar.forward_event(event)
+        # Forward to SOAR if configured (non-critical operation)
+        # Don't let SOAR forwarding failures prevent successful response
+        try:
+            soar = get_soar_integration()
+            event = SOAREvent(
+                event_type=SOAREventType.ADMIN_ACTION,
+                user_id=admin["user_id"],
+                severity="medium",
+                description="All alerts cleared by admin",
+                metadata={"admin_username": admin.get("username"), "deleted_count": deleted_count},
+            )
+            await soar.forward_event(event)
+        except Exception as soar_error:
+            # Log SOAR error but don't fail the request
+            logger.warning(f"SOAR forwarding failed for alert clear (non-critical): {soar_error}", exc_info=True)
         
         return {
             "success": True,

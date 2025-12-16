@@ -345,13 +345,38 @@ export const clearWebRequests = async (days: number = 90): Promise<{ success: bo
  * Clear all alerts.
  */
 export const clearAllAlerts = async (): Promise<{ success: boolean; message: string; deleted_count: number }> => {
-  const response = await adminAuthenticatedFetch('/admin/alerts/clear', {
-    method: 'DELETE',
-  });
-  if (!response.ok) {
-    throw new Error('Failed to clear alerts');
+  try {
+    const response = await adminAuthenticatedFetch('/admin/alerts/clear', {
+      method: 'DELETE',
+    });
+    
+    if (!response.ok) {
+      // Check if it's a server error (500+) or connection issue
+      if (response.status >= 500) {
+        throw new Error('SERVER_ERROR');
+      }
+      // For other HTTP errors (400, 401, 403, etc.), return the error response
+      const errorData = await response.json().catch(() => ({ detail: 'Request failed' }));
+      throw new Error(errorData.detail || `Request failed with status ${response.status}`);
+    }
+    
+    return response.json();
+  } catch (error: any) {
+    // Check if it's a network error (fetch failed completely)
+    // Network errors typically manifest as TypeError with specific messages
+    if (
+      error instanceof TypeError ||
+      error.message?.toLowerCase().includes('fetch') ||
+      error.message?.toLowerCase().includes('network') ||
+      error.message?.toLowerCase().includes('failed to fetch') ||
+      error.message?.toLowerCase().includes('networkerror') ||
+      error.name === 'NetworkError'
+    ) {
+      throw new Error('NETWORK_ERROR');
+    }
+    // Re-throw other errors (including our custom SERVER_ERROR)
+    throw error;
   }
-  return response.json();
 };
 
 // ============================================================================

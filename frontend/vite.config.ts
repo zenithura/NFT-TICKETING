@@ -179,7 +179,17 @@ export default defineConfig(({ mode }) => {
     },
     // Optimize dependencies
     optimizeDeps: {
-      include: ['react', 'react-dom', 'react-router-dom'],
+      include: [
+        'react', 
+        'react-dom', 
+        'react-router-dom', 
+        'recharts'
+      ],
+      exclude: [],
+      // Ensure React is properly resolved for recharts
+      esbuildOptions: {
+        resolveExtensions: ['.tsx', '.ts', '.jsx', '.js'],
+      },
     },
   };
 });

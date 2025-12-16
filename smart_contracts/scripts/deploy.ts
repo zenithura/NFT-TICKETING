@@ -5,7 +5,9 @@ async function main() {
 
     console.log("Deploying contracts with the account:", deployer.address);
 
-    const nftTicket = await ethers.deployContract("NFTTicket");
+    const nftTicket = await ethers.deployContract("NFTTicket", [], {
+        gasLimit: 15000000
+    });
 
     await nftTicket.waitForDeployment();
 

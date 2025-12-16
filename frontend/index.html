@@ -88,29 +88,64 @@
       --color-foreground: #EFEFEF;
     }
     
-    html, body {
+    html {
       margin: 0;
       padding: 0;
-      background-color: var(--bg-primary);
-      color: var(--color-foreground);
-      transition: background-color 0.2s ease, color 0.2s ease;
-      /* Note: Gradient is defined in index.css to ensure it persists on refresh */
-      /* This inline style is just for initial render before CSS loads */
+      color-scheme: light dark;
+      /* CRITICAL: Apply gradient immediately in inline CSS to ensure it's visible on first paint and after refresh */
+      /* Modern, vibrant gradient background with warm undertones and subtle color accents */
+      background: 
+        radial-gradient(ellipse at top left, rgba(247, 147, 26, 0.08) 0%, transparent 60%),
+        radial-gradient(ellipse at top right, rgba(255, 200, 150, 0.12) 0%, transparent 60%),
+        radial-gradient(ellipse at bottom left, rgba(250, 230, 200, 0.15) 0%, transparent 60%),
+        radial-gradient(ellipse at bottom right, rgba(255, 245, 235, 0.10) 0%, transparent 60%),
+        linear-gradient(135deg, #fef9f3 0%, #fef5eb 20%, #fdf0e3 40%, #fce8d5 60%, #fae0c7 80%, #f8d9ba 100%) !important;
+      background-attachment: fixed !important;
+      background-size: cover !important;
+      background-repeat: no-repeat !important;
+      background-position: center center !important;
+      min-height: 100vh;
     }
     
-    /* Ensure gradient applies correctly on refresh */
-    html[data-theme="dark"] html,
-    html:not([data-theme]) {
-      /* Gradient will be applied by index.css which loads after this inline style */
+    /* Dark theme gradient - inline for immediate application */
+    /* Vibrant, elegant gradient background with rich dark tones and subtle color accents */
+    html[data-theme="dark"] {
+      background: 
+        radial-gradient(ellipse at top left, rgba(247, 147, 26, 0.12) 0%, transparent 65%),
+        radial-gradient(ellipse at top right, rgba(70, 80, 120, 0.15) 0%, transparent 65%),
+        radial-gradient(ellipse at bottom left, rgba(140, 80, 60, 0.12) 0%, transparent 65%),
+        radial-gradient(ellipse at bottom right, rgba(60, 50, 80, 0.10) 0%, transparent 65%),
+        linear-gradient(135deg, #1e1b1a 0%, #211d1b 20%, #24201d 40%, #27221f 60%, #2a2521 80%, #2d2823 100%) !important;
+      background-attachment: fixed !important;
+      background-size: cover !important;
+      background-repeat: no-repeat !important;
+      background-position: center center !important;
+    }
+    
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: transparent !important;
+      background: inherit !important;
+      color: var(--color-foreground);
+      transition: background-color 0.2s ease, color 0.2s ease;
+      min-height: 100vh;
+      position: relative;
     }
     
     /* CRITICAL: #root must use flexbox with min-height 100vh for sticky footer */
+    /* MUST be transparent to show gradient from html */
     #root {
       min-height: 100vh;
       display: flex;
       flex-direction: column;
-      background-color: transparent;
-      background: inherit;
+      background-color: transparent !important;
+      background: inherit !important;
+    }
+    
+    /* Ensure all wrapper elements are transparent to show gradient */
+    * {
+      box-sizing: border-box;
     }
 
     /* Loading state styles */
@@ -120,7 +155,8 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      background-color: var(--bg-primary);
+      background-color: transparent !important;
+      background: transparent !important;
       color: var(--color-foreground);
       z-index: 9999;
     }

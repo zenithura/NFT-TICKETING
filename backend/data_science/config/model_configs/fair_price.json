@@ -1,0 +1,6 @@
+{
+    "version": "1.0",
+    "description": "Fair Price Model Configuration",
+    "max_markup_percent": 50,
+    "min_price_floor": 10
+}

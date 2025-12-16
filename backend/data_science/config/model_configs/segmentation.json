@@ -1,0 +1,9 @@
+{
+    "version": "1.0",
+    "description": "Segmentation Model Configuration",
+    "n_clusters": 3,
+    "features": [
+        "avg_tx_value",
+        "frequency"
+    ]
+}
