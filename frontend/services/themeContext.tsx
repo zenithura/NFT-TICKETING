@@ -40,6 +40,7 @@ const getResolvedTheme = (theme: Theme): 'light' | 'dark' => {
 
 // Purpose: Apply theme to document root element.
 // Side effects: Sets data-theme attribute and class on html element.
+// CRITICAL: This ensures gradient background persists when theme changes
 const applyTheme = (theme: 'light' | 'dark') => {
   if (typeof document === 'undefined') return;
   
@@ -47,6 +48,11 @@ const applyTheme = (theme: 'light' | 'dark') => {
   html.setAttribute('data-theme', theme);
   html.classList.remove('light', 'dark');
   html.classList.add(theme);
+  
+  // CRITICAL: Ensure gradient background is reapplied when theme changes
+  // The CSS will handle the gradient based on data-theme attribute
+  // Force a reflow to ensure gradient updates immediately
+  void html.offsetHeight;
   
   // Update meta theme-color for mobile browsers
   const metaThemeColor = document.querySelector('meta[name="theme-color"]');

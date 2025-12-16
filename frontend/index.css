@@ -1,23 +1,28 @@
 @import "tailwindcss";
 
+/* CRITICAL: Global gradient background override rules - must be at the top to ensure precedence */
+/* These rules ensure the gradient background is never blocked by other styles */
+
 /* Purpose: Theme-aware CSS variables for light and dark modes. */
 /* Uses data-theme attribute to switch between themes. */
 
 :root[data-theme="light"],
 :root:not([data-theme]) {
-  /* Light theme colors */
+  /* Light theme colors - High contrast for optimal readability */
   --color-background: #ffffff;
-  --color-background-elevated: #f8f9fa;
-  --color-background-hover: #f1f3f5;
-  --color-background-active: #e9ecef;
+  --color-background-elevated: #ffffff;
+  --color-background-hover: #f8f9fa;
+  --color-background-active: #f1f3f5;
+  --color-background-input: #ffffff;
 
-  --color-foreground: #111111;
-  --color-foreground-secondary: #6c757d;
-  --color-foreground-tertiary: #adb5bd;
+  --color-foreground: #0a0a0a;
+  --color-foreground-secondary: #404040;
+  --color-foreground-tertiary: #6b6b6b;
 
-  --color-border: #dee2e6;
-  --color-border-hover: #ced4da;
-  --color-border-strong: #adb5bd;
+  --color-border: #d1d5db;
+  --color-border-hover: #9ca3af;
+  --color-border-strong: #6b7280;
+  --color-border-input: #d1d5db;
 
   --color-primary: #F7931A;
   --color-primary-hover: #D97706;
@@ -38,11 +43,12 @@
 
   /* Legacy variable support */
   --bg-primary: #ffffff;
-  --bg-elevated: #f8f9fa;
-  --bg-hover: #f1f3f5;
-  --bg-active: #e9ecef;
-  --text-secondary: #6c757d;
-  --text-tertiary: #adb5bd;
+  --bg-elevated: #ffffff;
+  --bg-hover: #f8f9fa;
+  --bg-active: #f1f3f5;
+  --bg-input: #ffffff;
+  --text-secondary: #404040;
+  --text-tertiary: #6b6b6b;
 }
 
 :root[data-theme="dark"] {
@@ -179,50 +185,99 @@
 
 /* Purpose: Smooth theme transitions for all color properties. */
 /* Side effects: Applies transition to all elements when theme changes. */
+/* CRITICAL: Enhanced transitions for complete theme switch */
 * {
-  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-/* Purpose: Theme-aware root element styles. */
-/* Use !important to ensure gradient persists after refresh and overrides inline styles */
+/* Ensure input elements transition smoothly */
+input,
+textarea,
+select {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, box-shadow 0.2s ease;
+}
+
+/* CRITICAL: High contrast placeholder text in light mode */
+[data-theme="light"] input::placeholder,
+[data-theme="light"] textarea::placeholder {
+  color: #9ca3af !important;
+  opacity: 1 !important;
+}
+
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder {
+  color: var(--color-foreground-tertiary) !important;
+  opacity: 1 !important;
+}
+
+/* CRITICAL: Ensure labels have high contrast in light mode */
+[data-theme="light"] label {
+  color: var(--color-foreground) !important;
+  font-weight: 500;
+}
+
+[data-theme="dark"] label {
+  color: var(--color-foreground) !important;
+}
+
+/* CRITICAL: Global gradient background - must be visible on ALL pages and persist on refresh */
+/* Beautiful, vibrant, modern gradient - elegant and clearly visible */
+/* Applied to html element so it's visible behind all content */
 html {
-  background-color: var(--bg-primary) !important;
   color-scheme: light dark;
-  /* Sophisticated muted gradient background - must persist on refresh */
+  min-height: 100vh;
+  width: 100%;
+  /* Modern, vibrant gradient background with warm undertones and subtle color accents */
   background: 
-    radial-gradient(ellipse at top left, rgba(147, 165, 207, 0.15) 0%, transparent 50%),
-    radial-gradient(ellipse at top right, rgba(180, 167, 214, 0.12) 0%, transparent 50%),
-    radial-gradient(ellipse at bottom left, rgba(214, 202, 221, 0.1) 0%, transparent 50%),
-    radial-gradient(ellipse at bottom right, rgba(192, 181, 211, 0.08) 0%, transparent 50%),
-    linear-gradient(135deg, #f8f7f4 0%, #f0ede8 25%, #e8e5de 50%, #e0dcd4 75%, #d8d3ca 100%) !important;
+    radial-gradient(ellipse at top left, rgba(247, 147, 26, 0.08) 0%, transparent 60%),
+    radial-gradient(ellipse at top right, rgba(255, 200, 150, 0.12) 0%, transparent 60%),
+    radial-gradient(ellipse at bottom left, rgba(250, 230, 200, 0.15) 0%, transparent 60%),
+    radial-gradient(ellipse at bottom right, rgba(255, 245, 235, 0.10) 0%, transparent 60%),
+    linear-gradient(135deg, #fef9f3 0%, #fef5eb 20%, #fdf0e3 40%, #fce8d5 60%, #fae0c7 80%, #f8d9ba 100%) !important;
   background-attachment: fixed !important;
-  background-size: 100% 100% !important;
+  background-size: cover !important;
   background-repeat: no-repeat !important;
+  background-position: center center !important;
+  /* Ensure gradient is never blocked */
+  background-color: transparent !important;
 }
 
+/* Dark theme gradient - vibrant, elegant, clearly visible */
 html[data-theme="dark"] {
   background: 
-    radial-gradient(ellipse at top left, rgba(59, 73, 97, 0.25) 0%, transparent 50%),
-    radial-gradient(ellipse at top right, rgba(70, 57, 94, 0.22) 0%, transparent 50%),
-    radial-gradient(ellipse at bottom left, rgba(84, 72, 101, 0.2) 0%, transparent 50%),
-    radial-gradient(ellipse at bottom right, rgba(62, 51, 81, 0.18) 0%, transparent 50%),
-    linear-gradient(135deg, #1a1816 0%, #1d1a18 25%, #1f1c1a 50%, #211e1c 75%, #24201e 100%) !important;
+    radial-gradient(ellipse at top left, rgba(247, 147, 26, 0.12) 0%, transparent 65%),
+    radial-gradient(ellipse at top right, rgba(70, 80, 120, 0.15) 0%, transparent 65%),
+    radial-gradient(ellipse at bottom left, rgba(140, 80, 60, 0.12) 0%, transparent 65%),
+    radial-gradient(ellipse at bottom right, rgba(60, 50, 80, 0.10) 0%, transparent 65%),
+    linear-gradient(135deg, #1e1b1a 0%, #211d1b 20%, #24201d 40%, #27221f 60%, #2a2521 80%, #2d2823 100%) !important;
   background-attachment: fixed !important;
-  background-size: 100% 100% !important;
+  background-size: cover !important;
   background-repeat: no-repeat !important;
+  background-position: center center !important;
+  /* Ensure gradient is never blocked */
+  background-color: transparent !important;
 }
 
-body {
+/* CRITICAL: Body must be transparent to show gradient from html */
+/* Override any conflicting styles - this is the master rule for body background */
+body,
+html body,
+body.bg-background,
+body[class*="bg-"] {
   background-color: transparent !important;
   background: inherit !important;
   color: var(--color-foreground);
   font-feature-settings: "rlig" 1, "calt" 1;
   min-height: 100vh;
   position: relative;
-  /* Ensure body inherits gradient from html on every refresh */
+  /* Body inherits gradient from html element - MUST remain transparent */
+  /* Never set solid background-color on body as it will hide the gradient */
+  /* Override any inline styles, Tailwind classes, or conflicting CSS */
 }
 
-/* Add subtle overlay to maintain content readability */
+/* Subtle overlay to enhance gradient visibility and content readability */
+/* CRITICAL: This overlay should enhance, not replace, the gradient */
+/* Reduced opacity to allow vibrant gradient to show through more clearly */
 body::before {
   content: '';
   position: fixed;
@@ -231,23 +286,30 @@ body::before {
   right: 0;
   bottom: 0;
   background: 
-    radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.05) 0%, transparent 50%),
-    radial-gradient(circle at 80% 50%, rgba(255, 255, 255, 0.03) 0%, transparent 50%);
+    radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.04) 0%, transparent 55%),
+    radial-gradient(circle at 80% 50%, rgba(255, 250, 240, 0.03) 0%, transparent 55%);
   pointer-events: none;
   z-index: 0;
-  opacity: 0.6;
+  opacity: 0.5;
+  /* Ensure overlay doesn't block gradient visibility */
+  mix-blend-mode: soft-light;
 }
 
 [data-theme="dark"] body::before {
   background: 
-    radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.02) 0%, transparent 50%),
-    radial-gradient(circle at 80% 50%, rgba(255, 255, 255, 0.01) 0%, transparent 50%);
-  opacity: 0.4;
+    radial-gradient(circle at 20% 50%, rgba(255, 255, 255, 0.015) 0%, transparent 55%),
+    radial-gradient(circle at 80% 50%, rgba(247, 147, 26, 0.02) 0%, transparent 55%);
+  opacity: 0.3;
+  mix-blend-mode: soft-light;
 }
 
 /* Purpose: Root element must use flexbox with min-height 100vh for sticky footer. */
 /* CRITICAL: This ensures footer always sticks to bottom regardless of content height. */
-#root {
+/* MUST be transparent to show global gradient background from html element */
+#root,
+div#root,
+#root[class*="bg-"],
+#root.bg-background {
   background-color: transparent !important;
   background: inherit !important;
   min-height: 100vh;
@@ -255,7 +317,9 @@ body::before {
   flex-direction: column;
   position: relative;
   z-index: 1;
-  /* Ensure #root inherits gradient from html on every refresh */
+  /* Ensure #root inherits gradient from html on every refresh and navigation */
+  /* Never set solid background-color as it will hide the gradient */
+  /* Override any inline styles or conflicting CSS */
 }
 
 /* Prevent CLS from 3D canvas */
@@ -281,13 +345,18 @@ body::before {
 }
 
 /* Purpose: Theme-aware custom scrollbar styling. */
+/* CRITICAL: Scrollbar should be semi-transparent to show gradient behind it */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--bg-primary);
+  background: rgba(0, 0, 0, 0.05) !important; /* Semi-transparent to show gradient */
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05) !important; /* Semi-transparent for dark theme */
 }
 
 ::-webkit-scrollbar-thumb {
@@ -319,10 +388,12 @@ body::before {
   border-color: var(--color-border-hover);
 }
 
-/* Optimize scroll performance */
+/* Optimize scroll performance - merge with existing html rule */
 html {
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
+  /* CRITICAL: Ensure gradient background is not overridden by other rules */
+  /* Gradient is already defined above with !important, this rule only adds scroll behavior */
 }
 
 /* Japanese Matte Palette Gradients */
@@ -398,36 +469,197 @@ html {
   background-image: linear-gradient(135deg, #F7931A 0%, #F59E0B 100%);
 }
 
-/* Purpose: Theme-aware input focus state. */
-input:focus {
-  box-shadow: 0 0 0 2px var(--color-primary-light);
+/* Purpose: Theme-aware input focus state with high contrast. */
+input:focus,
+textarea:focus,
+select:focus {
   outline: none;
 }
 
-/* Ensure background colors persist through state changes */
-.bg-background {
+[data-theme="light"] input:focus,
+[data-theme="light"] textarea:focus,
+[data-theme="light"] select:focus {
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 3px rgba(247, 147, 26, 0.15) !important;
+}
+
+[data-theme="dark"] input:focus,
+[data-theme="dark"] textarea:focus,
+[data-theme="dark"] select:focus {
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 3px rgba(247, 147, 26, 0.2) !important;
+}
+
+/* CRITICAL: Ensure bg-background class is transparent to show global gradient */
+/* BUT: Form inputs and interactive elements need solid backgrounds for readability */
+/* Override any conflicting Tailwind or component-level backgrounds */
+.bg-background,
+div.bg-background,
+section.bg-background,
+article.bg-background,
+.bg-background\/\d+,
+[class*="bg-background/"] {
   background-color: transparent !important;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  background: rgba(255, 255, 255, 0.7) !important;
+  background: transparent !important;
+  /* Removed opaque backgrounds to allow gradient to show through */
 }
 
-[data-theme="dark"] .bg-background {
-  background: rgba(25, 25, 25, 0.8) !important;
+[data-theme="dark"] .bg-background,
+[data-theme="dark"] div.bg-background,
+[data-theme="dark"] section.bg-background,
+[data-theme="dark"] article.bg-background,
+[data-theme="dark"] .bg-background\/\d+,
+[data-theme="dark"] [class*="bg-background/"] {
+  background-color: transparent !important;
+  background: transparent !important;
 }
 
-.bg-background-elevated {
-  background-color: var(--bg-elevated) !important;
+/* CRITICAL: Input fields, textareas, and selects MUST have solid backgrounds in light mode */
+/* High contrast is essential for readability */
+[data-theme="light"] input[type="text"],
+[data-theme="light"] input[type="email"],
+[data-theme="light"] input[type="password"],
+[data-theme="light"] input[type="number"],
+[data-theme="light"] input[type="tel"],
+[data-theme="light"] input[type="url"],
+[data-theme="light"] input[type="search"],
+[data-theme="light"] input[type="date"],
+[data-theme="light"] input[type="datetime-local"],
+[data-theme="light"] input[type="month"],
+[data-theme="light"] input[type="time"],
+[data-theme="light"] input[type="week"],
+[data-theme="light"] textarea,
+[data-theme="light"] select {
+  background-color: var(--color-background-input) !important;
+  background: var(--color-background-input) !important;
+  color: var(--color-foreground) !important;
+  border-color: var(--color-border-input) !important;
+}
+
+[data-theme="light"] input[type="text"]:focus,
+[data-theme="light"] input[type="email"]:focus,
+[data-theme="light"] input[type="password"]:focus,
+[data-theme="light"] input[type="number"]:focus,
+[data-theme="light"] input[type="tel"]:focus,
+[data-theme="light"] input[type="url"]:focus,
+[data-theme="light"] input[type="search"]:focus,
+[data-theme="light"] input[type="date"]:focus,
+[data-theme="light"] input[type="datetime-local"]:focus,
+[data-theme="light"] input[type="month"]:focus,
+[data-theme="light"] input[type="time"]:focus,
+[data-theme="light"] input[type="week"]:focus,
+[data-theme="light"] textarea:focus,
+[data-theme="light"] select:focus {
+  border-color: var(--color-primary) !important;
+  box-shadow: 0 0 0 3px rgba(247, 147, 26, 0.1) !important;
+}
+
+/* Dark mode inputs remain transparent/semi-transparent */
+[data-theme="dark"] input[type="text"],
+[data-theme="dark"] input[type="email"],
+[data-theme="dark"] input[type="password"],
+[data-theme="dark"] input[type="number"],
+[data-theme="dark"] input[type="tel"],
+[data-theme="dark"] input[type="url"],
+[data-theme="dark"] input[type="search"],
+[data-theme="dark"] input[type="date"],
+[data-theme="dark"] input[type="datetime-local"],
+[data-theme="dark"] input[type="month"],
+[data-theme="dark"] input[type="time"],
+[data-theme="dark"] input[type="week"],
+[data-theme="dark"] textarea,
+[data-theme="dark"] select {
+  background-color: rgba(32, 32, 32, 0.6) !important;
+  background: rgba(32, 32, 32, 0.6) !important;
+  color: var(--color-foreground) !important;
+  border-color: var(--color-border) !important;
+}
+
+/* CRITICAL: bg-background-elevated should be semi-transparent to show gradient behind cards */
+/* Light mode: More opaque for better contrast and readability */
+/* CRITICAL: Force theme-aware backgrounds - override any conflicting styles */
+[data-theme="light"] .bg-background-elevated,
+[data-theme="light"] div.bg-background-elevated,
+[data-theme="light"] section.bg-background-elevated,
+[data-theme="light"] article.bg-background-elevated,
+[data-theme="light"] [class*="bg-background-elevated"] {
+  background-color: rgba(255, 255, 255, 0.95) !important;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  border-color: var(--color-border) !important;
 }
 
-.bg-background-hover {
-  background-color: var(--bg-hover) !important;
+.bg-background-elevated,
+div.bg-background-elevated,
+section.bg-background-elevated,
+article.bg-background-elevated,
+[class*="bg-background-elevated"] {
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-color: var(--color-border) !important;
 }
 
-.bg-background-active {
-  background-color: var(--bg-active) !important;
+[data-theme="dark"] .bg-background-elevated,
+[data-theme="dark"] div.bg-background-elevated,
+[data-theme="dark"] section.bg-background-elevated,
+[data-theme="dark"] article.bg-background-elevated,
+[data-theme="dark"] [class*="bg-background-elevated"] {
+  background-color: rgba(32, 32, 32, 0.85) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-color: var(--color-border) !important;
+}
+
+/* CRITICAL: Handle bg-background-elevated with opacity modifiers */
+[data-theme="light"] [class*="bg-background-elevated/50"],
+[data-theme="light"] [class*="bg-background-elevated/80"] {
+  background-color: rgba(255, 255, 255, 0.5) !important;
+}
+
+[data-theme="light"] [class*="bg-background-elevated/80"] {
+  background-color: rgba(255, 255, 255, 0.8) !important;
+}
+
+[data-theme="dark"] [class*="bg-background-elevated/50"] {
+  background-color: rgba(32, 32, 32, 0.5) !important;
+}
+
+[data-theme="dark"] [class*="bg-background-elevated/80"] {
+  background-color: rgba(32, 32, 32, 0.8) !important;
+}
+
+/* CRITICAL: Theme-aware hover and active backgrounds */
+.bg-background-hover,
+div.bg-background-hover,
+section.bg-background-hover,
+[class*="bg-background-hover"] {
+  background-color: var(--color-background-hover) !important;
+  background: var(--color-background-hover) !important;
+}
+
+[data-theme="dark"] .bg-background-hover,
+[data-theme="dark"] div.bg-background-hover,
+[data-theme="dark"] section.bg-background-hover,
+[data-theme="dark"] [class*="bg-background-hover"] {
+  background-color: var(--color-background-hover) !important;
+  background: var(--color-background-hover) !important;
+}
+
+.bg-background-active,
+div.bg-background-active,
+section.bg-background-active,
+[class*="bg-background-active"] {
+  background-color: var(--color-background-active) !important;
+  background: var(--color-background-active) !important;
+}
+
+[data-theme="dark"] .bg-background-active,
+[data-theme="dark"] div.bg-background-active,
+[data-theme="dark"] section.bg-background-active,
+[data-theme="dark"] [class*="bg-background-active"] {
+  background-color: var(--color-background-active) !important;
+  background: var(--color-background-active) !important;
 }
 
 /* Font loading optimization - prevent layout shift */
@@ -570,7 +802,10 @@ footer {
 /* Purpose: Ensure main content area expands to fill available space. */
 /* This guarantees footer is pushed to bottom even when content is short. */
 /* CRITICAL: Main must use flexbox with flex-grow: 1 to participate in sticky footer layout. */
-main {
+/* MUST be transparent to show global gradient background */
+main,
+main[class*="bg-"],
+main.bg-background {
   flex-grow: 1;
   flex-shrink: 0;
   flex-basis: auto;
@@ -579,6 +814,9 @@ main {
   min-height: 0; /* Prevent overflow issues in flex containers */
   overflow-x: hidden;
   overflow-y: auto; /* Allow scrolling when content exceeds viewport */
+  /* CRITICAL: Ensure main element is transparent to show gradient */
+  background-color: transparent !important;
+  background: transparent !important;
 }
 
 /* Purpose: Ensure all page-level containers participate in flex layout. */
@@ -620,8 +858,46 @@ nav > div > div {
 /* Note: Main overflow rules are defined above in the main {} block */
 
 /* Purpose: Prevent clipping in flex containers. */
+/* CRITICAL: Ensure flex containers don't block gradient background */
 .flex,
-.flex-col {
+.flex-col,
+div.flex,
+div.flex-col,
+section.flex,
+section.flex-col {
   min-width: 0;
   min-height: 0;
+  background-color: transparent !important;
+  background: transparent !important;
+  /* Don't set background here - allow gradient to show through */
+}
+
+/* CRITICAL: Override any min-h-screen classes that might have backgrounds */
+div[class*="min-h-screen"],
+section[class*="min-h-screen"],
+main[class*="min-h-screen"],
+.container {
+  background-color: transparent !important;
+  background: transparent !important;
+}
+
+/* CRITICAL: Ensure all main content containers are transparent to show gradient */
+/* This ensures the main content area doesn't have a dark background in light mode */
+[data-theme="light"] main > div,
+[data-theme="light"] main > section,
+[data-theme="light"] .container > div,
+[data-theme="light"] .container > section {
+  background-color: transparent !important;
+  background: transparent !important;
+}
+
+/* Ensure page-level wrappers are transparent */
+[data-theme="light"] div.max-w-6xl,
+[data-theme="light"] div.max-w-7xl,
+[data-theme="light"] div.max-w-2xl,
+[data-theme="light"] div.max-w-4xl,
+[data-theme="light"] section.max-w-6xl,
+[data-theme="light"] section.max-w-7xl {
+  background-color: transparent !important;
+  background: transparent !important;
 }

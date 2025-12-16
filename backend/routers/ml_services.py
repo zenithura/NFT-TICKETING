@@ -1,60 +1,49 @@
-"""ML Services Router - Integration with Sprint3 ML models."""
+"""
+ML Services Router - Legacy Router (Deprecated)
+
+Note: This router is deprecated. Use ml_services_backend.py instead.
+This file is kept for backward compatibility but will be removed in future versions.
+"""
 from fastapi import APIRouter, HTTPException, Depends
 from typing import Optional, Dict, Any
 from supabase import Client
 from database import get_supabase_admin
 import sys
-import os
 from pathlib import Path
 
-# Add sprint3 to path if available
-sprint3_path = Path(__file__).parent.parent.parent / "sprint3"
-if sprint3_path.exists():
-    sys.path.insert(0, str(sprint3_path.parent))
+# Try to use ML folder integration layer
+ml_path = Path(__file__).parent.parent.parent / "Machine Learning"
+if ml_path.exists():
+    sys.path.insert(0, str(ml_path.parent))
 
-router = APIRouter(prefix="/ml", tags=["ML Services"])
+router = APIRouter(prefix="/ml", tags=["ML Services (Legacy)"])
 
-# Lazy import sprint3 components
-_integration_layer = None
-_model_ensemble = None
+# Lazy import ML components from Machine Learning folder
+_ml_integration = None
 
 
-def get_integration_layer():
-    """Get or create integration layer singleton."""
-    global _integration_layer
-    if _integration_layer is None:
+def get_ml_integration():
+    """Get or create ML integration layer from Machine Learning folder."""
+    global _ml_integration
+    if _ml_integration is None:
         try:
-            from integration.integration_layer import get_integration_layer as _get_integration
-            _integration_layer = _get_integration()
+            from integration.ml_integration_backend import get_ml_integration_backend
+            _ml_integration = get_ml_integration_backend()
         except Exception as e:
-            print(f"Warning: Could not load integration layer: {e}")
-            _integration_layer = None
-    return _integration_layer
-
-
-def get_model_ensemble():
-    """Get or create model ensemble singleton."""
-    global _model_ensemble
-    if _model_ensemble is None:
-        try:
-            from ml_pipeline.models_ensemble import ModelEnsemble
-            _model_ensemble = ModelEnsemble()
-        except Exception as e:
-            print(f"Warning: Could not load model ensemble: {e}")
-            _model_ensemble = None
-    return _model_ensemble
+            print(f"Warning: Could not load ML integration: {e}")
+            _ml_integration = None
+    return _ml_integration
 
 
 @router.get("/health")
 async def ml_health_check():
-    """Check ML services health."""
-    integration = get_integration_layer()
-    ensemble = get_model_ensemble()
+    """Check ML services health (legacy endpoint)."""
+    ml_integration = get_ml_integration()
     
     return {
-        "status": "healthy" if (integration or ensemble) else "degraded",
-        "integration_layer": integration is not None,
-        "model_ensemble": ensemble is not None
+        "status": "healthy" if ml_integration else "degraded",
+        "ml_integration": ml_integration is not None,
+        "note": "This is a legacy endpoint. Use /ml_backend/health instead."
     }
 
 
@@ -66,17 +55,17 @@ async def predict_fraud(
     price_paid: float = 0.0,
     db: Client = Depends(get_supabase_admin)
 ):
-    """Predict fraud risk for a transaction using ML models."""
-    integration = get_integration_layer()
+    """Predict fraud risk for a transaction using ML models (legacy endpoint)."""
+    ml_integration = get_ml_integration()
     
-    if not integration:
+    if not ml_integration:
         raise HTTPException(
             status_code=503,
-            detail="ML services not available. Ensure sprint3 components are properly configured."
+            detail="ML services not available. Ensure Machine Learning components are properly configured."
         )
     
     try:
-        result = integration.process_transaction(
+        result = ml_integration.process_transaction(
             transaction_id=transaction_id,
             wallet_address=wallet_address,
             event_id=event_id,
@@ -93,10 +82,10 @@ async def analyze_risk(
     event_id: Optional[int] = None,
     transaction_data: Optional[Dict[str, Any]] = None
 ):
-    """Analyze risk for a wallet/transaction using ML ensemble."""
-    ensemble = get_model_ensemble()
+    """Analyze risk for a wallet/transaction (legacy endpoint)."""
+    ml_integration = get_ml_integration()
     
-    if not ensemble:
+    if not ml_integration:
         raise HTTPException(
             status_code=503,
             detail="ML models not available. Ensure sprint3 models are properly configured."

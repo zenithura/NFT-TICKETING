@@ -14,16 +14,18 @@ from cache import get as cache_get, set as cache_set, clear as cache_clear
 # Import ML services for fraud detection
 _ml_integration = None
 def get_ml_integration():
-    """Lazy import ML integration."""
+    """Lazy import ML integration from Machine Learning folder."""
     global _ml_integration
     if _ml_integration is None:
         try:
-            sprint3_path = Path(__file__).parent.parent.parent / "sprint3"
-            if sprint3_path.exists():
-                sys.path.insert(0, str(sprint3_path.parent))
-                from integration.integration_layer import get_integration_layer
-                _ml_integration = get_integration_layer()
-        except Exception:
+            ml_path = Path(__file__).parent.parent.parent / "Machine Learning"
+            if ml_path.exists():
+                sys.path.insert(0, str(ml_path.parent))
+                from integration.ml_integration_backend import get_ml_integration_backend
+                _ml_integration = get_ml_integration_backend()
+        except Exception as e:
+            import logging
+            logging.warning(f"ML integration not available: {e}")
             _ml_integration = None  # ML services optional
     return _ml_integration
 
@@ -49,17 +51,25 @@ async def create_listing(
                     ticket_response = db.table("tickets").select("event_id").eq("id", listing.ticket_id).execute()
                 event_id = ticket_response.data[0].get("event_id") if ticket_response.data else None
                 
+                # Update ML integration with Supabase client
+                ml_integration.feature_engineer._db_client = db
+                
                 fraud_check = ml_integration.process_transaction(
                     transaction_id=transaction_id,
                     wallet_address=listing.seller_address,
                     event_id=event_id,
                     price_paid=listing.price
                 )
-                risk_score = fraud_check.get('model_outputs', {}).get('risk_scoring', {}).get('risk_score', 0.0)
-                if risk_score > 0.85:
+                
+                # Check fraud detection result - new integration returns 'fraud_detection' key
+                fraud_detection = fraud_check.get('fraud_detection', {})
+                fraud_probability = fraud_detection.get('fraud_probability', 0.0)
+                
+                # Block if fraud detected or high risk
+                if fraud_check.get('status') == 'blocked' or fraud_probability > 0.85:
                     raise HTTPException(
                         status_code=403,
-                        detail=f"Listing flagged as high risk (score: {risk_score:.2f}). Please contact support."
+                        detail=f"Listing flagged as high risk (probability: {fraud_probability:.2f}). Please contact support."
                     )
             except HTTPException:
                 raise

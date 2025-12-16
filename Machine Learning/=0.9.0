@@ -1,0 +1,6 @@
+Defaulting to user installation because normal site-packages is not writeable
+Collecting duckdb
+  Using cached duckdb-1.4.3-cp312-cp312-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl.metadata (4.3 kB)
+Using cached duckdb-1.4.3-cp312-cp312-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl (20.5 MB)
+Installing collected packages: duckdb
+Successfully installed duckdb-1.4.3

@@ -577,7 +577,7 @@ export const Navbar: React.FC = () => {
 
   return (
     <nav 
-      className="sticky top-0 z-50 bg-background/98 backdrop-blur-xl border-b border-border/80 shadow-lg shadow-black/5"
+      className="sticky top-0 z-50 bg-background/95 backdrop-blur-xl border-b border-border/80 shadow-lg shadow-black/5"
       role="navigation"
       aria-label={t('nav.mainNavigation')}
     >

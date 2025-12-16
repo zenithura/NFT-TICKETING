@@ -21,7 +21,7 @@ export const Register: React.FC = () => {
     username: '',
     firstName: '',
     lastName: '',
-    role: 'BUYER' as 'BUYER' | 'ORGANIZER' | 'SCANNER' | 'RESELLER', // Default to BUYER
+    role: 'BUYER' as 'BUYER' | 'ORGANIZER', // Only two account types available: Buyer and Organizer
   });
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -419,66 +419,6 @@ export const Register: React.FC = () => {
                   <span className="font-medium">{t('auth.roleOrganizer')}</span>
                   <span className="text-xs text-foreground-tertiary text-center">
                     {t('auth.roleOrganizerDesc')}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleChange('role', 'SCANNER')}
-                  disabled={isLoading}
-                  className={cn(
-                    "p-4 rounded-lg border-2 transition-all",
-                    "flex flex-col items-center gap-2",
-                    formData.role === 'SCANNER'
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border bg-background text-foreground-secondary hover:border-border-hover"
-                  )}
-                >
-                  <div className={cn(
-                    "w-12 h-12 rounded-full flex items-center justify-center",
-                    formData.role === 'SCANNER' ? "bg-primary text-white" : "bg-background-hover"
-                  )}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M3 7V5a2 2 0 0 1 2-2h2"></path>
-                      <path d="M17 3h2a2 2 0 0 1 2 2v2"></path>
-                      <path d="M21 17v2a2 2 0 0 1-2 2h-2"></path>
-                      <path d="M7 21H5a2 2 0 0 1-2-2v-2"></path>
-                      <line x1="7" y1="8" x2="17" y2="8"></line>
-                      <line x1="7" y1="12" x2="17" y2="12"></line>
-                      <line x1="7" y1="16" x2="17" y2="16"></line>
-                    </svg>
-                  </div>
-                  <span className="font-medium">{t('auth.roleScanner')}</span>
-                  <span className="text-xs text-foreground-tertiary text-center">
-                    {t('auth.roleScannerDesc')}
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => handleChange('role', 'RESELLER')}
-                  disabled={isLoading}
-                  className={cn(
-                    "p-4 rounded-lg border-2 transition-all",
-                    "flex flex-col items-center gap-2",
-                    formData.role === 'RESELLER'
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border bg-background text-foreground-secondary hover:border-border-hover"
-                  )}
-                >
-                  <div className={cn(
-                    "w-12 h-12 rounded-full flex items-center justify-center",
-                    formData.role === 'RESELLER' ? "bg-primary text-white" : "bg-background-hover"
-                  )}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"></path>
-                      <path d="M3 6h18"></path>
-                      <path d="M16 10a4 4 0 0 1-8 0"></path>
-                    </svg>
-                  </div>
-                  <span className="font-medium">{t('auth.roleReseller')}</span>
-                  <span className="text-xs text-foreground-tertiary text-center">
-                    {t('auth.roleResellerDesc')}
                   </span>
                 </button>
               </div>
