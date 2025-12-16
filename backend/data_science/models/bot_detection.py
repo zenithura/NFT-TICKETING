@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 class BotDetectionModel(ModelManager):
     def __init__(self):
-        super().__init__("bot_detection", "data_science/config/model_configs/bot_detection.json")
+        super().__init__("bot_detection", "config/model_configs/bot_detection.json")
         self.data_loader = None  # Will be set externally
         
         if self.model is None and SKLEARN_AVAILABLE:

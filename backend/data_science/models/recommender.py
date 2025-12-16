@@ -22,8 +22,10 @@ class RecommenderModel:
 
     def train(self, data: Any = None):
         """Dummy train method for pipeline compatibility."""
-        os.makedirs("data_science/artifacts", exist_ok=True)
-        joblib.dump(self.items, "data_science/artifacts/recommender.joblib")
+        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        artifact_dir = os.path.join(base_dir, "artifacts")
+        os.makedirs(artifact_dir, exist_ok=True)
+        joblib.dump(self.items, os.path.join(artifact_dir, "recommender.joblib"))
 
     def predict(self, inputs: Dict[str, Any]) -> List[Dict[str, Any]]:
         """

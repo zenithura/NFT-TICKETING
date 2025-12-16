@@ -145,15 +145,20 @@ class ModelManager:
         self.model_name = model_name
         self.config = self._load_config(config_path)
         self.model = None
-        self.artifact_path = f"data_science/artifacts/{model_name}.joblib"
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        self.artifact_path = os.path.join(base_dir, "artifacts", f"{model_name}.joblib")
         self.load() # Try to load on init
 
     def _load_config(self, path: str) -> Dict[str, Any]:
         try:
-            full_path = os.path.join(os.getcwd(), path)
+            # Path should be relative to backend/data_science/
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            full_path = os.path.join(base_dir, path)
             if os.path.exists(full_path):
                 with open(full_path, "r") as f:
                     return json.load(f)
+            else:
+                 logger.warning(f"Config not found at {full_path}")
         except Exception as e:
             logger.warning(f"Could not load config from {path}: {e}")
         return {}

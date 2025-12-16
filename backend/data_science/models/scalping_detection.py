@@ -15,7 +15,7 @@ except ImportError:
 
 class ScalpingDetectionModel(ModelManager):
     def __init__(self):
-        super().__init__("scalping_detection", "data_science/config/model_configs/scalping_detection.json")
+        super().__init__("scalping_detection", "config/model_configs/scalping_detection.json")
         self.data_loader = None  # Will be set externally
         
         if self.model is None and SKLEARN_AVAILABLE:

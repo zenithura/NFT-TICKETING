@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 class RiskScoreModel(ModelManager):
     def __init__(self):
-        super().__init__("risk_score", "data_science/config/model_configs/risk_score.json")
+        super().__init__("risk_score", "config/model_configs/risk_score.json")
         self.data_loader = None  # Will be set externally
         
         # If no model loaded, train a dummy one

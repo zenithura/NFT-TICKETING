@@ -30,8 +30,10 @@ class MarketTrendModel:
     def train(self, data: Any = None):
         """Dummy train method for pipeline compatibility."""
         if self.model:
-            os.makedirs("data_science/artifacts", exist_ok=True)
-            joblib.dump(self.model, "data_science/artifacts/market_trend.joblib")
+            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            artifact_dir = os.path.join(base_dir, "artifacts")
+            os.makedirs(artifact_dir, exist_ok=True)
+            joblib.dump(self.model, os.path.join(artifact_dir, "market_trend.joblib"))
 
     def predict(self, inputs: Dict[str, Any]) -> float:
         """

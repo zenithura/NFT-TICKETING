@@ -14,7 +14,7 @@ except ImportError:
 
 class FairPriceModel(ModelManager):
     def __init__(self):
-        super().__init__("fair_price", "data_science/config/model_configs/fair_price.json")
+        super().__init__("fair_price", "config/model_configs/fair_price.json")
         self.data_loader = None  # Will be set externally
         
         if self.model is None and SKLEARN_AVAILABLE:

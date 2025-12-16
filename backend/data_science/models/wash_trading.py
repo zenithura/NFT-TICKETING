@@ -15,7 +15,7 @@ except ImportError:
 
 class WashTradingModel(ModelManager):
     def __init__(self):
-        super().__init__("wash_trading", "data_science/config/model_configs/wash_trading.json")
+        super().__init__("wash_trading", "config/model_configs/wash_trading.json")
         self.data_loader = None  # Will be set externally
         # In a real scenario, we would load the graph from a database or build it incrementally
         self.graph = nx.DiGraph() if NETWORKX_AVAILABLE else None
