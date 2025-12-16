@@ -19,11 +19,11 @@ def get_ml_integration():
     global _ml_integration
     if _ml_integration is None:
         try:
-            sprint3_path = Path(__file__).parent.parent.parent / "sprint3"
-            if sprint3_path.exists():
-                sys.path.insert(0, str(sprint3_path.parent))
-                from integration.integration_layer import get_integration_layer
-                _ml_integration = get_integration_layer()
+            ml_path = Path(__file__).parent.parent.parent / "Machine Learning"
+            if ml_path.exists():
+                sys.path.insert(0, str(ml_path.parent))
+                from integration.ml_integration_backend import get_ml_integration_backend
+                _ml_integration = get_ml_integration_backend()
         except Exception:
             _ml_integration = None  # ML services optional
     return _ml_integration

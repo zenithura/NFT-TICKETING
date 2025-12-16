@@ -101,11 +101,14 @@ class TestCompleteWorkflow:
         user_insert = Mock()
         user_insert.data = [new_user]
         
-        # Register calls: 1. Check email, 2. Check username, 3. Insert user
+        # Register calls: 1. Check email, 2. Insert user, 3. Insert refresh token
+        refresh_token_insert = Mock()
+        refresh_token_insert.data = [{"token_id": 1}]
+
         mock_supabase_table.execute.side_effect = [
             email_check,
-            username_check,
-            user_insert
+            user_insert,
+            refresh_token_insert
         ]
         
         register_response = client.post("/api/auth/register", json={
