@@ -1,17 +1,18 @@
 import time
 import logging
 from typing import Dict, Any, List
-from ..core import data_logger
+from ..core import data_logger, ModelManager
 
 logger = logging.getLogger(__name__)
 
 import joblib
 import os
 
-class RecommenderModel:
+class RecommenderModel(ModelManager):
     def __init__(self):
+        super().__init__("recommender", "config/model_configs/recommender.json")
         self.data_loader = None  # Will be set externally
-        # Mock database of items
+        # Default items if DB fails
         self.items = [
             {"id": "ticket_1", "category": "concert", "price": 50},
             {"id": "ticket_2", "category": "sports", "price": 100},
@@ -21,11 +22,24 @@ class RecommenderModel:
         ]
 
     def train(self, data: Any = None):
-        """Dummy train method for pipeline compatibility."""
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        artifact_dir = os.path.join(base_dir, "artifacts")
-        os.makedirs(artifact_dir, exist_ok=True)
-        joblib.dump(self.items, os.path.join(artifact_dir, "recommender.joblib"))
+        """
+        Fetches items from database to build the recommendation index.
+        """
+        if self.data_loader:
+            logger.info("Fetching events from database for recommender...")
+            try:
+                events = self.data_loader.fetch_event_data(limit=100)
+                if events:
+                    self.items = [
+                        {"id": str(e.get("id")), "category": e.get("category", "general"), "price": float(e.get("price", 0))}
+                        for e in events
+                    ]
+                    logger.info(f"Loaded {len(self.items)} items for recommendation")
+            except Exception as e:
+                logger.error(f"Error fetching events for recommender: {e}")
+        
+        self.model = self.items
+        self.save()
 
     def predict(self, inputs: Dict[str, Any]) -> List[Dict[str, Any]]:
         """
@@ -38,7 +52,7 @@ class RecommenderModel:
         # Simple content-based filtering
         recommendations = [
             item for item in self.items 
-            if item["category"] == preferred_category
+            if str(item["category"]).lower() == str(preferred_category).lower()
         ]
         
         # If no matches, return generic popular items (e.g., all items sorted by price)

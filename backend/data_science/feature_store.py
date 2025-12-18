@@ -191,5 +191,36 @@ class FeatureStore:
             "total_tickets": len(ticket_data)
         }
 
+    def extract_fair_price_features(self, ticket_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Extract features for fair price prediction.
+        
+        Args:
+            ticket_data: Ticket record
+            
+        Returns:
+            Feature dictionary for fair price model
+        """
+        # In a real app, popularity might come from a separate table or analytics
+        popularity = ticket_data.get("popularity_score", 5)
+        
+        # Calculate days left until event
+        days_left = 10 # Default
+        event_date_str = ticket_data.get("event_date")
+        if event_date_str:
+            try:
+                from datetime import datetime
+                event_date = datetime.fromisoformat(event_date_str.replace('Z', '+00:00'))
+                days_left = (event_date - datetime.now(event_date.tzinfo)).days
+                days_left = max(0, days_left)
+            except Exception:
+                pass
+                
+        return {
+            "original_price": float(ticket_data.get("original_price", 0)),
+            "popularity": popularity,
+            "days_left": days_left
+        }
+
 # Global instance
 feature_store = FeatureStore()

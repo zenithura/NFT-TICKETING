@@ -25,6 +25,38 @@ class FairPriceModel(ModelManager):
             logger.warning("scikit-learn not available, skipping training")
             return
         
+        # Try to fetch real data from database
+        if data is None and self.data_loader:
+            logger.info("Fetching real ticket data from database for fair price training...")
+            try:
+                from ..feature_store import feature_store
+                tickets = self.data_loader.fetch_ticket_data(limit=500)
+                
+                if tickets and len(tickets) > 10:
+                    X_list = []
+                    y_list = []
+                    
+                    for ticket in tickets:
+                        features = feature_store.extract_fair_price_features(ticket)
+                        X_list.append([
+                            features["original_price"],
+                            features["popularity"],
+                            features["days_left"]
+                        ])
+                        # Target is the actual price it was sold for
+                        y_list.append(float(ticket.get("price", features["original_price"])))
+                    
+                    if len(X_list) > 10:
+                        X = np.array(X_list)
+                        y = np.array(y_list)
+                        logger.info(f"Training on {len(X)} real tickets from database")
+                        data = (X, y)
+                else:
+                    logger.warning("Insufficient ticket data from database, using dummy data")
+            except Exception as e:
+                logger.error(f"Error fetching training data: {e}")
+                logger.warning("Falling back to dummy data")
+        
         # Use provided data or dummy data
         if data is None:
             logger.info("Using dummy training data")

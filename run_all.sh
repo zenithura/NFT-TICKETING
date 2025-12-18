@@ -48,12 +48,13 @@ fi
 
 # 3b. Start Monitoring Dashboard
 echo "Starting Monitoring Dashboard..."
-# Check if venv exists, otherwise assume python3 is available
-if [ -d "backend/venv" ]; then
-    source backend/venv/bin/activate
-fi
 python backend/monitoring/dashboard.py > logs/dashboard.log 2>&1 &
 DASHBOARD_PID=$!
+
+# 3c. Start Admin Panel
+echo "Starting Admin Panel..."
+python backend/monitoring/admin_panel.py > logs/admin_panel.log 2>&1 &
+ADMIN_PID=$!
 
 # 4. Start Backend
 echo "Starting Backend..."
@@ -80,4 +81,4 @@ echo "Hardhat Node: http://localhost:8545"
 echo "Press Ctrl+C to stop all services."
 
 # Wait for any process to exit
-wait $HARDHAT_PID $BACKEND_PID $FRONTEND_PID $DASHBOARD_PID
+wait $HARDHAT_PID $BACKEND_PID $FRONTEND_PID $DASHBOARD_PID $ADMIN_PID
