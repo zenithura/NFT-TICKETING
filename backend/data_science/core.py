@@ -189,10 +189,6 @@ class ModelManager:
         """Abstract method to train the model."""
         raise NotImplementedError
 
-    def predict(self, inputs: Dict[str, Any]) -> Any:
-        """Abstract method to make predictions."""
-        raise NotImplementedError
-
 # Global instances
 data_logger = DataLogger()
 kpi_calculator = KPICalculator()

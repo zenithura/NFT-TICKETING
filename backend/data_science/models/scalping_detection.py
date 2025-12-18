@@ -28,37 +28,13 @@ class ScalpingDetectionModel(ModelManager):
         
         # Try to fetch real data from database
         if data is None and self.data_loader:
-            logger.info("Fetching real ticket data from database for scalping training...")
+            logger.info("Fetching real ticket data from database...")
             try:
                 tickets = self.data_loader.fetch_ticket_data(limit=500)
                 if tickets and len(tickets) > 10:
-                    X_list = []
-                    y_list = []
-                    
-                    for ticket in tickets:
-                        # For training, we need features and a label
-                        # Features: [purchase_count, resale_velocity, holding_time]
-                        # These might need to be aggregated per user/ticket
-                        # For now, use a simplified version or dummy labels if not available
-                        
-                        # Use feature store to extract some features
-                        # Note: extract_scalping_features returns aggregate stats, 
-                        # but we need per-sample features for LogisticRegression
-                        
-                        purch_count = ticket.get("purchase_count", 1)
-                        resale_vel = 1.0 if ticket.get("is_resale") else 0.0
-                        hold_time = 10.0 # Default
-                        
-                        X_list.append([purch_count, resale_vel, hold_time])
-                        y_list.append(1 if ticket.get("is_resale") and purch_count > 5 else 0)
-                    
-                    if len(X_list) > 10:
-                        X = np.array(X_list)
-                        y = np.array(y_list)
-                        logger.info(f"Training on {len(X)} tickets from database")
-                        data = (X, y)
-                else:
-                    logger.warning("Insufficient data from database, using dummy data")
+                    features = feature_store.extract_scalping_features(tickets)
+                    # Use extracted features for training
+                    logger.info(f"Extracted scalping features from {len(tickets)} tickets")
             except Exception as e:
                 logger.error(f"Error fetching training data: {e}")
         

@@ -21,27 +21,8 @@ class WashTradingModel(ModelManager):
         self.graph = nx.DiGraph() if NETWORKX_AVAILABLE else None
 
     def train(self, data: Any = None):
-        """
-        Builds the initial graph from historical transactions.
-        """
-        if not NETWORKX_AVAILABLE:
-            logger.warning("networkx not available, skipping graph building")
-            return
-
-        if self.data_loader:
-            logger.info("Building wash trading graph from historical transactions...")
-            try:
-                transactions = self.data_loader.fetch_transaction_history(limit=1000)
-                for tx in transactions:
-                    buyer = tx.get("user_id") # Simplified, assuming buyer is user_id
-                    seller = tx.get("seller_id")
-                    nft_id = tx.get("nft_id")
-                    if buyer and seller:
-                        self.graph.add_edge(buyer, seller, nft=nft_id)
-                logger.info(f"Built graph with {self.graph.number_of_nodes()} nodes and {self.graph.number_of_edges()} edges")
-            except Exception as e:
-                logger.error(f"Error building wash trading graph: {e}")
-        
+        # Graph based models don't necessarily "train" in the traditional sense, 
+        # but we might pre-compute communities or load historical edges here.
         self.model = self.graph
         self.save()
 

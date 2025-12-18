@@ -94,23 +94,19 @@ class BotDetectionModel(ModelManager):
 
     def predict(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
         start_time = time.time()
-        
-        # Extract features consistently with training
-        velocity = inputs.get("transaction_velocity", 0)
-        variance = inputs.get("amount_variance", 0)
-        avg_amount = inputs.get("avg_amount", 0)
+        req_freq = inputs.get("request_freq", 0)
+        ua_score = inputs.get("ua_score", 1.0)
+        ip_rep = inputs.get("ip_reputation", 1.0)
         
         is_bot = False
         anomaly_score = 0.0
         
         if SKLEARN_AVAILABLE and self.model:
-            input_vector = np.array([[velocity, variance, avg_amount]])
-            pred = self.model.predict(input_vector)[0]
-            anomaly_score = float(self.model.decision_function(input_vector)[0])
+            pred = self.model.predict([[req_freq, ua_score, ip_rep]])[0]
+            anomaly_score = float(self.model.decision_function([[req_freq, ua_score, ip_rep]])[0])
             is_bot = True if pred == -1 else False
         else:
-            # Fallback heuristic
-            if velocity > 20 or (velocity > 5 and variance < 1):
+            if req_freq > 20 or ua_score < 0.5:
                 is_bot = True
                 anomaly_score = -1.0
             else:

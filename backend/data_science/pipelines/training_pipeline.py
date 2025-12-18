@@ -4,20 +4,18 @@ import logging
 import joblib
 import numpy as np
 
-# Add project root to path
-project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-if project_root not in sys.path:
-    sys.path.append(project_root)
+# Add backend to path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-from backend.data_science.models.risk_score import risk_model
-from backend.data_science.models.bot_detection import bot_model
-from backend.data_science.models.fair_price import fair_price_model
-from backend.data_science.models.scalping_detection import scalping_model
-from backend.data_science.models.wash_trading import wash_trading_model
-from backend.data_science.models.recommender import recommender_model
-from backend.data_science.models.segmentation import segmentation_model
-from backend.data_science.models.market_trend import market_trend_model
-from backend.data_science.models.decision_rule import decision_rule_model
+from data_science.models.risk_score import risk_model
+from data_science.models.bot_detection import bot_model
+from data_science.models.fair_price import fair_price_model
+from data_science.models.scalping_detection import scalping_model
+from data_science.models.wash_trading import wash_trading_model
+from data_science.models.recommender import recommender_model
+from data_science.models.segmentation import segmentation_model
+from data_science.models.market_trend import market_trend_model
+from data_science.models.decision_rule import decision_rule_model
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -32,7 +30,7 @@ def get_data_loader():
     try:
         # Import here to avoid circular dependency
         from backend.database import get_supabase_admin
-        from backend.data_science.data_loader import DataLoader
+        from data_science.data_loader import DataLoader
         
         db = get_supabase_admin()
         data_loader = DataLoader(db)
@@ -130,13 +128,13 @@ def train_all(use_real_data: bool = True):
     if data_loader:
         logger.info("\n📊 Training Summary:")
         logger.info("  - Data Source: Supabase Database")
-        logger.info("  - Models Trained: 9")
+        logger.info("  - Models Trained: 5")
         logger.info("  - Metrics Saved: Yes")
         logger.info("  - Predictions Logged: Yes")
     else:
         logger.info("\n📊 Training Summary:")
         logger.info("  - Data Source: Dummy Data")
-        logger.info("  - Models Trained: 9")
+        logger.info("  - Models Trained: 5")
         logger.info("  - Note: Connect to database for real data training")
 
 
