@@ -6,7 +6,7 @@ import { visualizer } from 'rollup-plugin-visualizer';
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
   const isPerfMode = process.env.PERF_MODE === 'true';
-  
+
   return {
     server: {
       port: 5173,
@@ -130,10 +130,10 @@ export default defineConfig(({ mode }) => {
                   return 'utils';
                 }
                 // Group very small packages that create empty chunks
-                const tinyPackages = ['babel', 'dom-helpers', 'hoist-non-react-statics', 
-                                     'html-parse-stringify', 'localforage', 'void-elements',
-                                     'internmap', 'use-sync-external-store', 'prop-types',
-                                     'goober', 'eventemitter3', 'scheduler', 'victory-vendor'];
+                const tinyPackages = ['babel', 'dom-helpers', 'hoist-non-react-statics',
+                  'html-parse-stringify', 'localforage', 'void-elements',
+                  'internmap', 'use-sync-external-store', 'prop-types',
+                  'goober', 'eventemitter3', 'scheduler', 'victory-vendor'];
                 if (tinyPackages.some(pkg => packageName.includes(pkg))) {
                   return 'vendor-tiny';
                 }
@@ -180,9 +180,9 @@ export default defineConfig(({ mode }) => {
     // Optimize dependencies
     optimizeDeps: {
       include: [
-        'react', 
-        'react-dom', 
-        'react-router-dom', 
+        'react',
+        'react-dom',
+        'react-router-dom',
         'recharts'
       ],
       exclude: [],

@@ -4,27 +4,31 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="NFTix - The decentralized marketplace for verifying, trading, and collecting event access as NFTs. Secure Web3 ticketing platform." />
+  <meta name="description"
+    content="NFTix - The decentralized marketplace for verifying, trading, and collecting event access as NFTs. Secure Web3 ticketing platform." />
   <meta name="theme-color" content="#191919" />
-  <meta name="keywords" content="NFT, ticketing, blockchain, Web3, event tickets, decentralized, Ethereum, smart contracts" />
+  <meta name="keywords"
+    content="NFT, ticketing, blockchain, Web3, event tickets, decentralized, Ethereum, smart contracts" />
   <meta name="author" content="NFTix Platform" />
   <meta name="robots" content="index, follow" />
-  
+
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://nftix.platform/" />
   <meta property="og:title" content="NFTix - Web3 Ticketing Platform" />
-  <meta property="og:description" content="The decentralized marketplace for verifying, trading, and collecting event access as NFTs. Secure Web3 ticketing platform." />
+  <meta property="og:description"
+    content="The decentralized marketplace for verifying, trading, and collecting event access as NFTs. Secure Web3 ticketing platform." />
   <meta property="og:image" content="https://nftix.platform/og-image.png" />
   <meta property="og:site_name" content="NFTix" />
-  
+
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:url" content="https://nftix.platform/" />
   <meta name="twitter:title" content="NFTix - Web3 Ticketing Platform" />
-  <meta name="twitter:description" content="The decentralized marketplace for verifying, trading, and collecting event access as NFTs." />
+  <meta name="twitter:description"
+    content="The decentralized marketplace for verifying, trading, and collecting event access as NFTs." />
   <meta name="twitter:image" content="https://nftix.platform/og-image.png" />
-  
+
   <!-- Structured Data (JSON-LD) -->
   <script defer type="application/ld+json">
   {
@@ -47,7 +51,7 @@
     }
   }
   </script>
-  
+
   <title>NFTix - Web3 Ticketing Platform</title>
 
   <!-- DNS prefetch and preconnect - Limited to 4 most critical origins -->
@@ -57,9 +61,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
-    rel="stylesheet"
-    media="print"
-    onload="this.media='all'; this.onload=null;">
+    rel="stylesheet" media="print" onload="this.media='all'; this.onload=null;">
   <noscript>
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
@@ -74,27 +76,27 @@
   <style>
     /* Purpose: Prevent theme flicker by applying theme before React loads. */
     /* Theme is set via inline script below before this CSS runs. */
-    
+
     /* Light theme default variables */
     :root {
       --bg-primary: #ffffff;
       --color-foreground: #111111;
     }
-    
+
     /* Dark theme variables */
     :root[data-theme="dark"],
     html:not([data-theme]) {
       --bg-primary: #191919;
       --color-foreground: #EFEFEF;
     }
-    
+
     html {
       margin: 0;
       padding: 0;
       color-scheme: light dark;
       /* CRITICAL: Apply gradient immediately in inline CSS to ensure it's visible on first paint and after refresh */
       /* Modern, vibrant gradient background with warm undertones and subtle color accents */
-      background: 
+      background:
         radial-gradient(ellipse at top left, rgba(247, 147, 26, 0.08) 0%, transparent 60%),
         radial-gradient(ellipse at top right, rgba(255, 200, 150, 0.12) 0%, transparent 60%),
         radial-gradient(ellipse at bottom left, rgba(250, 230, 200, 0.15) 0%, transparent 60%),
@@ -106,11 +108,11 @@
       background-position: center center !important;
       min-height: 100vh;
     }
-    
+
     /* Dark theme gradient - inline for immediate application */
     /* Vibrant, elegant gradient background with rich dark tones and subtle color accents */
     html[data-theme="dark"] {
-      background: 
+      background:
         radial-gradient(ellipse at top left, rgba(247, 147, 26, 0.12) 0%, transparent 65%),
         radial-gradient(ellipse at top right, rgba(70, 80, 120, 0.15) 0%, transparent 65%),
         radial-gradient(ellipse at bottom left, rgba(140, 80, 60, 0.12) 0%, transparent 65%),
@@ -121,7 +123,7 @@
       background-repeat: no-repeat !important;
       background-position: center center !important;
     }
-    
+
     body {
       margin: 0;
       padding: 0;
@@ -132,7 +134,7 @@
       min-height: 100vh;
       position: relative;
     }
-    
+
     /* CRITICAL: #root must use flexbox with min-height 100vh for sticky footer */
     /* MUST be transparent to show gradient from html */
     #root {
@@ -142,7 +144,7 @@
       background-color: transparent !important;
       background: inherit !important;
     }
-    
+
     /* Ensure all wrapper elements are transparent to show gradient */
     * {
       box-sizing: border-box;
@@ -161,11 +163,11 @@
       z-index: 9999;
     }
   </style>
-  
+
   <!-- Purpose: Apply theme immediately to prevent flicker. -->
   <!-- This script runs before React loads to set theme from localStorage or system preference. -->
   <script defer>
-    (function() {
+    (function () {
       // Purpose: Get theme preference from localStorage or system.
       // Returns: 'light', 'dark', or 'system'.
       function getInitialTheme() {
@@ -179,7 +181,7 @@
         }
         return 'system';
       }
-      
+
       // Purpose: Get resolved theme (system preference if theme is 'system').
       // Returns: 'light' or 'dark'.
       function getResolvedTheme(theme) {
@@ -188,14 +190,14 @@
         }
         return theme;
       }
-      
+
       // Purpose: Apply theme to document immediately.
       // Side effects: Sets data-theme attribute on html element.
       const theme = getInitialTheme();
       const resolved = getResolvedTheme(theme);
       document.documentElement.setAttribute('data-theme', resolved);
       document.documentElement.classList.add(resolved);
-      
+
       // Purpose: Update meta theme-color for mobile browsers.
       const metaThemeColor = document.querySelector('meta[name="theme-color"]');
       if (metaThemeColor) {
