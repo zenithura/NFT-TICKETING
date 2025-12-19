@@ -21,7 +21,6 @@ A comprehensive NFT ticketing platform combining blockchain technology, advanced
 - Monitoring Dashboard: `backend/monitoring/`
 - Documentation: `docs/`
 - Project Analysis: `docs/PROJECT_ANALYSIS.md`
-- Performance Report: `docs/PERFORMANCE_REPORT.md`
 
 ## Table of Contents
 
@@ -392,7 +391,6 @@ The `docs/` directory contains comprehensive documentation:
 - **pitch_speech.md**: Pitch script
 - **qa_report.md**: Quality assurance documentation
 - **PROJECT_ANALYSIS.md**: Detailed analysis of fixed problematic areas
-- **PERFORMANCE_REPORT.md**: Analysis of performance bottlenecks and recommendations
 - **traceability_matrix.md**: Requirements traceability
 
 ## Troubleshooting
