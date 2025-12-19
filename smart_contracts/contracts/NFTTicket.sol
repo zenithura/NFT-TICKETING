@@ -20,7 +20,7 @@ contract NFTTicket is ERC721URIStorage, AccessControl, ReentrancyGuard, ERC2981,
     
     // Rate limiting constants
     uint256 public constant MAX_MINTS_PER_ADDRESS = 100; // Max tickets per address
-    uint256 public constant MAX_BUYS_PER_BLOCK = 10; // Max purchases per block per address
+    uint256 public constant MAX_BUYS_PER_WINDOW = 10; // Max purchases per window per address
     uint256 public constant RATE_LIMIT_WINDOW = 1 hours; // Rate limit window
 
     struct TicketData {
@@ -150,7 +150,7 @@ contract NFTTicket is ERC721URIStorage, AccessControl, ReentrancyGuard, ERC2981,
             buyCount[msg.sender] = 0;
             lastBuyWindow[msg.sender] = currentWindow;
         }
-        require(buyCount[msg.sender] < MAX_BUYS_PER_BLOCK, "Rate limit exceeded");
+        require(buyCount[msg.sender] < MAX_BUYS_PER_WINDOW, "Rate limit exceeded");
         buyCount[msg.sender]++;
 
         address seller = ownerOf(tokenId);

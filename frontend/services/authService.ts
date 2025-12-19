@@ -50,33 +50,12 @@ export interface RegisterData {
   role: 'BUYER' | 'ORGANIZER' | 'SCANNER' | 'RESELLER'; // Required account type selection during signup
 }
 
-// Purpose: Get stored access token from localStorage.
-// Returns: Access token string or null.
-// Side effects: Reads from localStorage.
-export const getAccessToken = (): string | null => {
-  return localStorage.getItem('access_token');
-};
-
-// Purpose: Get stored refresh token from localStorage.
-// Returns: Refresh token string or null.
-// Side effects: Reads from localStorage.
-export const getRefreshToken = (): string | null => {
-  return localStorage.getItem('refresh_token');
-};
-
-// Purpose: Store access token in localStorage.
-// Params: token (string) — JWT access token.
-// Side effects: Writes to localStorage.
-export const setAccessToken = (token: string): void => {
-  localStorage.setItem('access_token', token);
-};
-
-// Purpose: Store refresh token in localStorage.
-// Params: token (string) — JWT refresh token.
-// Side effects: Writes to localStorage.
-export const setRefreshToken = (token: string): void => {
-  localStorage.setItem('refresh_token', token);
-};
+// Tokens are now managed via HttpOnly cookies by the backend.
+// Local storage is only used for non-sensitive user profile data.
+export const getAccessToken = (): string | null => null;
+export const getRefreshToken = (): string | null => null;
+export const setAccessToken = (_token: string): void => { };
+export const setRefreshToken = (_token: string): void => { };
 
 // Purpose: Store user information in localStorage.
 // Params: user (User) — user object.
@@ -106,11 +85,11 @@ export const clearAuth = (): void => {
   localStorage.removeItem('user');
 };
 
-// Purpose: Check if user is authenticated (has valid token).
-// Returns: True if access token exists, False otherwise.
-// Side effects: None - checks localStorage only.
+// Purpose: Check if user is authenticated.
+// Returns: True if user data exists in localStorage.
+// Note: Actual session validity is checked by the backend via HttpOnly cookies.
 export const isAuthenticated = (): boolean => {
-  return !!getAccessToken();
+  return !!getUser();
 };
 
 // Purpose: Make authenticated API request with automatic token refresh, timeout, and retry logic.
@@ -124,27 +103,28 @@ export const authenticatedFetch = async (
 ): Promise<Response> => {
   const token = getAccessToken();
   const timeout = 10000; // 10 second timeout
-  
+
   const headers = new Headers(options.headers);
   headers.set('Content-Type', 'application/json');
-  
+
   if (token) {
     headers.set('Authorization', `Bearer ${token}`);
   }
-  
+
   // Create abort controller for timeout
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
-  
+
   try {
     let response = await fetch(`${API_BASE_URL}${url}`, {
       ...options,
       headers,
+      credentials: 'include', // Important for HttpOnly cookies
       signal: controller.signal,
     });
-    
+
     clearTimeout(timeoutId);
-    
+
     // Purpose: If token expired, try to refresh it.
     // Side effects: Calls refresh token endpoint, retries original request.
     // Only clears auth if refresh definitively fails, preventing false redirects.
@@ -154,16 +134,17 @@ export const authenticatedFetch = async (
         try {
           const refreshController = new AbortController();
           const refreshTimeout = setTimeout(() => refreshController.abort(), timeout);
-          
+
           const refreshResponse = await fetch(`${API_BASE_URL}/auth/refresh-token`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ refresh_token: refreshToken }),
+            credentials: 'include',
+            body: JSON.stringify({}), // Refresh token is in cookie
             signal: refreshController.signal,
           });
-          
+
           clearTimeout(refreshTimeout);
-          
+
           if (refreshResponse.ok) {
             const data: AuthResponse = await refreshResponse.json();
             if (data.access_token) {
@@ -171,16 +152,17 @@ export const authenticatedFetch = async (
               if (data.refresh_token) {
                 setRefreshToken(data.refresh_token);
               }
-              
+
               // Retry original request with new token (only once)
               const retryController = new AbortController();
               const retryTimeout = setTimeout(() => retryController.abort(), timeout);
-              
+
               try {
                 headers.set('Authorization', `Bearer ${data.access_token}`);
                 response = await fetch(`${API_BASE_URL}${url}`, {
                   ...options,
                   headers,
+                  credentials: 'include',
                   signal: retryController.signal,
                 });
                 clearTimeout(retryTimeout);
@@ -224,7 +206,7 @@ export const authenticatedFetch = async (
         throw new Error('Authentication required. Please login again.');
       }
     }
-    
+
     return response;
   } catch (error) {
     clearTimeout(timeoutId);
@@ -243,21 +225,22 @@ export const register = async (data: RegisterData): Promise<AuthResponse> => {
   const response = await fetch(`${API_BASE_URL}/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify(data),
   });
-  
+
   const result: AuthResponse = await response.json();
-  
+
   if (!response.ok) {
     throw new Error(result.message || 'Registration failed');
   }
-  
+
   if (result.access_token && result.refresh_token && result.user) {
     setAccessToken(result.access_token);
     setRefreshToken(result.refresh_token);
     setUser(result.user);
   }
-  
+
   return result;
 };
 
@@ -269,21 +252,22 @@ export const login = async (data: LoginData): Promise<AuthResponse> => {
   const response = await fetch(`${API_BASE_URL}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify(data),
   });
-  
+
   const result: AuthResponse = await response.json();
-  
+
   if (!response.ok) {
     throw new Error(result.message || 'Login failed');
   }
-  
+
   if (result.access_token && result.refresh_token && result.user) {
     setAccessToken(result.access_token);
     setRefreshToken(result.refresh_token);
     setUser(result.user);
   }
-  
+
   return result;
 };
 
@@ -292,18 +276,18 @@ export const login = async (data: LoginData): Promise<AuthResponse> => {
 // Side effects: Clears tokens and user data, invalidates refresh token.
 export const logout = async (): Promise<void> => {
   const token = getAccessToken();
-  
+
   if (token) {
     try {
       await authenticatedFetch('/auth/logout', {
         method: 'POST',
-        body: JSON.stringify({ refresh_token: getRefreshToken() }),
+        body: JSON.stringify({}), // Tokens are in cookies
       });
     } catch (error) {
       console.error('Logout error:', error);
     }
   }
-  
+
   clearAuth();
 };
 
@@ -317,13 +301,13 @@ export const forgotPassword = async (email: string): Promise<AuthResponse> => {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email }),
   });
-  
+
   const result: AuthResponse = await response.json();
-  
+
   if (!response.ok) {
     throw new Error(result.message || 'Failed to send reset email');
   }
-  
+
   return result;
 };
 
@@ -337,13 +321,13 @@ export const resetPassword = async (token: string, newPassword: string): Promise
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token, new_password: newPassword }),
   });
-  
+
   const result: AuthResponse = await response.json();
-  
+
   if (!response.ok) {
     throw new Error(result.message || 'Password reset failed');
   }
-  
+
   return result;
 };
 
@@ -357,13 +341,13 @@ export const verifyEmail = async (token: string): Promise<AuthResponse> => {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ token }),
   });
-  
+
   const result: AuthResponse = await response.json();
-  
+
   if (!response.ok) {
     throw new Error(result.message || 'Email verification failed');
   }
-  
+
   return result;
 };
 
@@ -372,17 +356,17 @@ export const verifyEmail = async (token: string): Promise<AuthResponse> => {
 // Side effects: Updates stored user data if changed.
 export const getCurrentUser = async (): Promise<User> => {
   const response = await authenticatedFetch('/auth/me');
-  
+
   if (!response.ok) {
     if (response.status === 401) {
       clearAuth();
     }
     throw new Error('Failed to get user information');
   }
-  
+
   const user: User = await response.json();
   setUser(user);
-  
+
   return user;
 };
 

@@ -126,8 +126,8 @@ class TestEventsCreate:
             "price": 50.00
         })
         
-        # HTTPBearer raises 403 if no credentials
-        assert response.status_code == 403
+        # HTTPBearer raises 401 if no credentials (updated from 403)
+        assert response.status_code == 401
     
     def test_create_event_not_organizer(self, client, auth_headers, test_user):
         """Test event creation by non-organizer."""

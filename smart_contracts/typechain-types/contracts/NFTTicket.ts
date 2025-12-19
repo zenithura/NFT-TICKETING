@@ -27,7 +27,7 @@ export interface NFTTicketInterface extends Interface {
   getFunction(
     nameOrSignature:
       | "DEFAULT_ADMIN_ROLE"
-      | "MAX_BUYS_PER_BLOCK"
+      | "MAX_BUYS_PER_WINDOW"
       | "MAX_MINTS_PER_ADDRESS"
       | "MAX_RESALE_MULTIPLIER"
       | "MINTER_ROLE"
@@ -94,7 +94,7 @@ export interface NFTTicketInterface extends Interface {
     values?: undefined
   ): string;
   encodeFunctionData(
-    functionFragment: "MAX_BUYS_PER_BLOCK",
+    functionFragment: "MAX_BUYS_PER_WINDOW",
     values?: undefined
   ): string;
   encodeFunctionData(
@@ -241,7 +241,7 @@ export interface NFTTicketInterface extends Interface {
     data: BytesLike
   ): Result;
   decodeFunctionResult(
-    functionFragment: "MAX_BUYS_PER_BLOCK",
+    functionFragment: "MAX_BUYS_PER_WINDOW",
     data: BytesLike
   ): Result;
   decodeFunctionResult(
@@ -664,7 +664,7 @@ export interface NFTTicket extends BaseContract {
 
   DEFAULT_ADMIN_ROLE: TypedContractMethod<[], [string], "view">;
 
-  MAX_BUYS_PER_BLOCK: TypedContractMethod<[], [bigint], "view">;
+  MAX_BUYS_PER_WINDOW: TypedContractMethod<[], [bigint], "view">;
 
   MAX_MINTS_PER_ADDRESS: TypedContractMethod<[], [bigint], "view">;
 
@@ -848,7 +848,7 @@ export interface NFTTicket extends BaseContract {
     nameOrSignature: "DEFAULT_ADMIN_ROLE"
   ): TypedContractMethod<[], [string], "view">;
   getFunction(
-    nameOrSignature: "MAX_BUYS_PER_BLOCK"
+    nameOrSignature: "MAX_BUYS_PER_WINDOW"
   ): TypedContractMethod<[], [bigint], "view">;
   getFunction(
     nameOrSignature: "MAX_MINTS_PER_ADDRESS"

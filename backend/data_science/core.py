@@ -165,7 +165,7 @@ class ModelManager:
 
     def save(self):
         """Saves the model to disk."""
-        if self.model:
+        if self.model is not None:
             try:
                 # Ensure directory exists
                 os.makedirs(os.path.dirname(self.artifact_path), exist_ok=True)

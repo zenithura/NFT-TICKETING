@@ -1,5 +1,5 @@
 """Authentication middleware for protecting routes."""
-from fastapi import HTTPException, status, Depends
+from fastapi import HTTPException, status, Depends, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Optional
 from supabase import Client
@@ -11,11 +11,24 @@ security = HTTPBearer()
 
 
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    request: Request,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False)),
     db: Client = Depends(get_supabase_admin)
 ) -> dict:
-    """Get current authenticated user from JWT token."""
-    token = credentials.credentials
+    """Get current authenticated user from JWT token (header or cookie)."""
+    token = None
+    if credentials:
+        token = credentials.credentials
+    else:
+        token = request.cookies.get("access_token")
+    
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
     payload = verify_token(token, token_type="access")
     
     if payload is None:

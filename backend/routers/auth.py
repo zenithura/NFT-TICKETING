@@ -185,7 +185,7 @@ async def register(
         
         # TODO: Send verification email
         
-        return AuthResponse(
+        response = AuthResponse(
             success=True,
             message="Registration successful. Please verify your email.",
             access_token=access_token,
@@ -201,6 +201,28 @@ async def register(
                 created_at=user["created_at"]
             )
         )
+        
+        # Set HttpOnly cookies
+        from fastapi.responses import JSONResponse
+        json_response = JSONResponse(content=response.dict(), status_code=status.HTTP_201_CREATED)
+        json_response.set_cookie(
+            key="access_token",
+            value=access_token,
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            max_age=3600 # 1 hour
+        )
+        json_response.set_cookie(
+            key="refresh_token",
+            value=refresh_token,
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            max_age=7 * 24 * 3600 # 7 days
+        )
+        
+        return json_response
         
     except HTTPException:
         raise
@@ -290,7 +312,7 @@ async def login(
             "user_agent": user_agent
         }).execute()
         
-        return AuthResponse(
+        response = AuthResponse(
             success=True,
             message="Login successful",
             access_token=access_token,
@@ -306,6 +328,28 @@ async def login(
                 created_at=user["created_at"]
             )
         )
+        
+        # Set HttpOnly cookies
+        from fastapi.responses import JSONResponse
+        json_response = JSONResponse(content=response.dict())
+        json_response.set_cookie(
+            key="access_token",
+            value=access_token,
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            max_age=3600
+        )
+        json_response.set_cookie(
+            key="refresh_token",
+            value=refresh_token,
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            max_age=7 * 24 * 3600
+        )
+        
+        return json_response
         
     except HTTPException:
         raise
@@ -371,11 +415,11 @@ async def refresh_token(
             "last_used_at": datetime.now(timezone.utc).isoformat()
         }).eq("token_id", token_record["token_id"]).execute()
         
-        return AuthResponse(
+        response = AuthResponse(
             success=True,
             message="Token refreshed",
             access_token=access_token,
-            refresh_token=refresh_data.refresh_token,  # Return same refresh token
+            refresh_token=refresh_data.refresh_token,
             user=UserResponse(
                 user_id=user["user_id"],
                 email=user["email"],
@@ -387,6 +431,20 @@ async def refresh_token(
                 created_at=user["created_at"]
             )
         )
+        
+        # Set HttpOnly cookies
+        from fastapi.responses import JSONResponse
+        json_response = JSONResponse(content=response.dict())
+        json_response.set_cookie(
+            key="access_token",
+            value=access_token,
+            httponly=True,
+            secure=True,
+            samesite="lax",
+            max_age=3600
+        )
+        
+        return json_response
         
     except HTTPException:
         raise
@@ -405,9 +463,12 @@ async def logout(
     """Logout user by invalidating refresh token."""
     try:
         # Invalidate refresh token
-        db.table("refresh_tokens").update({"is_valid": False}).eq("token", refresh_data.refresh_token).execute()
+        from fastapi.responses import JSONResponse
+        json_response = JSONResponse(content={"success": True, "message": "Logged out successfully"})
+        json_response.delete_cookie("access_token")
+        json_response.delete_cookie("refresh_token")
         
-        return {"success": True, "message": "Logged out successfully"}
+        return json_response
         
     except Exception as e:
         raise HTTPException(

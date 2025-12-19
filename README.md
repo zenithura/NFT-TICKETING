@@ -20,6 +20,7 @@ A comprehensive NFT ticketing platform combining blockchain technology, advanced
 - Data Science & ML: `backend/data_science/`
 - Monitoring Dashboard: `backend/monitoring/`
 - Documentation: `docs/`
+- Project Analysis: `docs/PROJECT_ANALYSIS.md`
 
 ## Table of Contents
 
@@ -150,6 +151,52 @@ npm run dev:admin
 ```
 
 The main app runs at `http://localhost:5173` and admin dashboard at a different port.
+
+## Using the Database and Site with Data
+
+To fully experience the platform's features, especially the ML-powered fraud detection and analytics, you need to populate the database with data.
+
+### 1. Populating Synthetic Data
+The backend includes scripts to generate and populate the database with synthetic events, tickets, and transactions.
+
+```bash
+cd backend
+source venv/bin/activate
+
+# Generate synthetic data for events and users
+python -m scripts.generate_synthetic_data
+
+# Populate local data for ML models
+python -m scripts.populate_local_data
+```
+
+### 2. Training ML Models
+Once data is populated, you can run the training pipeline to generate model artifacts.
+
+```bash
+cd backend
+source venv/bin/activate
+python -m data_science.pipelines.training_pipeline
+```
+
+### 3. Running the Full Stack
+Use the provided `run_all.sh` script to start all services simultaneously.
+
+```bash
+./run_all.sh
+```
+
+This script starts:
+- Hardhat Node (Blockchain)
+- Contract Deployment
+- Monitoring Dashboard
+- FastAPI Backend
+- React Frontend
+
+### 4. Verifying Data Flow
+- **Frontend**: Browse events at `http://localhost:5173`.
+- **Admin Dashboard**: View analytics and fraud detection results.
+- **Monitoring**: Check `http://localhost:8050` (default) for the real-time monitoring dashboard.
 
 ## Smart Contracts
 
@@ -343,6 +390,7 @@ The `docs/` directory contains comprehensive documentation:
 - **investor_pitch_deck.md**: Business presentation
 - **pitch_speech.md**: Pitch script
 - **qa_report.md**: Quality assurance documentation
+- **PROJECT_ANALYSIS.md**: Detailed analysis of fixed problematic areas
 - **traceability_matrix.md**: Requirements traceability
 
 ## Troubleshooting
