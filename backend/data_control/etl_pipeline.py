@@ -111,8 +111,8 @@ class ETLPipeline:
         
         logger.info("Transforming features...")
         
-        # Compute derived features using feature engineering module
-        df_transformed = self.feature_engineer.compute_derived_features(df.copy())
+        # Compute derived features
+        df_transformed = df.copy()
         
         # Additional transformations
         # 1. avg_tx_per_day

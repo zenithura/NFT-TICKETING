@@ -1,176 +1,178 @@
 import os
-import sys
 import random
 import uuid
-from datetime import datetime, timedelta
-import logging
-from typing import List, Dict, Any
+from datetime import datetime, timedelta, timezone
+from supabase import create_client, Client
+from dotenv import load_dotenv
+import numpy as np
 
-# Add backend to path
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Load environment variables
+load_dotenv()
 
-from backend.database import get_supabase_admin
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
+    print("Error: SUPABASE_URL and SUPABASE_SERVICE_KEY must be set in .env")
+    exit(1)
 
-def generate_synthetic_data():
-    """Generate synthetic data for the NFT Ticketing Platform."""
-    logger.info("Starting synthetic data generation...")
-    
-    db = get_supabase_admin()
-    
-    # 1. Ensure transactions table exists (it was missing)
-    try:
-        # Check if table exists by trying to select from it
-        db.table("transactions").select("id").limit(1).execute()
-        logger.info("✓ 'transactions' table exists")
-    except Exception:
-        logger.info("⚠ 'transactions' table missing. Creating it via SQL...")
-        # Note: We can't execute DDL via the JS/Python client easily without a stored procedure or SQL editor.
-        # But we can try to insert and see if it works, or just assume the user needs to run SQL.
-        # Since we are in an agentic environment, I will assume I can't easily create tables via client.
-        # However, I can try to use the 'rpc' call if there's a function, or just log a warning.
-        # For now, let's assume we might fail on insertion if table doesn't exist, but I'll try to proceed.
-        # Actually, I can use the `rpc` method if I had a `exec_sql` function, but I don't.
-        # I will proceed with generating data for existing tables first.
-        pass
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
-    # 2. Generate Wallets
-    logger.info("Generating Wallets...")
+def generate_wallets(count=50):
+    print(f"Generating {count} wallets...")
     wallets = []
-    for _ in range(20):
-        wallet_address = f"0x{uuid.uuid4().hex}"
-        try:
-            data = {
-                "address": wallet_address,
-                "balance": random.uniform(0, 1000),
-                "verification_level": random.randint(0, 3)
-            }
-            res = db.table("wallets").insert(data).execute()
-            if res.data:
-                wallets.append(res.data[0])
-        except Exception as e:
-            logger.warning(f"Failed to insert wallet: {e}")
+    for _ in range(count):
+        address = f"0x{uuid.uuid4().hex}"
+        wallets.append({
+            "address": address,
+            "balance": round(random.uniform(0.1, 10.0), 4),
+            "allowlist_status": random.choice([True, False]),
+            "verification_level": random.randint(0, 3),
+            "blacklisted": random.random() < 0.05
+        })
+    
+    result = supabase.table("wallets").insert(wallets).execute()
+    return result.data
 
-    if not wallets:
-        logger.error("No wallets created. Aborting.")
-        return
-
-    # 3. Generate Users (linked to wallets)
-    logger.info("Generating Users...")
+def generate_users(wallets, count=50):
+    print(f"Generating {count} users...")
     users = []
-    for i, wallet in enumerate(wallets):
-        try:
-            user_id = str(uuid.uuid4()) # Use UUID for user_id to match typical Supabase Auth
-            # Note: The schema uses BIGINT for user_id, but Supabase Auth uses UUID.
-            # The schema provided shows `user_id BIGSERIAL PRIMARY KEY`, so it's an integer.
-            # Let's stick to the schema.
-            
-            data = {
-                "email": f"user{i}@example.com",
-                "password_hash": "hashed_password",
-                "role": "BUYER",
-                "wallet_address": wallet['address']
-            }
-            res = db.table("users").insert(data).execute()
-            if res.data:
-                users.append(res.data[0])
-        except Exception as e:
-            logger.warning(f"Failed to insert user: {e}")
+    roles = ['BUYER', 'ORGANIZER', 'ADMIN']
+    for i in range(min(count, len(wallets))):
+        wallet = wallets[i]
+        username = f"user_{i}"
+        users.append({
+            "email": f"{username}@example.com",
+            "password_hash": "hashed_password_placeholder", # In real app, use bcrypt
+            "username": username,
+            "first_name": f"First_{i}",
+            "last_name": f"Last_{i}",
+            "role": random.choices(roles, weights=[0.8, 0.15, 0.05])[0],
+            "wallet_address": wallet["address"],
+            "is_email_verified": True
+        })
+    
+    result = supabase.table("users").insert(users).execute()
+    return result.data
 
-    # 4. Generate Venues
-    logger.info("Generating Venues...")
-    venues = []
-    for i in range(5):
-        try:
-            data = {
-                "name": f"Venue {i}",
-                "location": f"Location {i}",
-                "capacity": 1000
-            }
-            res = db.table("venues").insert(data).execute()
-            if res.data:
-                venues.append(res.data[0])
-        except Exception as e:
-            logger.warning(f"Failed to insert venue: {e}")
+def generate_venues(count=5):
+    print(f"Generating {count} venues...")
+    venues = [
+        {"name": "Crypto Arena", "location": "Los Angeles", "city": "LA", "country": "USA", "capacity": 20000},
+        {"name": "Madison Square Garden", "location": "New York", "city": "NYC", "country": "USA", "capacity": 18000},
+        {"name": "O2 Arena", "location": "London", "city": "London", "country": "UK", "capacity": 20000},
+        {"name": "Wembley Stadium", "location": "London", "city": "London", "country": "UK", "capacity": 90000},
+        {"name": "Allianz Arena", "location": "Munich", "city": "Munich", "country": "Germany", "capacity": 75000}
+    ]
+    
+    result = supabase.table("venues").insert(venues[:count]).execute()
+    return result.data
 
-    if not venues:
-        logger.error("No venues created. Aborting.")
-        return
-
-    # 5. Generate Events
-    logger.info("Generating Events...")
+def generate_events(venues, count=10):
+    print(f"Generating {count} events...")
     events = []
-    for i in range(10):
-        try:
-            venue = random.choice(venues)
-            data = {
-                "venue_id": venue['venue_id'],
-                "name": f"Event {i}",
-                "event_date": (datetime.now() + timedelta(days=random.randint(1, 30))).isoformat(),
-                "start_time": "18:00:00",
-                "end_time": "22:00:00",
-                "total_supply": 100,
-                "available_tickets": 100,
-                "base_price": random.uniform(50, 200),
-                "status": "UPCOMING"
-            }
-            res = db.table("events").insert(data).execute()
-            if res.data:
-                events.append(res.data[0])
-        except Exception as e:
-            logger.warning(f"Failed to insert event: {e}")
+    event_names = ["NFT World Tour", "Blockchain Summit", "Crypto Concert", "Web3 Workshop", "Metaverse Meetup"]
+    for i in range(count):
+        venue = random.choice(venues)
+        event_date = datetime.now(timezone.utc) + timedelta(days=random.randint(1, 60))
+        events.append({
+            "venue_id": venue["venue_id"],
+            "name": f"{random.choice(event_names)} {i}",
+            "description": "A premium NFT ticketing event.",
+            "event_date": event_date.isoformat(),
+            "start_time": "18:00:00",
+            "end_time": "22:00:00",
+            "total_supply": venue["capacity"],
+            "available_tickets": venue["capacity"],
+            "base_price": round(random.uniform(0.01, 0.1), 4),
+            "status": "UPCOMING"
+        })
+    
+    result = supabase.table("events").insert(events).execute()
+    return result.data
 
-    if not events:
-        logger.error("No events created. Aborting.")
-        return
-
-    # 6. Generate Tickets
-    logger.info("Generating Tickets...")
+def generate_tickets_and_orders(users, events, count=100):
+    print(f"Generating {count} tickets and orders...")
     tickets = []
-    for event in events:
-        for i in range(5): # 5 tickets per event
-            try:
-                wallet = random.choice(wallets)
-                data = {
-                    "event_id": event['event_id'],
-                    "owner_wallet_id": wallet['wallet_id'],
-                    "token_id": f"{event['event_id']}-{i}-{uuid.uuid4().hex[:4]}",
-                    "status": "ACTIVE",
-                    "purchase_price": event['base_price']
-                }
-                res = db.table("tickets").insert(data).execute()
-                if res.data:
-                    tickets.append(res.data[0])
-            except Exception as e:
-                logger.warning(f"Failed to insert ticket: {e}")
+    for i in range(count):
+        event = random.choice(events)
+        user = random.choice(users)
+        
+        # Find wallet_id for the user
+        wallet_response = supabase.table("wallets").select("wallet_id").eq("address", user["wallet_address"]).execute()
+        wallet_id = wallet_response.data[0]["wallet_id"] if wallet_response.data else None
+        
+        if not wallet_id: continue
 
-    # 7. Generate Transactions (if table exists)
-    # Since we can't easily create the table, we'll try to insert and log if it fails.
-    # We will assume a schema based on data_loader.py requirements.
-    logger.info("Generating Transactions...")
-    for _ in range(50):
-        try:
-            user = random.choice(users) if users else None
-            user_id = user['user_id'] if user else random.randint(1, 100)
-            
-            data = {
-                "user_id": user_id,
-                "amount": random.uniform(10, 500),
-                "transaction_type": random.choice(["PURCHASE", "REFUND", "TRANSFER"]),
+        token_id = f"TICK-{uuid.uuid4().hex[:8].upper()}"
+        ticket_data = {
+            "event_id": event["event_id"],
+            "owner_wallet_id": wallet_id,
+            "token_id": token_id,
+            "tier": random.choice(['GENERAL', 'VIP', 'PREMIUM']),
+            "purchase_price": event["base_price"],
+            "status": "ACTIVE"
+        }
+        
+        ticket_result = supabase.table("tickets").insert(ticket_data).execute()
+        if ticket_result.data:
+            ticket = ticket_result.data[0]
+            order_data = {
+                "buyer_wallet_id": wallet_id,
+                "ticket_id": ticket["ticket_id"],
+                "event_id": event["event_id"],
+                "order_type": "PRIMARY",
+                "price": ticket["purchase_price"],
+                "total_amount": ticket["purchase_price"],
                 "status": "COMPLETED",
-                "created_at": (datetime.now() - timedelta(days=random.randint(0, 30))).isoformat()
+                "transaction_hash": f"0x{uuid.uuid4().hex}"
             }
-            db.table("transactions").insert(data).execute()
-        except Exception as e:
-            # If this fails, it's likely because the table doesn't exist.
-            # We'll log it once and stop trying to avoid spamming.
-            logger.warning(f"Failed to insert transaction (table might be missing): {e}")
-            break
+            supabase.table("orders").insert(order_data).execute()
 
-    logger.info("✓ Synthetic data generation complete!")
+def generate_security_alerts(users, count=30):
+    print(f"Generating {count} security alerts...")
+    alerts = []
+    attack_types = ['XSS', 'SQL_INJECTION', 'BRUTE_FORCE', 'RATE_LIMIT_EXCEEDED']
+    severities = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']
+    
+    for _ in range(count):
+        user = random.choice(users)
+        attack = random.choice(attack_types)
+        alerts.append({
+            "user_id": user["user_id"],
+            "ip_address": f"{random.randint(1,255)}.{random.randint(1,255)}.{random.randint(1,255)}.{random.randint(1,255)}",
+            "attack_type": attack,
+            "payload": f"Suspicious {attack} attempt",
+            "endpoint": "/api/v1/tickets",
+            "severity": random.choice(severities),
+            "risk_score": random.randint(10, 100),
+            "status": "NEW"
+        })
+    
+    supabase.table("security_alerts").insert(alerts).execute()
+
+def main():
+    print("Starting synthetic data generation...")
+    
+    # 1. Wallets
+    wallets = generate_wallets(50)
+    
+    # 2. Users
+    users = generate_users(wallets, 50)
+    
+    # 3. Venues
+    venues = generate_venues(5)
+    
+    # 4. Events
+    events = generate_events(venues, 10)
+    
+    # 5. Tickets & Orders
+    generate_tickets_and_orders(users, events, 100)
+    
+    # 6. Security Alerts
+    generate_security_alerts(users, 30)
+    
+    print("Synthetic data generation complete! 🚀")
 
 if __name__ == "__main__":
-    generate_synthetic_data()
+    main()

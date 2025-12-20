@@ -471,7 +471,12 @@ async def security_middleware(request: Request, call_next):
     except:
         pass
     
-    if is_banned(db, user_id, ip_address):
+    print(f"DEBUG: Checking ban for user={user_id}, ip={ip_address}")
+    print(f"DEBUG: is_banned function: {is_banned}")
+    banned = is_banned(db, user_id, ip_address)
+    print(f"DEBUG: is_banned result: {banned}")
+    
+    if banned:
         return JSONResponse(
             status_code=status.HTTP_403_FORBIDDEN,
             content={"detail": "Access denied: Your account or IP has been banned"}

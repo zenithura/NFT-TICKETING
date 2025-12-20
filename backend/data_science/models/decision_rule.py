@@ -2,26 +2,41 @@ import time
 import logging
 import numpy as np
 from typing import Dict, Any
-from ..core import data_logger
+from ..core import data_logger, ModelManager
 
 logger = logging.getLogger(__name__)
 
 import joblib
 import os
 
-class DecisionRuleModel:
+class DecisionRuleModel(ModelManager):
     def __init__(self, window_size: int = 20, num_std_dev: float = 2.0):
+        super().__init__("decision_rule", "config/model_configs/decision_rule.json")
         self.data_loader = None  # Will be set externally
         self.window_size = window_size
         self.num_std_dev = num_std_dev
         self.history = []
+        
+        # Try to load history from model attribute (which is set by ModelManager.load)
+        if self.model and isinstance(self.model, list):
+            self.history = self.model
 
     def train(self, data: Any = None):
-        """Dummy train method for pipeline compatibility."""
-        base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        artifact_dir = os.path.join(base_dir, "artifacts")
-        os.makedirs(artifact_dir, exist_ok=True)
-        joblib.dump(self.history, os.path.join(artifact_dir, "decision_rule.joblib"))
+        """
+        Loads historical values for the sliding window.
+        """
+        if self.data_loader:
+            logger.info("Fetching historical transaction amounts for decision rule...")
+            try:
+                transactions = self.data_loader.fetch_transaction_history(limit=self.window_size)
+                if transactions:
+                    self.history = [float(tx.get("amount", 0)) for tx in transactions]
+                    logger.info(f"Loaded {len(self.history)} historical values")
+            except Exception as e:
+                logger.error(f"Error fetching data for decision rule: {e}")
+        
+        self.model = self.history
+        self.save()
 
     def predict(self, inputs: Dict[str, Any]) -> str:
         """

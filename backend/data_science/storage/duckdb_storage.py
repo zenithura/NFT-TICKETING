@@ -376,3 +376,4 @@ def get_duckdb_storage(db_path: Optional[Path] = None) -> DuckDBStorage:
     return _duckdb_storage
 
 
+
