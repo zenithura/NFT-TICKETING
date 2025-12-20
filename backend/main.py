@@ -3,6 +3,7 @@ from fastapi import FastAPI, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 import os
+import logging
 from dotenv import load_dotenv
 
 from routers import auth, events, tickets, marketplace, admin, admin_auth, wallet, ml_services, ml_services_v2, chatbot
@@ -40,6 +41,8 @@ except ImportError as e:
     DATA_SCIENCE_AVAILABLE = False
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 # Initialize Sentry
 init_sentry()
@@ -143,8 +146,8 @@ try:
     from a2wsgi import WSGIMiddleware
     from monitoring.dashboard import app as dashboard_app
     app.mount("/dashboard", WSGIMiddleware(dashboard_app.server))
-except ImportError:
-    pass
+except Exception as e:
+    logger.warning(f"Monitoring dashboard not mounted: {e}")
 
 @app.get("/metrics")
 async def metrics():

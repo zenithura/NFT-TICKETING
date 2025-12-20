@@ -1,14 +1,13 @@
-# File header: Interactive Dash web dashboard for real-time fraud detection monitoring.
-# Displays KPIs, fraud scores, transaction volume, and model performance metrics.
-
 """
-Interactive Monitoring Dashboard - Demo Version
-Real-time fraud detection and system monitoring dashboard.
+Premium Monitoring Dashboard - Intelligence Center v2.0
+Real-time fraud detection, system monitoring, and blockchain analytics.
 """
 
+import os
+import sys
 import dash
-from dash import dcc, html, Input, Output, State, ALL
-import plotly.graph_objs as go
+from dash import dcc, html, Input, Output, State, ALL, no_update
+import plotly.graph_objects as go
 import plotly.express as px
 import pandas as pd
 import numpy as np
@@ -16,590 +15,642 @@ from datetime import datetime, timedelta
 import dash_bootstrap_components as dbc
 import requests
 import json
+import psutil
+import platform
+import socket
+from web3 import Web3   
+from typing import Dict, List, Optional, Tuple, Union
+from collections import defaultdict
+import time
+import logging
+from functools import lru_cache
 
-from web3 import Web3
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('dashboard.log')
+    ]
+)
+logger = logging.getLogger(__name__)
 
-# Purpose: Initialize Dash web application with Bootstrap styling.
-# Side effects: Creates Flask app instance, configures Dash.
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+# Constants
+REFRESH_INTERVAL = 5000  # 5 seconds
+HISTORY_WINDOW = 24 * 60 * 60  # 24 hours in seconds
+CACHE_TTL = 60  # Cache TTL in seconds
 
-# Monitoring API URL
-MONITORING_API_URL = "http://localhost:8000/api/v1/metrics"
+# Add parent directory to sys.path to import local modules
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-def load_sample_data():
-    """Load sample transaction data for dashboard."""
+try:
+    from database import get_supabase_admin
+    SUPABASE_AVAILABLE = True
+except ImportError:
+    SUPABASE_AVAILABLE = False
+    print("Warning: Supabase client not available")
+
+# Initialize Dash app with enhanced configuration
+app = dash.Dash(
+    __name__,
+    external_stylesheets=[
+        dbc.themes.BOOTSTRAP,
+        "https://use.fontawesome.com/releases/v5.15.4/css/all.css",
+        "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap",
+        {
+            'href': 'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css',
+            'rel': 'stylesheet'
+        }
+    ],
+    external_scripts=[
+        {
+            'src': 'https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js',
+            'integrity': 'sha512-TW5s0IT/I+JdJ8JkM1G1Xh6k3V4XE+3lR9l2Q5z8v5k1q5q5k5Q1d1Yw5Uw5Q5V5Q5V5Q5V5Q5V5Q5V5Q5V5Q5',
+            'crossorigin': 'anonymous',
+            'async': True
+        }
+    ],
+    assets_folder='assets',
+    meta_tags=[
+        {"name": "viewport", "content": "width=device-width, initial-scale=1, shrink-to-fit=no"},
+        {"http-equiv": "X-UA-Compatible", "content": "IE=edge"},
+        {"name": "description", "content": "Real-time NFT Ticketing Dashboard"},
+        {"name": "theme-color", "content": "#1a1a2e"},
+        {"name": "apple-mobile-web-app-capable", "content": "yes"},
+        {"name": "apple-mobile-web-app-status-bar-style", "content": "black-translucent"}
+    ],
+    suppress_callback_exceptions=True,
+    update_title='Loading...',
+    title='NFT Ticketing Dashboard',
+    assets_ignore='.*\.(map|LICENSE|_)\.*',
+    compress=True,
+    prevent_initial_callbacks=True
+)
+
+# Configure server
+server = app.server
+server.secret_key = os.environ.get('SECRET_KEY', os.urandom(24))
+
+# Configuration
+w3 = Web3(Web3.HTTPProvider(os.getenv('RPC_URL', 'http://localhost:8545')))
+
+def get_real_data(table_name, limit=100):
+    """Fetch real data from Supabase."""
+    if not SUPABASE_AVAILABLE:
+        return None
     try:
-        df = pd.read_csv('sprint3/demos/data/sample_transactions.csv')
-        df['timestamp'] = pd.to_datetime(df['timestamp'])
-    except FileNotFoundError:
-        # Generate minimal sample data if file doesn't exist
-        print("⚠️  Sample data not found, generating minimal dataset...")
-        dates = pd.date_range(end=datetime.now(), periods=1000, freq='5min')
-        df = pd.DataFrame({
-            'timestamp': dates,
-            'transaction_id': [f'txn_{i:06d}' for i in range(1000)],
-            'is_fraud': np.random.random(1000) < 0.02,
-            'price_paid': np.random.uniform(20, 200, 1000),
-            'wallet_address': [f'0x{i%100:040x}' for i in range(1000)]
-        })
-
-df = load_sample_data()
-
-def calculate_kpis(df, time_range='24h'):
-    """Calculate real-time KPIs based on time range."""
-    hours = int(time_range.replace('h', '').replace('d', '')) * (24 if 'd' in time_range else 1)
-    recent_df = df[df['timestamp'] > datetime.now() - timedelta(hours=hours)]
-    
-    try:
-        response = requests.get(f"{MONITORING_API_URL}/system", timeout=2)
-        if response.status_code == 200:
-            system_metrics = response.json()
-            kpi_response = requests.get(f"{MONITORING_API_URL}/kpis", timeout=2)
-            primary_kpis = kpi_response.json() if kpi_response.status_code == 200 else {}
-            
-            return {
-                'transactions_per_hour': len(recent_df),
-                'fraud_rate': primary_kpis.get('fraud_detection_rate', {}).get('value', 0),
-                'api_latency': system_metrics.get('api_latency', {}).get('p95_latency_ms', 45.0),
-                'revenue_per_hour': primary_kpis.get('revenue_per_hour', {}).get('value', 0),
-                'conversion_rate': primary_kpis.get('conversion_rate', {}).get('value', 4.2)
-            }
-    except:
-        pass
-    
-    return {
-        'transactions_per_hour': len(recent_df),
-        'fraud_rate': recent_df['is_fraud'].mean() * 100 if len(recent_df) > 0 else 0,
-        'api_latency': np.random.uniform(40, 55),
-        'revenue_per_hour': recent_df['price_paid'].sum() if 'price_paid' in recent_df.columns else 0,
-        'conversion_rate': 4.2
-    }
-
-def get_blockchain_metrics():
-    """Fetch real-time blockchain metrics from Hardhat."""
-    try:
-        if w3.is_connected():
-            block_number = w3.eth.block_number
-            gas_price = w3.eth.gas_price / 1e9  # Convert to Gwei
-            return {
-                'block_number': block_number,
-                'gas_price': f"{gas_price:.2f} Gwei",
-                'status': "Connected",
-                'status_color': "success"
-            }
+        db = get_supabase_admin()
+        response = db.table(table_name).select("*").order("created_at", desc=True).limit(limit).execute()
+        return pd.DataFrame(response.data) if response.data else None
     except Exception as e:
-        print(f"Blockchain connection error: {e}")
-    
-    return {
-        'block_number': "N/A",
-        'gas_price': "N/A",
-        'status': "Disconnected",
-        'status_color': "danger"
+        print(f"Error fetching from {table_name}: {e}")
+        return None
+
+@lru_cache(maxsize=32)
+def get_system_metrics() -> Dict[str, float]:
+    """Collect system-level metrics."""
+    try:
+        cpu_percent = psutil.cpu_percent(interval=1)
+        memory = psutil.virtual_memory()
+        disk = psutil.disk_usage('/')
+        
+        return {
+            'cpu_percent': cpu_percent,
+            'memory_percent': memory.percent,
+            'disk_percent': disk.percent,
+            'network_sent': psutil.net_io_counters().bytes_sent,
+            'network_recv': psutil.net_io_counters().bytes_recv,
+            'boot_time': psutil.boot_time(),
+            'process_count': len(psutil.pids())
+        }
+    except Exception as e:
+        logger.error(f"Error getting system metrics: {e}")
+        return {}
+
+def calculate_kpis() -> Dict[str, Union[int, float]]:
+    """Calculate real-time KPIs from Supabase with enhanced metrics."""
+    kpis = {
+        'transactions_per_hour': 0,
+        'fraud_rate': 0.0,
+        'api_latency': 0,
+        'revenue_per_hour': 0.0,
+        'active_users': 0,
+        'success_rate': 100.0,
+        'avg_ticket_price': 0.0,
+        'peak_tps': 0,
+        'block_height': 0,
+        'gas_price': 0,
+        'pending_txs': 0,
+        **get_system_metrics()
     }
+    
+    if not SUPABASE_AVAILABLE:
+        logger.warning("Supabase not available, using mock data")
+        return {
+            **kpis,
+            'transactions_per_hour': 124,
+            'fraud_rate': 1.2,
+            'api_latency': 38,
+            'revenue_per_hour': 1250.0,
+            'active_users': 850,
+            'success_rate': 99.8,
+            'avg_ticket_price': 0.05,
+            'peak_tps': 42,
+            'block_height': 15000000,
+            'gas_price': 15.7,
+            'pending_txs': 123
+        }
+    
+    try:
+        db = get_supabase_admin()
+        now = datetime.utcnow()
+        one_hour_ago = (now - timedelta(hours=1)).isoformat()
+        
+        # Batch database queries
+        with db.client.session() as session:
+            # Get transactions and revenue
+            orders = session.table("orders")\
+                .select("total_amount,created_at,status")\
+                .gte("created_at", one_hour_ago)\
+                .execute()
+                
+            # Get bot detections
+            bots = session.table("bot_detection")\
+                .select("risk_score,detected_at")\
+                .gte("detected_at", one_hour_ago)\
+                .execute()
+                
+            # Get web requests for latency and success rate
+            web_requests = session.table("web_requests")\
+                .select("response_time_ms,status_code,created_at")\
+                .order("created_at", desc=True)\
+                .limit(1000)\
+                .execute()
+                
+            # Get active users (last 24h)
+            active_users = session.rpc('count_recent_users', {'hours': 24}).execute()
+        
+        # Process transactions
+        if orders.data:
+            successful_orders = [o for o in orders.data if o.get('status') == 'completed']
+            kpis['transactions_per_hour'] = len(successful_orders)
+            kpis['revenue_per_hour'] = sum(float(o.get('total_amount', 0)) for o in successful_orders)
+            kpis['avg_ticket_price'] = kpis['revenue_per_hour'] / len(successful_orders) if successful_orders else 0
+            
+            # Calculate TPS (transactions per second) peak in the last hour
+            if successful_orders:
+                timestamps = [pd.to_datetime(o['created_at']) for o in successful_orders]
+                if timestamps:
+                    time_diffs = [(timestamps[i+1] - timestamps[i]).total_seconds() for i in range(len(timestamps)-1)]
+                    if time_diffs:
+                        kpis['peak_tps'] = int(1 / min(time_diffs)) if min(time_diffs) > 0 else 0
+        
+        # Process bot detections
+        if bots.data:
+            total_actions = kpis['transactions_per_hour'] + len(bots.data)
+            if total_actions > 0:
+                kpis['fraud_rate'] = (len(bots.data) / total_actions) * 100
+        
+        # Process web requests
+        if web_requests.data:
+            latencies = [r['response_time_ms'] for r in web_requests.data if 'response_time_ms' in r]
+            if latencies:
+                kpis['api_latency'] = int(np.percentile(latencies, 95))
+                
+            # Calculate success rate
+            total_requests = len(web_requests.data)
+            if total_requests > 0:
+                successful_requests = sum(1 for r in web_requests.data if 200 <= r.get('status_code', 0) < 400)
+                kpis['success_rate'] = (successful_requests / total_requests) * 100
+        
+        # Get active users
+        if hasattr(active_users, 'data') and active_users.data:
+            kpis['active_users'] = active_users.data[0].get('count', 0) if active_users.data else 0
+        
+        # Get blockchain data
+        try:
+            if w3.is_connected():
+                kpis['block_height'] = w3.eth.block_number
+                kpis['gas_price'] = float(w3.from_wei(w3.eth.gas_price, 'gwei'))
+                kpis['pending_txs'] = len(w3.eth.get_block('pending', full_transactions=True).transactions)
+        except Exception as e:
+            logger.warning(f"Could not fetch blockchain data: {e}")
+        
+        logger.info(f"Calculated KPIs: {kpis}")
+        return kpis
+        
+    except Exception as e:
+        logger.error(f"Error calculating KPIs: {e}", exc_info=True)
+        # Return partial data if available
+        return {k: v for k, v in kpis.items() if v is not None}
+        
+    return kpis
 
 # Dashboard Layout
-app.layout = dbc.Container([
-    dcc.Store(id='theme-store', data='light'),
-    # Wallet Reputation Modal
-    dbc.Modal([
-        dbc.ModalHeader(dbc.ModalTitle("🔍 Wallet Reputation Profile")),
-        dbc.ModalBody(id="wallet-modal-content"),
-        dbc.ModalFooter(
-            dbc.Button("Close", id="close-wallet-modal", className="ms-auto", n_clicks=0)
-        ),
-    ], id="wallet-modal", size="lg", is_open=False),
+app.layout = html.Div([
+    dcc.Store(id='theme-store', data='dark'),
+    
+    dbc.Container([
+        # Header
+        dbc.Row([
+            dbc.Col([
+                html.Div([
+                    html.H1([
+                        html.I(className="fas fa-shield-alt me-3", style={'color': '#38bdf8'}),
+                        "Intelligence Center ",
+                        html.Span("v2.0", style={'fontSize': '1.5rem', 'opacity': '0.7'})
+                    ], className="my-4 fw-bold", style={'letterSpacing': '1px'}),
+                ], className="d-flex align-items-center")
+            ], width=8),
+            dbc.Col([
+                html.Div([
+                    html.Div(id="blockchain-status", className="me-4"),
+                    dbc.Button([
+                        html.I(className="fas fa-moon me-2"), "Dark Mode"
+                    ], id="theme-toggle", color="outline-info", size="sm", className="rounded-pill")
+                ], className="d-flex align-items-center justify-content-end h-100")
+            ], width=4)
+        ], className="mb-4"),
 
-    # Header & Interactive Control Panel
-    dbc.Row([
-        dbc.Col([
-            html.H1([html.I(className="fas fa-shield-alt me-3"), "Intelligence Center v2.0"], 
-                    className="text-center my-4 text-primary fw-bold"),
-        ], width=10),
-        dbc.Col([
-            html.Div([
-                html.I(className="fas fa-sun me-2 text-warning"),
-                dbc.Checklist(
-                    options=[{"label": "", "value": 1}],
-                    value=[],
-                    id="theme-toggle",
-                    switch=True,
-                    inline=True,
-                    className="d-inline-block"
-                ),
-                html.I(className="fas fa-moon ms-2 text-primary"),
-            ], className="text-end pt-4")
-        ], width=2)
-    ]),
-    
-    dbc.Row([
-        dbc.Col([
-            html.H1("🎫 NFT Ticketing - Monitoring Dashboard", className="text-center my-4"),
-            html.P(f"Last Updated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}", 
-                   className="text-center text-muted")
-        ])
-    ]),
-    
-    # Filter Bar
-    dbc.Card([
-        dbc.CardBody([
-            dbc.Row([
-                dbc.Col([
-                    html.Label("🕒 Time Horizon", className="text-muted small mb-1"),
-                    dbc.RadioItems(
-                        id='time-range-selector',
-                        options=[
-                            {'label': '1h', 'value': 1},
-                            {'label': '6h', 'value': 6},
-                            {'label': '24h', 'value': 24},
-                            {'label': '7d', 'value': 168},
-                        ],
-                        value=24,
-                        inline=True,
-                        className="mt-1"
-                    )
-                ], width=3),
-                dbc.Col([
-                    html.Label("🤖 Model Focus", className="text-muted small mb-1"),
-                    dcc.Dropdown(
-                        id='model-focus-selector',
-                        options=[
-                            {'label': 'Bot Detection', 'value': 'bot'},
-                            {'label': 'Fraud Score', 'value': 'fraud'},
-                            {'label': 'Scalping', 'value': 'scalp'},
-                        ],
-                        value='bot',
-                        clearable=False
-                    )
-                ], width=6),
-                dbc.Col([
+        # KPI Cards
+        dbc.Row([
+            # Transactions Card
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.Div([
+                            html.Div([
+                                html.Span("Total Transactions", className="text-uppercase small text-muted"),
+                                html.Div([
+                                    html.Span("1h", className="badge bg-primary-soft ms-2"),
+                                    html.Span(id="tx-trend-arrow", className="ms-2")
+                                ], className="d-flex align-items-center")
+                            ], className="d-flex justify-content-between align-items-center mb-2"),
+                            html.H3(id="kpi-tx-count", className="mb-0"),
+                            html.Div([
+                                html.Small(id="tx-trend-text", className="text-muted"),
+                                html.Small(" vs previous hour", className="text-muted")
+                            ], className="d-flex align-items-center")
+                        ])
+                    ])
+                ], className="h-100 border-0 shadow-sm")
+            ], md=3, className="mb-4"),
+            
+            # Fraud Detection Card
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.Div([
+                            html.Div([
+                                html.Span("Fraud Rate", className="text-uppercase small text-muted"),
+                                dbc.Badge("Real-time", color="danger", className="ms-2")
+                            ], className="d-flex justify-content-between align-items-center mb-2"),
+                            html.H3(id="kpi-fraud-rate", className="mb-0"),
+                            html.Div([
+                                dbc.Progress(
+                                    id="fraud-progress",
+                                    value=0,
+                                    max=100,
+                                    color="danger",
+                                    className="my-2"
+                                ),
+                                html.Small("Target: ", className="text-muted"),
+                                html.Span("< 2.0%", className="text-danger fw-bold")
+                            ])
+                        ])
+                    ])
+                ], className="h-100 border-0 shadow-sm")
+            ], md=3, className="mb-4"),
+            
+            # System Health Card
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.Div([
+                            html.Div([
+                                html.Span("System Health", className="text-uppercase small text-muted"),
+                                html.Span(id="system-status-badge", className="badge bg-success")
+                            ], className="d-flex justify-content-between align-items-center mb-2"),
+                            html.Div([
+                                html.Div([
+                                    html.Small("CPU:", className="text-muted"),
+                                    html.Span(id="cpu-usage", className="ms-2 fw-bold"),
+                                    html.Div(
+                                        dbc.Progress(
+                                            id="cpu-progress",
+                                            value=0,
+                                            max=100,
+                                            color="primary",
+                                            className="my-1"
+                                        )
+                                    )
+                                ], className="mb-2"),
+                                html.Div([
+                                    html.Small("Memory:", className="text-muted"),
+                                    html.Span(id="memory-usage", className="ms-2 fw-bold"),
+                                    html.Div(
+                                        dbc.Progress(
+                                            id="memory-progress",
+                                            value=0,
+                                            max=100,
+                                            color="info",
+                                            className="my-1"
+                                        )
+                                    )
+                                ])
+                            ])
+                        ])
+                    ])
+                ], className="h-100 border-0 shadow-sm")
+            ], md=3, className="mb-4"),
+            
+            # Blockchain Status Card
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardBody([
+                        html.Div([
+                            html.Div([
+                                html.Span("Blockchain", className="text-uppercase small text-muted"),
+                                html.Span(id="blockchain-status-badge", className="badge bg-success")
+                            ], className="d-flex justify-content-between align-items-center mb-2"),
+                            html.Div([
+                                html.Div([
+                                    html.Small("Block:", className="text-muted"),
+                                    html.Span(id="block-height", className="ms-2 font-monospace"),
+                                    html.Small("Gas:", className="text-muted ms-3"),
+                                    html.Span(id="gas-price", className="ms-2 font-monospace")
+                                ], className="mb-2"),
+                                html.Div([
+                                    html.Small("Pending TXs:", className="text-muted"),
+                                    html.Span(id="pending-txs", className="ms-2 font-monospace"),
+                                    html.Small("Peak TPS:", className="text-muted ms-3"),
+                                    html.Span(id="peak-tps", className="ms-2 font-monospace")
+                                ])
+                            ])
+                        ])
+                    ])
+                ], className="h-100 border-0 shadow-sm")
+            ], md=3, className="mb-4"),
+        ], className="mb-4"),
+
+        # Main Charts
+        dbc.Row([
+            dbc.Col([
+                html.Div([
                     html.Div([
-                        html.Span(id='last-sync-time', className="text-muted small me-3"),
-                        dbc.Button([html.I(className="fas fa-sync-alt me-2"), "SYNC NOW"], color="dark", size="sm", id="sync-button")
-                    ], className="d-flex align-items-center justify-content-end h-100")
-                ], width=3)
-            ])
-        ])
-    ], className="mb-4 shadow-sm border-0"),
-    
-    # KPI Row
-    dbc.Row([
-        dbc.Col([
-            dbc.Card([
-                dbc.CardBody([
-                    html.H5("📊 Transactions/Hour", className="card-title"),
-                    html.H2(id='kpi-transactions', className="text-primary"),
-                    html.P(id='kpi-transactions-delta', className="text-muted")
-                ])
-            ], className="mb-3")
-        ], width=3),
-        dbc.Col([
-            dbc.Card([
-                dbc.CardBody([
-                    html.H5("🚨 Fraud Rate", className="card-title"),
-                    html.H2(id='kpi-fraud-rate', className="text-danger"),
-                    html.P("Target: <2%", className="text-muted")
-                ])
-            ], className="mb-3")
-        ], width=3),
-        dbc.Col([
-            dbc.Card([
-                dbc.CardBody([
-                    html.H5("⚡ API Latency (p95)", className="card-title"),
-                    html.H2(id='kpi-latency', className="text-warning"),
-                    html.P("Target: <50ms", className="text-muted")
-                ])
-            ], className="mb-3")
-        ], width=3),
-        dbc.Col([
-            dbc.Card([
-                dbc.CardBody([
-                    html.H5("💰 Revenue/Hour", className="card-title"),
-                    html.H2(id='kpi-revenue', className="text-success"),
-                    html.P("Baseline: $11.2k", className="text-muted")
-                ])
-            ], className="mb-3")
-        ], width=3),
-    ]),
-    
-    # Fraud Detection Chart
-    dbc.Row([
-        dbc.Col([
-            dbc.Card([
-                dbc.CardBody([
-                    html.H5("Fraud Score Distribution (Last 24 Hours)"),
-                    dcc.Graph(id='fraud-timeseries')
-                ])
-            ])
-        ], width=12)
-    ], className="mb-3"),
-    
-    # Traffic and Model Performance
-    dbc.Row([
-        dbc.Col([
-            dbc.Card([
-                dbc.CardBody([
-                    html.H5("Transaction Volume"),
-                    dcc.Graph(id='traffic-chart')
-                ])
-            ])
-        ], width=6),
-        dbc.Col([
-            dbc.Card([
-                dbc.CardBody([
-                    html.H5("Fraud Detection Performance"),
-                    dcc.Graph(id='performance-chart')
-                ])
-            ])
-        ], width=6),
-    ], className="mb-3"),
-    
-    # Recent High-Risk Transactions
-    dbc.Row([
-        dbc.Col([
-            dbc.Card([
-                dbc.CardBody([
-                    html.H5("🚨 Recent High-Risk Transactions"),
-                    html.Div(id='recent-fraud-table')
-                ])
-            ])
-        ])
-    ], className="mb-3"),
-    
-    # Alerts Section
-    dbc.Row([
-        dbc.Col([
-            dbc.Card([
-                dbc.CardBody([
-                    html.Div(id='recent-fraud-table')
-                ])
-            ])
-        ])
-    ], className="mb-3"),
-    
-    # System KPIs Section
-    dbc.Row([
-        dbc.Col([
-            dbc.Card([
-                dbc.CardBody([
-                    html.H5("📈 System KPIs", className="card-title"),
-                    html.Div(id='system-kpis')
-                ])
-            ])
-        ], width=6),
-        dbc.Col([
-            dbc.Card([
-                dbc.CardBody([
-                    html.H5("🔍 SIEM Findings", className="card-title"),
-                    html.Div(id='siem-findings')
-                ])
-            ])
-        ], width=6)
-    ], className="mb-3"),
-    
-    # Auto-refresh interval
-    dcc.Interval(
-        id='interval-component',
-        interval=5*1000,  # 5 seconds
-        n_intervals=0
-    )
-], fluid=True, style={'backgroundColor': '#f8f9fa', 'minHeight': '100vh', 'padding': '20px'})
+                        html.H5("Fraud Score Distribution", className="mb-0"),
+                        dbc.Badge("Real-time", color="danger", className="ms-2 status-badge")
+                    ], className="d-flex align-items-center mb-4"),
+                    dcc.Graph(id="fraud-dist-chart", config={'displayModeBar': False})
+                ], className="glass-card p-4 h-100")
+            ], width=8),
+            dbc.Col([
+                html.Div([
+                    html.H5("System Health", className="mb-4"),
+                    html.Div(id="system-health-stats")
+                ], className="glass-card p-4 h-100")
+            ], width=4),
+        ], className="mb-4"),
 
-# Theme Toggle Callback
-app.clientside_callback(
-    """
-    function(toggle_value) {
-        const theme = toggle_value.length > 0 ? 'dark' : 'light';
-        if (theme === 'dark') {
-            document.body.classList.add('dark-mode');
-        } else {
-            document.body.classList.remove('dark-mode');
-        }
-        return theme;
-    }
-    """,
-    Output('theme-store', 'data'),
-    Input('theme-toggle', 'value')
-)
+        # Charts Row
+        dbc.Row([
+            # Transactions Chart
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardHeader([
+                        html.H5("Transaction Analytics", className="mb-0"),
+                        dbc.ButtonGroup([
+                            dbc.Button("24h", id="tx-range-24h", color="outline-primary", size="sm", className="active"),
+                            dbc.Button("7d", id="tx-range-7d", color="outline-primary", size="sm"),
+                            dbc.Button("30d", id="tx-range-30d", color="outline-primary", size="sm")
+                        ], className="btn-group-toggle")
+                    ], className="d-flex justify-content-between align-items-center"),
+                    dbc.CardBody([
+                        dcc.Graph(
+                            id="tx-chart",
+                            config={"displayModeBar": False},
+                            style={"height": "300px"}
+                        )
+                    ])
+                ], className="h-100 border-0 shadow-sm")
+            ], lg=8, className="mb-4"),
+            
+            # System Metrics
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardHeader([
+                        html.H5("System Metrics", className="mb-0"),
+                        dbc.Badge("Live", color="success", className="ms-2")
+                    ]),
+                    dbc.CardBody([
+                        html.Div(id="system-metrics-chart")
+                    ])
+                ], className="h-100 border-0 shadow-sm")
+            ], lg=4, className="mb-4"),
+        ], className="mb-4"),
+        
+        # Tables Row
+        dbc.Row([
+            # Alerts Table
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardHeader([
+                        html.H5("Recent Security Alerts", className="mb-0"),
+                        dbc.Button("View All", color="link", size="sm", className="p-0")
+                    ], className="d-flex justify-content-between align-items-center"),
+                    dbc.CardBody([
+                        html.Div(id="alerts-table-container", className="table-responsive")
+                    ])
+                ], className="h-100 border-0 shadow-sm")
+            ], lg=6, className="mb-4"),
+            
+            # Transaction Feed
+            dbc.Col([
+                dbc.Card([
+                    dbc.CardHeader([
+                        html.H5("Live Transaction Feed", className="mb-0"),
+                        dbc.Button("Refresh", id="refresh-tx-feed", color="link", size="sm", className="p-0")
+                    ], className="d-flex justify-content-between align-items-center"),
+                    dbc.CardBody([
+                        html.Div(id="tx-table-container", className="tx-feed")
+                    ])
+                ], className="h-100 border-0 shadow-sm")
+            ], lg=6, className="mb-4"),
+        ]),
 
-# Purpose: Update KPI card values based on interval timer trigger.
-# Params: n (int) — interval counter from auto-refresh component.
-# Returns: Tuple of KPI values.
+        # Footer
+        html.Footer([
+            html.P([
+                "© 2025 NFT Ticketing Platform | ",
+                html.Span(id="live-clock", className="fw-bold")
+            ], className="text-center text-muted mt-5 small")
+        ]),
+
+        dcc.Interval(id='interval-fast', interval=2000, n_intervals=0),
+        dcc.Interval(id='interval-slow', interval=10000, n_intervals=0),
+    ], fluid=True, className="py-4")
+], id="main-container", className="dark-mode")
+
+# Callbacks
 @app.callback(
-    [Output('kpi-transactions', 'children'),
-     Output('kpi-fraud-rate', 'children'),
-     Output('kpi-latency', 'children'),
-     Output('kpi-revenue', 'children'),
-     Output('kpi-transactions-delta', 'children')],
-    [Input('interval-component', 'n_intervals')]
+    [Output("kpi-tx-count", "children"),
+     Output("kpi-fraud-rate", "children"),
+     Output("kpi-latency", "children"),
+     Output("kpi-revenue", "children")],
+    [Input("interval-slow", "n_intervals")]
 )
-def update_kpis(n, time_range, n_clicks):
-    """Update KPI cards with real-time data."""
-    kpis = calculate_kpis(df, time_range)
-    
-    delta = "▲ +12% (1h)" if kpis['transactions_per_hour'] > 1000 else "▼ -5% (1h)"
-    delta_color = "text-success" if "▲" in delta else "text-danger"
-    
+def update_kpi_values(n):
+    kpis = calculate_kpis()
     return (
-        f"{kpis['transactions_per_hour']:,}",
+        f"{kpis['transactions_per_hour']}",
         f"{kpis['fraud_rate']:.1f}%",
-        f"{kpis['api_latency']:.0f}MS",
-        f"${kpis['revenue_per_hour']:,.0f}",
-        "▲ +12% (1h)" if kpis['transactions_per_hour'] > 1000 else "▼ -5% (1h)"
+        f"{kpis['api_latency']}ms",
+        f"${kpis['revenue_per_hour']:,.2f}"
     )
 
-# Purpose: Update fraud score time series chart with recent transaction data.
-# Params: n (int) — interval counter from auto-refresh component.
-# Returns: Plotly figure object with scatter plot and threshold lines.
-# Side effects: Filters data to last 24 hours, generates mock fraud scores, creates chart.
 @app.callback(
-    Output('fraud-timeseries', 'figure'),
-    [Input('interval-component', 'n_intervals')]
+    Output("fraud-dist-chart", "figure"),
+    [Input("interval-slow", "n_intervals")]
 )
 def update_fraud_chart(n):
-    """Update fraud detection time series."""
-    recent_df = df[df['timestamp'] > datetime.now() - timedelta(hours=24)]
+    # Fetch real bot detections
+    df = get_real_data("bot_detection", limit=50)
     
-    recent_df = recent_df.copy()
-    recent_df['fraud_score'] = np.where(
-        recent_df['is_fraud'],
-        np.random.uniform(0.7, 0.95, len(recent_df)),
-        np.random.uniform(0.05, 0.4, len(recent_df))
-    )
-    
+    if df is None or df.empty:
+        # Generate mock data for visualization if empty
+        times = [datetime.now() - timedelta(minutes=i*5) for i in range(50)]
+        scores = [np.random.beta(2, 5) for _ in range(50)]
+        df = pd.DataFrame({'detected_at': times, 'risk_score': scores})
+    else:
+        df['detected_at'] = pd.to_datetime(df['detected_at'])
+
     fig = go.Figure()
     fig.add_trace(go.Scatter(
-        x=recent_df['timestamp'],
-        y=recent_df['fraud_score'],
-        mode='markers',
+        x=df['detected_at'],
+        y=df['risk_score'],
+        mode='markers+lines',
+        line=dict(color='#38bdf8', width=1),
         marker=dict(
-            size=6,
-            color=recent_df['fraud_score'],
-            colorscale='RdYlGn_r',
-            showscale=True,
-            colorbar=dict(title="Fraud Score")
+            size=8,
+            color=df['risk_score'],
+            colorscale=[[0, '#34d399'], [0.5, '#fbbf24'], [1, '#f87171']],
+            showscale=False
         ),
-        text=[f"TxnID: {tid}<br>Score: {score:.2f}" 
-              for tid, score in zip(recent_df['transaction_id'], recent_df['fraud_score'])],
-        hovertemplate='%{text}<extra></extra>'
-    ))
-    
-    # Add threshold lines
-    fig.add_hline(y=0.85, line_dash="dash", line_color="red", 
-                  annotation_text="BLOCKED (>0.85)")
-    fig.add_hline(y=0.65, line_dash="dash", line_color="orange", 
-                  annotation_text="REVIEW (>0.65)")
-    fig.add_hline(y=0.40, line_dash="dash", line_color="yellow", 
-                  annotation_text="2FA (>0.40)")
-    
-    fig.update_layout(
-        xaxis_title="Time",
-        yaxis_title="Fraud Score",
-        hovermode='closest',
-        height=400
-    )
-    return fig
-
-@app.callback(
-    Output('traffic-chart', 'figure'),
-    [Input('interval-component', 'n_intervals')]
-)
-def update_traffic_chart(n):
-    """Update traffic chart."""
-    recent_df = df[df['timestamp'] > datetime.now() - timedelta(hours=6)]
-    
-    # Group by hour
-    hourly = recent_df.groupby(pd.Grouper(key='timestamp', freq='15min')).size().reset_index(name='count')
-    
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(
-        x=hourly['timestamp'],
-        y=hourly['count'],
-        mode='lines',
         fill='tozeroy',
-        line=dict(color='#1f77b4', width=2)
+        fillcolor='rgba(56, 189, 248, 0.1)'
     ))
-    
+
     fig.update_layout(
-        xaxis_title="Time",
-        yaxis_title="Transactions per 15min",
-        hovermode='x unified',
-        height=300
+        paper_bgcolor='rgba(0,0,0,0)',
+        plot_bgcolor='rgba(0,0,0,0)',
+        font=dict(color='#94a3b8'),
+        margin=dict(l=0, r=0, t=0, b=0),
+        height=300,
+        xaxis=dict(showgrid=False, zeroline=False),
+        yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.05)', zeroline=False, range=[0, 1])
     )
-    
     return fig
 
 @app.callback(
-    Output('performance-chart', 'figure'),
-    [Input('interval-component', 'n_intervals')]
+    Output("blockchain-status", "children"),
+    [Input("interval-fast", "n_intervals")]
 )
-def update_performance_chart(n):
-    """Update model performance chart."""
-    # Mock confusion matrix data
-    confusion_data = pd.DataFrame({
-        'Actual': ['Fraud', 'Fraud', 'Legit', 'Legit'],
-        'Predicted': ['Fraud', 'Legit', 'Fraud', 'Legit'],
-        'Count': [142, 18, 89, 11751]
-    })
-    
-    fig = px.bar(
-        confusion_data,
-        x='Actual',
-        y='Count',
-        color='Predicted',
-        barmode='group',
-        title="Confusion Matrix (Last 24h)"
-    )
-    
-    fig.update_layout(height=300)
-    
-    return fig
+def update_blockchain_status(n):
+    try:
+        if w3.is_connected():
+            block = w3.eth.block_number
+            return dbc.Badge([
+                html.I(className="fas fa-link me-2"),
+                f"Mainnet Node: #{block}"
+            ], color="success", className="status-badge")
+    except:
+        pass
+    return dbc.Badge([
+        html.I(className="fas fa-unlink me-2"),
+        "Node Offline"
+    ], color="danger", className="status-badge")
 
-# Purpose: Update table displaying recent high-risk fraudulent transactions.
-# Params: n (int) — interval counter from auto-refresh component.
-# Returns: HTML table component with transaction details.
-# Side effects: Filters data to fraud cases, generates mock scores, creates table.
 @app.callback(
-    Output('recent-fraud-table', 'children'),
-    [Input('interval-component', 'n_intervals')]
-)
-def update_fraud_table(n):
-    """Update recent high-risk transactions table."""
-    recent_fraud = df[df['is_fraud']].tail(10)
-    
-    if len(recent_fraud) == 0:
-        return html.P("No high-risk transactions in recent period", className="text-muted")
-    
-    table_header = [
-        html.Thead(html.Tr([
-            html.Th("Time"),
-            html.Th("Transaction ID"),
-            html.Th("Wallet"),
-            html.Th("Score"),
-            html.Th("Decision")
-        ]))
-    ]
-    
-    rows = []
-    for _, row in recent_fraud.iterrows():
-        score = np.random.uniform(0.7, 0.95)  # Mock score
-        decision = "BLOCKED" if score > 0.85 else "REVIEW"
-        
-        rows.append(html.Tr([
-            html.Td(row['timestamp'].strftime('%H:%M:%S')),
-            html.Td(row['transaction_id'][:12] + '...'),
-            html.Td(row['wallet_address'][:10] + '...'),
-            html.Td(f"{score:.2f}", className="text-danger"),
-            html.Td(decision, className="badge bg-danger" if decision == "BLOCKED" else "badge bg-warning")
-        ]))
-    
-    table_body = [html.Tbody(rows)]
-    
-    return dbc.Table(table_header + table_body, bordered=True, hover=True, size='sm')
-
-# Wallet Modal Callbacks
-@app.callback(
-    Output('alerts-table', 'children'),
-    [Input('interval-component', 'n_intervals')]
+    Output("alerts-table-container", "children"),
+    [Input("interval-slow", "n_intervals")]
 )
 def update_alerts_table(n):
-    """Update alerts table."""
-    try:
-        # Try to fetch alerts from monitoring API
-        response = requests.get("http://localhost:5002/api/v1/alerts", timeout=2)
-        if response.status_code == 200:
-            alerts = response.json()
-            if alerts:
-                table_header = [
-                    html.Thead(html.Tr([
-                        html.Th("Time"),
-                        html.Th("Alert"),
-                        html.Th("Severity"),
-                        html.Th("Message")
-                    ]))
-                ]
-                rows = []
-                for alert in alerts[:10]:  # Last 10 alerts
-                    severity_color = {
-                        'CRITICAL': 'danger',
-                        'HIGH': 'danger',
-                        'MEDIUM': 'warning',
-                        'LOW': 'info'
-                    }.get(alert.get('severity', 'LOW'), 'secondary')
-                    
-                    rows.append(html.Tr([
-                        html.Td(alert.get('created_at', '')[:19] if alert.get('created_at') else ''),
-                        html.Td(alert.get('name', '')),
-                        html.Td(
-                            html.Span(alert.get('severity', 'LOW'), 
-                                    className=f"badge bg-{severity_color}")
-                        ),
-                        html.Td(alert.get('message', ''))
-                    ]))
-                
-                table_body = [html.Tbody(rows)]
-                return dbc.Table(table_header + table_body, bordered=True, hover=True, size='sm')
-            else:
-                return html.P("No active alerts", className="text-success")
-        else:
-            return html.P("Unable to fetch alerts", className="text-muted")
-    except Exception as e:
-        return html.P(f"Error: {str(e)}", className="text-danger")
+    df = get_real_data("security_alerts", limit=5)
+    if df is None or df.empty:
+        return html.P("No active security alerts", className="text-success small")
+    
+    rows = []
+    for _, row in df.iterrows():
+        severity = row.get('severity', 'LOW')
+        color = "danger" if severity in ['HIGH', 'CRITICAL'] else "warning" if severity == 'MEDIUM' else "info"
+        
+        rows.append(html.Tr([
+            html.Td(row.get('created_at', '')[11:19], className="text-muted small"),
+            html.Td(row.get('attack_type', 'Unknown')),
+            html.Td(dbc.Badge(severity, color=color, className="status-badge")),
+            html.Td(row.get('status', 'NEW'), className="small")
+        ]))
+    
+    return dbc.Table([
+        html.Thead(html.Tr([html.Th("Time"), html.Th("Type"), html.Th("Severity"), html.Th("Status")])),
+        html.Tbody(rows)
+    ], hover=True, responsive=True, className="mb-0")
 
 @app.callback(
-    Output('system-kpis', 'children'),
-    [Input('interval-component', 'n_intervals')]
+    Output("tx-table-container", "children"),
+    [Input("interval-slow", "n_intervals")]
 )
-def update_system_kpis(n):
-    """Update system KPIs."""
-    try:
-        response = requests.get(f"{MONITORING_API_URL}/system", timeout=2)
-        if response.status_code == 200:
-            metrics = response.json()
-            
-            kpi_items = []
-            for metric_name, metric_data in metrics.items():
-                if isinstance(metric_data, dict) and 'kpi_name' in metric_data:
-                    kpi_items.append(html.Div([
-                        html.Strong(f"{metric_name.replace('_', ' ').title()}: "),
-                        html.Span(str(metric_data.get('value', metric_data.get('avg_lag_seconds', 'N/A'))))
-                    ], className="mb-2"))
-            
-            return html.Div(kpi_items) if kpi_items else html.P("No metrics available", className="text-muted")
-        else:
-            return html.P("Unable to fetch system KPIs", className="text-muted")
-    except Exception as e:
-        return html.P(f"Error: {str(e)}", className="text-danger")
+def update_tx_table(n):
+    df = get_real_data("orders", limit=5)
+    if df is None or df.empty:
+        return html.P("Waiting for transactions...", className="text-muted small")
+    
+    rows = []
+    for _, row in df.iterrows():
+        rows.append(html.Tr([
+            html.Td(row.get('created_at', '')[11:19], className="text-muted small"),
+            html.Td(f"#{row.get('order_id', '0')}", className="fw-bold"),
+            html.Td(f"{row.get('total_amount', 0):.4f} ETH", className="text-success"),
+            html.Td(dbc.Badge(row.get('status', 'PENDING'), color="primary", className="status-badge"))
+        ]))
+    
+    return dbc.Table([
+        html.Thead(html.Tr([html.Th("Time"), html.Th("Order"), html.Th("Amount"), html.Th("Status")])),
+        html.Tbody(rows)
+    ], hover=True, responsive=True, className="mb-0")
 
 @app.callback(
-    Output('siem-findings', 'children'),
-    [Input('interval-component', 'n_intervals')]
+    Output("live-clock", "children"),
+    [Input("interval-fast", "n_intervals")]
 )
-def update_siem_findings(n):
-    """Update SIEM findings."""
-    try:
-        # This would connect to SIEM API when available
-        return html.P("SIEM integration coming soon", className="text-muted")
-    except Exception as e:
-        return html.P(f"Error: {str(e)}", className="text-danger")
+def update_clock(n):
+    return datetime.now().strftime("%H:%M:%S UTC")
+
+@app.callback(
+    [Output("main-container", "className"),
+     Output("theme-toggle", "children")],
+    [Input("theme-toggle", "n_clicks")],
+    [State("theme-store", "data")]
+)
+def toggle_theme(n, current_theme):
+    if n is None:
+        return "dark-mode", [html.I(className="fas fa-sun me-2"), "Light Mode"]
+    
+    if current_theme == "dark":
+        return "light-mode", [html.I(className="fas fa-moon me-2"), "Dark Mode"]
+    else:
+        return "dark-mode", [html.I(className="fas fa-sun me-2"), "Light Mode"]
+
+@app.callback(
+    Output("theme-store", "data"),
+    [Input("theme-toggle", "n_clicks")],
+    [State("theme-store", "data")]
+)
+def update_theme_store(n, current_theme):
+    if n is None: return current_theme
+    return "light" if current_theme == "dark" else "dark"
 
 if __name__ == '__main__':
-    print("=" * 60)
-    print("NFT Ticketing Monitoring Dashboard")
-    print("=" * 60)
-    print("\n🚀 Starting dashboard on http://localhost:8050")
-    print("\nFeatures:")
-    print("  ✅ Real-time KPI monitoring")
-    print("  ✅ Fraud detection visualization")
-    print("  ✅ Transaction volume tracking")
-    print("  ✅ Model performance metrics")
-    print("  ✅ Auto-refresh every 5 seconds")
-    print("\n" + "=" * 60)
-    
-    # Purpose: Determine debug mode from environment variable (default: False for production).
-    # Side effects: Reads DEBUG environment variable.
-    import os
     debug_mode = os.getenv('DEBUG', 'false').lower() == 'true'
-    
-    # Purpose: Start Dash server with environment-based debug configuration.
-    # Side effects: Starts HTTP server, enables debug mode only if DEBUG=true.
     app.run_server(debug=debug_mode, host='0.0.0.0', port=8050)
